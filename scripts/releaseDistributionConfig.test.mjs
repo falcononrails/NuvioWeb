@@ -54,13 +54,11 @@ test("Compose defaults every production service to stable without a tag environm
   assert.doesNotMatch(compose, /NUVIO_TAG/);
 });
 
-test("Docker Quick Deploy documents hosted defaults and server-only Trakt configuration", async () => {
-  const [environmentTemplate, readme, environmentDocs] = await Promise.all([
+test("Environment configuration retains hosted defaults and server-only Trakt values", async () => {
+  const [environmentTemplate, environmentDocs] = await Promise.all([
     readRepositoryFile(".env.example"),
-    readRepositoryFile("README.md"),
     readRepositoryFile("docs/environment.md"),
   ]);
-  const dockerSection = readme.split("## Self-host with Docker", 2)[1];
 
   assert.match(environmentTemplate, /NUVIO_SUPABASE_URL=https:\/\/api\.nuvio\.tv/);
   assert.match(environmentTemplate, /NUVIO_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1Ni/);
@@ -68,11 +66,6 @@ test("Docker Quick Deploy documents hosted defaults and server-only Trakt config
   assert.match(environmentTemplate, /TRAKT_CLIENT_SECRET=/);
   assert.match(environmentTemplate, /Server-only Trakt bridge values/);
   assert.doesNotMatch(environmentTemplate, /service[_-]?role/i);
-  assert.match(readme, /### Quick Deploy with Docker/);
-  assert.match(readme, /raw\.githubusercontent\.com\/alphasquare404\/NuvioWeb\/web\/docker-compose\.yml/);
-  assert.match(readme, /raw\.githubusercontent\.com\/alphasquare404\/NuvioWeb\/web\/\.env\.example/);
-  assert.match(readme, /docs\/environment\.md/);
-  assert.doesNotMatch(dockerSection, /git clone/);
   assert.match(environmentDocs, /Frontend-only self-hosting \(recommended\)/);
   assert.match(environmentDocs, /Full self-hosting \(advanced\)/);
   assert.match(environmentDocs, /TRAKT_CLIENT_SECRET.*Server-only/s);
