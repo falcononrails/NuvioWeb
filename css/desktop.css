@@ -3778,6 +3778,7 @@ html.desktop-browser {
 }
 
 .desktop-browser #player .player-audio-track-list .player-dialog-item {
+  position: relative;
   display: block;
   width: 100%;
   min-height: 52px;
