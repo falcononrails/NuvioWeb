@@ -1,0 +1,487 @@
+{
+  "date": "2026-09-19",
+  "baseCommit": "cb41080f402f6d04bc67c61789e0045e05af706d",
+  "avplayer": "1.3.1",
+  "cases": {
+    "1080p": [
+      {
+        "source": "avplayer:h264-ac3.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 634,
+        "seekMs": 72,
+        "switchMs": 73,
+        "rendererCpuPercentOfOneCore": 13.8,
+        "jsHeapMiB": 8.7,
+        "initialObservedAudioMinusVideoMs": -99,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [91, 0, 91],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/ac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "results": [
+          {
+            "startMs": 326,
+            "seekMs": 72,
+            "switchMs": 71,
+            "ok": true
+          },
+          {
+            "startMs": 911,
+            "seekMs": 80,
+            "switchMs": 118,
+            "ok": true
+          },
+          {
+            "startMs": 634,
+            "seekMs": 60,
+            "switchMs": 73,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "avplayer:h264-dca.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 328,
+        "seekMs": 86,
+        "switchMs": 61,
+        "rendererCpuPercentOfOneCore": 23.1,
+        "jsHeapMiB": 10.6,
+        "initialObservedAudioMinusVideoMs": -81,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [40, 80, 40],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/dca-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "results": [
+          {
+            "startMs": 645,
+            "seekMs": 74,
+            "switchMs": 61,
+            "ok": true
+          },
+          {
+            "startMs": 291,
+            "seekMs": 86,
+            "switchMs": 58,
+            "ok": true
+          },
+          {
+            "startMs": 328,
+            "seekMs": 88,
+            "switchMs": 96,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "avplayer:h264-eac3.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 385,
+        "seekMs": 46,
+        "switchMs": 97,
+        "rendererCpuPercentOfOneCore": 13.5,
+        "jsHeapMiB": 8.7,
+        "initialObservedAudioMinusVideoMs": -118,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [56, 16, 96],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/eac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "results": [
+          {
+            "startMs": 943,
+            "seekMs": 29,
+            "switchMs": 106,
+            "ok": true
+          },
+          {
+            "startMs": 328,
+            "seekMs": 46,
+            "switchMs": 92,
+            "ok": true
+          },
+          {
+            "startMs": 385,
+            "seekMs": 75,
+            "switchMs": 97,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "avstream:h264-eac3.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 539,
+        "seekMs": 70,
+        "switchMs": 79,
+        "rendererCpuPercentOfOneCore": 23.8,
+        "jsHeapMiB": 9.7,
+        "initialObservedAudioMinusVideoMs": 18,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [0, 64, 40],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/eac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "results": [
+          {
+            "startMs": 863,
+            "seekMs": 66,
+            "switchMs": 79,
+            "ok": true
+          },
+          {
+            "startMs": 532,
+            "seekMs": 70,
+            "switchMs": 92,
+            "ok": true
+          },
+          {
+            "startMs": 539,
+            "seekMs": 81,
+            "switchMs": 77,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "hls:hls/index.m3u8",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 123,
+        "seekMs": 49,
+        "switchMs": null,
+        "rendererCpuPercentOfOneCore": 18.6,
+        "jsHeapMiB": 8.8,
+        "initialObservedAudioMinusVideoMs": -60,
+        "decodeErrors": 0,
+        "droppedFrames": [1, 0, 0],
+        "pauseAdvanceMs": [null, null, null],
+        "verifiedSwitches": 0,
+        "requestedWasm": [],
+        "browser": "153.0.8010.48",
+        "results": [
+          {
+            "startMs": 120,
+            "seekMs": 48,
+            "ok": true
+          },
+          {
+            "startMs": 136,
+            "seekMs": 49,
+            "ok": true
+          },
+          {
+            "startMs": 123,
+            "seekMs": 57,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "native:h264-aac.mp4",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 54,
+        "seekMs": 49,
+        "switchMs": null,
+        "rendererCpuPercentOfOneCore": 17,
+        "jsHeapMiB": 12.9,
+        "initialObservedAudioMinusVideoMs": 21,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [null, null, null],
+        "verifiedSwitches": 0,
+        "requestedWasm": [],
+        "browser": "153.0.8010.48",
+        "results": [
+          {
+            "startMs": 42,
+            "seekMs": 49,
+            "ok": true
+          },
+          {
+            "startMs": 54,
+            "seekMs": 49,
+            "ok": true
+          },
+          {
+            "startMs": 54,
+            "seekMs": 49,
+            "ok": true
+          }
+        ]
+      }
+    ],
+    "4k": [
+      {
+        "source": "avplayer:hevc-eac3-4k.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 909,
+        "seekMs": 42,
+        "switchMs": 101,
+        "rendererCpuPercentOfOneCore": 13,
+        "jsHeapMiB": 14.7,
+        "initialObservedAudioMinusVideoMs": -103,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [128, 21, 64],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/eac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "environment": {
+          "platform": "win32",
+          "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+          "playwright": "1.63.0",
+          "cpuSlowdown": 1,
+          "headless": true
+        },
+        "results": [
+          {
+            "startMs": 1309,
+            "seekMs": 33,
+            "switchMs": 81,
+            "ok": true
+          },
+          {
+            "startMs": 315,
+            "seekMs": 42,
+            "switchMs": 101,
+            "ok": true
+          },
+          {
+            "startMs": 909,
+            "seekMs": 50,
+            "switchMs": 125,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "avstream:hevc-eac3-4k.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 540,
+        "seekMs": 119,
+        "switchMs": 164,
+        "rendererCpuPercentOfOneCore": 53.8,
+        "jsHeapMiB": 10.2,
+        "initialObservedAudioMinusVideoMs": 40,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [120, 53, 163],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/eac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "environment": {
+          "platform": "win32",
+          "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+          "playwright": "1.63.0",
+          "cpuSlowdown": 1,
+          "headless": true
+        },
+        "results": [
+          {
+            "startMs": 241,
+            "seekMs": 152,
+            "switchMs": 164,
+            "ok": true
+          },
+          {
+            "startMs": 827,
+            "seekMs": 102,
+            "switchMs": 143,
+            "ok": true
+          },
+          {
+            "startMs": 540,
+            "seekMs": 119,
+            "switchMs": 185,
+            "ok": true
+          }
+        ]
+      }
+    ],
+    "slow": [
+      {
+        "source": "avplayer:h264-eac3.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 496,
+        "seekMs": 53,
+        "switchMs": 101,
+        "rendererCpuPercentOfOneCore": 120.2,
+        "jsHeapMiB": 8.7,
+        "initialObservedAudioMinusVideoMs": -103,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [128, 96, 56],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/eac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "environment": {
+          "platform": "win32",
+          "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+          "playwright": "1.63.0",
+          "cpuSlowdown": 4,
+          "headless": true
+        },
+        "results": [
+          {
+            "startMs": 595,
+            "seekMs": 41,
+            "switchMs": 69,
+            "ok": true
+          },
+          {
+            "startMs": 496,
+            "seekMs": 53,
+            "switchMs": 101,
+            "ok": true
+          },
+          {
+            "startMs": 479,
+            "seekMs": 62,
+            "switchMs": 154,
+            "ok": true
+          }
+        ]
+      },
+      {
+        "source": "avstream:h264-eac3.mkv",
+        "runs": 3,
+        "successful": 3,
+        "startMs": 730,
+        "seekMs": 81,
+        "switchMs": 82,
+        "rendererCpuPercentOfOneCore": 128.7,
+        "jsHeapMiB": 10,
+        "initialObservedAudioMinusVideoMs": 20,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [0, 80, 96],
+        "verifiedSwitches": 3,
+        "requestedWasm": [
+          "decode/eac3-simd.wasm",
+          "resample/resample-simd.wasm",
+          "stretchpitch/stretchpitch-simd.wasm"
+        ],
+        "browser": "153.0.8010.48",
+        "environment": {
+          "platform": "win32",
+          "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+          "playwright": "1.63.0",
+          "cpuSlowdown": 4,
+          "headless": true
+        },
+        "results": [
+          {
+            "startMs": 735,
+            "seekMs": 81,
+            "switchMs": 82,
+            "ok": true
+          },
+          {
+            "startMs": 730,
+            "seekMs": 80,
+            "switchMs": 81,
+            "ok": true
+          },
+          {
+            "startMs": 717,
+            "seekMs": 82,
+            "switchMs": 119,
+            "ok": true
+          }
+        ]
+      }
+    ],
+    "native": [
+      {
+        "source": "native:h264-eac3.mkv",
+        "runs": 3,
+        "successful": 0,
+        "startMs": 385,
+        "seekMs": 9,
+        "switchMs": null,
+        "rendererCpuPercentOfOneCore": 16.3,
+        "jsHeapMiB": 13.7,
+        "initialObservedAudioMinusVideoMs": null,
+        "decodeErrors": 0,
+        "droppedFrames": [0, 0, 0],
+        "pauseAdvanceMs": [null, null, null],
+        "verifiedSwitches": 0,
+        "requestedWasm": [],
+        "browser": "153.0.8010.48",
+        "environment": {
+          "platform": "win32",
+          "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+          "playwright": "1.63.0",
+          "cpuSlowdown": 1,
+          "headless": true
+        },
+        "results": [
+          {
+            "startMs": 407,
+            "seekMs": 17,
+            "ok": false
+          },
+          {
+            "startMs": 71,
+            "seekMs": 8,
+            "ok": false
+          },
+          {
+            "startMs": 385,
+            "seekMs": 9,
+            "ok": false
+          }
+        ]
+      }
+    ]
+  },
+  "server": {
+    "createMs": [970, 908, 893],
+    "seekMs": [781, 776, 821],
+    "switchMs": [784, 777, 768],
+    "cpus": 1.5,
+    "memoryGiB": 1
+  }
+}

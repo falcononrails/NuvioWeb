@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><title>Nuvio AVPlayer playback benchmark</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font: 16px system-ui;
+    }
+    #surface {
+      width: 960px;
+      height: 540px;
+      position: relative;
+      background: #000;
+    }
+    video,
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
+  <div id="surface"></div>
+  <script type="module" src="/bench.js"></script>
+</html>
