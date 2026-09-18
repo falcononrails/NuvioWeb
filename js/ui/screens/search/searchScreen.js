@@ -924,8 +924,10 @@ export const SearchScreen = {
             ${
               this.layoutPrefs?.discoverLocation === "in_search"
                 ? `
-              <button class="search-discover-btn focusable" data-action="openDiscover">
-                <span class="search-action-icon material-icons" aria-hidden="true">explore</span>
+              <button class="search-discover-btn focusable" data-action="openDiscover"
+                aria-label="${escapeHtml(t("sidebar.discover", {}, "Discover"))}"
+                title="${escapeHtml(t("sidebar.discover", {}, "Discover"))}">
+                <span class="search-action-icon search-discover-icon" aria-hidden="true"></span>
               </button>
             `
                 : ""
