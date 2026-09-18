@@ -36,15 +36,12 @@ jobs:
           tar -czf release.tar.gz -C dist .
       - name: Deploy release
         env:
-          DEPLOY_KEY: ${{ secrets.NUVIO_DEPLOY_KEY }}
-          DEPLOY_HOST: ${{ secrets.NUVIO_DEPLOY_HOST }}
-          DEPLOY_HOST_KEY: ${{ secrets.NUVIO_DEPLOY_HOST_KEY }}
+          DEPLOY_TOKEN: ${{ secrets.NUVIO_DEPLOY_TOKEN }}
         run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/nuvio
-          printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/nuvio ~/.ssh/known_hosts
-          ssh -i ~/.ssh/nuvio -o BatchMode=yes -o StrictHostKeyChecking=yes "nuvio-deploy@$DEPLOY_HOST" "deploy $GITHUB_SHA" < release.tar.gz
+          curl --fail-with-body --max-time 180 --silent --show-error \
+            --header "Authorization: Bearer $DEPLOY_TOKEN" \
+            --header 'Content-Type: application/gzip' \
+            --data-binary @release.tar.gz "https://nuvioweb.space/__deploy/$GITHUB_SHA"
       - name: Verify public release
         run: |
           curl --fail --retry 3 --silent "https://nuvioweb.space/release.json?commit=$GITHUB_SHA" > deployed.json
