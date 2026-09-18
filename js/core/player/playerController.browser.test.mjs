@@ -302,3 +302,22 @@ test("changing the adaptive playback source clears browser audio tracks", () => 
   PlayerController.teardownAdaptiveInstances();
   assert.deepEqual(PlayerController.getBrowserAudioTracks(), []);
 });
+
+test("autoplay denial requests a gesture without treating the stream as broken", async () => {
+  const previous = { video: PlayerController.video, emit: PlayerController.emitVideoEvent, gate: PlayerController.startupAudioGateActive };
+  const events = [];
+  let fallbackCalls = 0;
+  try {
+    PlayerController.startupAudioGateActive = false;
+    PlayerController.video = createBrowserPlaybackVideo(() => Promise.reject(Object.assign(new Error("Autoplay blocked"), { name: "NotAllowedError" })));
+    PlayerController.emitVideoEvent = (name) => events.push(name);
+    assert.equal(await PlayerController.attemptBrowserVideoPlay({ onRejected: () => { fallbackCalls++; } }), false);
+    assert.deepEqual(events, ["playbackgesture"]);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(PlayerController.isPlaying, false);
+  } finally {
+    PlayerController.video = previous.video;
+    PlayerController.emitVideoEvent = previous.emit;
+    PlayerController.startupAudioGateActive = previous.gate;
+  }
+});

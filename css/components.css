@@ -21050,3 +21050,14 @@ html[data-card-depth="true"][data-card-depth-trailers="true"] .detail-trailer-ca
     width: 100%;
   }
 }
+
+.stream-route-compatibility {
+  display: inline-block;
+  margin: 6px 6px 0 0;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: rgba(235, 183, 69, 0.14);
+  color: #ebc36a;
+  font-size: 0.75rem;
+  font-weight: 600;
+}

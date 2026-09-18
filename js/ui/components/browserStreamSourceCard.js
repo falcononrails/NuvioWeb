@@ -7,6 +7,7 @@ import {
 } from "../../core/media/addonLogoCache.js";
 import { matchStreamBadges, normalizeStreamBadgeChipColor } from "../../core/streams/streamBadgeRules.js";
 import { I18n } from "../../i18n/index.js";
+import { browserSourceWarnings } from "../../core/player/browserMediaSupport.js";
 
 const STREAM_BADGE_LIMIT = 9;
 
@@ -172,6 +173,7 @@ export function normalizeSourceForDisplay(
   const filename = String(source.behaviorHints?.filename || "").trim();
   return {
     source,
+    compatibilityWarnings: browserSourceWarnings(source),
     headline,
     quality,
     badges,
@@ -187,10 +189,15 @@ export function normalizeSourceForDisplay(
 }
 
 /** Renders the shared card body; callers own the outer card action. */
+export function renderBrowserSourceWarnings(warnings = []) {
+  return warnings.map((warning) => `<span class="stream-route-compatibility" title="${escapeHtml(warning)}" aria-label="${escapeHtml(warning)}">${warning.startsWith("Audio") ? "May be silent" : "May not play"}</span>`).join("");
+}
+
 export function renderBrowserSourceCardContent(model = {}) {
   const badges = model.badges || "";
+  const compatibility = renderBrowserSourceWarnings(model.compatibilityWarnings);
   const addonIdentity = model.showAddonLogo
     ? `<div class="stream-route-card-side"><div class="stream-route-addon-badge">${model.addonLogoUrl ? `<img src="${escapeHtml(model.addonLogoUrl)}" alt="${escapeHtml(model.addonName || "Addon")}" decoding="async" loading="lazy" referrerpolicy="no-referrer" /><span hidden>${escapeHtml(model.addonBadgeLabel || "A")}</span>` : `<span>${escapeHtml(model.addonBadgeLabel || "A")}</span>`}</div><div class="stream-route-addon-name" title="${escapeHtml(model.addonName || "Addon")}">${escapeHtml(model.addonName || "Addon")}</div></div>`
     : "";
-  return `<div class="stream-route-card-copy"><div class="stream-route-card-heading">${escapeHtml(model.headline || "Unknown source")}</div>${model.topBadges || ""}${!badges ? `<div class="stream-route-card-quality">${escapeHtml(model.quality || "Auto")}</div>` : ""}${(model.descriptionLines || []).map((line, index) => `<div class="stream-route-card-line${index > 0 ? " secondary" : ""}" title="${escapeHtml(line)}">${escapeHtml(line)}</div>`).join("")}${model.bottomBadges || ""}</div>${addonIdentity}`;
+  return `<div class="stream-route-card-copy"><div class="stream-route-card-heading">${escapeHtml(model.headline || "Unknown source")}</div>${model.topBadges || ""}${!badges ? `<div class="stream-route-card-quality">${escapeHtml(model.quality || "Auto")}</div>` : ""}${(model.descriptionLines || []).map((line, index) => `<div class="stream-route-card-line${index > 0 ? " secondary" : ""}" title="${escapeHtml(line)}">${escapeHtml(line)}</div>`).join("")}${model.bottomBadges || ""}${compatibility}</div>${addonIdentity}`;
 }

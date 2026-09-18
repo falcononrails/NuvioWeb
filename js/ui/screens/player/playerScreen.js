@@ -34,6 +34,8 @@ import { metaRepository } from "../../../data/repository/metaRepository.js";
 import { I18n } from "../../../i18n/index.js";
 import { Environment } from "../../../platform/environment.js";
 import { Router } from "../../navigation/router.js";
+import { browserSourceWarnings, canAmplifyBrowserMedia, unavailableAudioMessage } from "../../../core/player/browserMediaSupport.js";
+import { renderBrowserSourceWarnings } from "../../components/browserStreamSourceCard.js";
 import { setBrowserMediaTitle } from "../../navigation/browserDocumentTitle.js";
 import { renderLoadingIndicator } from "../../components/loadingIndicator.js";
 import { bindBrowserPlayerGestures, getBrowserPlayerVideoTapAction } from "../../components/browserPlayerGestures.js";
@@ -1658,7 +1660,7 @@ function dbToGain(db = 0) {
 }
 
 function supportsWebAudioAmplification() {
-  return true;
+  return canAmplifyBrowserMedia(PlayerController.video);
 }
 
 function isMagnetUrl(value = "") {
@@ -3568,7 +3570,7 @@ export const PlayerScreen = {
   },
 
   getUnavailableTrackMessage(kind = "audio") {
-    return kind === "subtitle" ? "No subtitle tracks available." : "No audio tracks available.";
+    return kind === "subtitle" ? "No subtitle tracks available." : unavailableAudioMessage();
   },
 
   getVideoTextTrackList() {
@@ -5612,6 +5614,7 @@ export const PlayerScreen = {
   },
 
   clearStartupError() {
+    this.awaitingPlaybackGesture = false;
     this.startupErrorMessage = "";
     this.startupErrorMediaCode = 0;
     this.startupErrorDetails = [];
@@ -5998,6 +6001,16 @@ export const PlayerScreen = {
     button?.classList?.add("focused");
   },
 
+  resumePlaybackFromGesture() {
+    this.clearStartupError();
+    this.releaseStartupAudioGate({ resume: false });
+    PlayerController.setStartupPresentationAudioMuted?.(false);
+    this.loadingVisible = true;
+    this.updateLoadingVisibility();
+    // Keep play() in the original click/key event for Safari's activation policy.
+    void PlayerController.attemptBrowserVideoPlay();
+  },
+
   renderStartupErrorOverlay() {
     const overlay = this.uiRefs?.startupErrorOverlay;
     if (!overlay) {
@@ -6018,7 +6031,7 @@ export const PlayerScreen = {
       : [];
     overlay.innerHTML = `
       <div class="player-startup-error-shell">
-        <div class="player-startup-error-title">${escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
+        <div class="player-startup-error-title">${this.awaitingPlaybackGesture ? "Ready to play" : escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
         <div class="player-startup-error-message">${escapeHtml(message)}</div>
         ${
           detailLines.length
@@ -6029,7 +6042,8 @@ export const PlayerScreen = {
         `
             : ""
         }
-        <button class="player-startup-error-button focusable focused" type="button" tabindex="-1" data-player-error-action="back">
+        ${this.awaitingPlaybackGesture ? '<button class="player-startup-error-button focusable focused" type="button" data-player-error-action="play">Play</button>' : ""}
+        <button class="player-startup-error-button focusable" type="button" tabindex="0" data-player-error-action="back">
           ${escapeHtml(t("player_go_back", {}, "Go Back"))}
         </button>
       </div>
@@ -8509,6 +8523,10 @@ export const PlayerScreen = {
     };
 
     const bindings = [
+      ["playbackgesture", () => {
+        this.awaitingPlaybackGesture = true;
+        this.showStartupError("Tap Play to start this video.", { details: [] });
+      }],
       ["waiting", onWaiting],
       ["playing", onPlaying],
       ["error", onError],
@@ -14435,6 +14453,7 @@ export const PlayerScreen = {
                   ${mainTitle}
                   <div class="player-source-desc">${escapeHtml(stream.description || stream.addonName || "")}</div>
                   ${bottomBadges}
+                  ${Environment.isBrowser() ? renderBrowserSourceWarnings(browserSourceWarnings(stream)) : ""}
                 </div>
                 ${sourceSide}
               </article>
@@ -16150,6 +16169,10 @@ export const PlayerScreen = {
 
     const errorAction = target.closest?.("[data-player-error-action]");
     if (errorAction && this.isStartupErrorVisible()) {
+      if (errorAction.dataset.playerErrorAction === "play" && this.awaitingPlaybackGesture) {
+        this.resumePlaybackFromGesture();
+        return true;
+      }
       if (String(errorAction.dataset.playerErrorAction || "") === "back") {
         this.navigateBackToStreamScreen();
         return true;
@@ -16453,6 +16476,10 @@ export const PlayerScreen = {
     if (this.isStartupErrorVisible()) {
       event?.preventDefault?.();
       event?.stopPropagation?.();
+      if (this.awaitingPlaybackGesture && isSelectKeyCode(keyCode)) {
+        this.resumePlaybackFromGesture();
+        return;
+      }
       if (isBackKey || isSelectKeyCode(keyCode) || keyCode === 66) {
         if (!this.navigateBackToStreamScreen()) {
           Router.back();

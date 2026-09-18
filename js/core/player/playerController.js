@@ -414,7 +414,13 @@ export const PlayerController = {
     }
 
     const handleRejectedPlay = async (error) => {
+      if (playToken !== null && playToken !== this.playRequestToken) return false;
       if (this.isExpectedPlayInterruption(error)) {
+        return false;
+      }
+      if (error?.name === "NotAllowedError") {
+        this.isPlaying = false;
+        this.emitVideoEvent("playbackgesture");
         return false;
       }
       if (typeof onRejected === "function") {
