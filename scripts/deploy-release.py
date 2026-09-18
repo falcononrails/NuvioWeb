@@ -62,4 +62,5 @@ with (ROOT / '.deploy.lock').open('w') as lock:
         replacement.unlink(missing_ok=True)
         replacement.symlink_to('releases/' + release.name)
         replacement.replace(current)
+        (ROOT / '.deployed').write_text(revision + '\n')
         print('Deployed ' + revision)

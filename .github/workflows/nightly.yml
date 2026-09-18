@@ -48,3 +48,9 @@ jobs:
         run: |
           curl --fail --retry 3 --silent "https://nuvioweb.space/release.json?commit=$GITHUB_SHA" > deployed.json
           node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync("deployed.json")); if(r.commit!==process.env.GITHUB_SHA) throw Error("Deployment did not serve the expected commit"); console.log("Deployed",r.commit);'
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent https://nuvioweb.space/api/playback/health > playback.json && node --input-type=module -e 'import {readFileSync} from "node:fs"; if(JSON.parse(readFileSync("playback.json")).revision !== process.env.GITHUB_SHA) process.exit(1)'; then exit 0; fi
+            sleep 2
+          done
+          echo 'Playback bridge did not load the new release.'
+          exit 1

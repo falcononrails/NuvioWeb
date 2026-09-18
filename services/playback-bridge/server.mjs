@@ -1,7 +1,7 @@
 import http from "node:http";
 import { randomBytes, createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { createReadStream } from "node:fs";
+import { createReadStream, realpathSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -67,6 +67,7 @@ export async function createPlaybackBridge({
   const cookies = new Map();
   const authCache = new Map();
   const requests = new Map();
+  const revision = await readFile(new URL("../../release.json", import.meta.url), "utf8").then(text => JSON.parse(text).commit).catch(() => null);
   await mkdir(root, { recursive: true });
 
   async function verify(req) {
@@ -328,6 +329,7 @@ export async function createPlaybackBridge({
       if (path === "/api/playback/health" && req.method === "GET") {
         json(res, 200, {
           available: true,
+          revision,
           maxSessions: MAX_SESSIONS,
           mode: "copy-video-aac-audio"
         });
@@ -482,7 +484,7 @@ export async function createPlaybackBridge({
   };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const {
     NUVIO_ORIGIN: origin,
     NUVIO_SUPABASE_URL: authUrl,
