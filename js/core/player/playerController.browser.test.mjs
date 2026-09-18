@@ -355,3 +355,13 @@ test("resuming compatibility playback renews segments even when old ranges remai
   player.resume();
   assert.equal(resumedAt, 128);
 });
+
+test("compatibility playback stays at the server's real-time conversion rate", async () => {
+  const player = Object.create(PlayerController);
+  player.video = { playbackRate: 2 };
+  player.compatibility = {};
+  assert.deepEqual(player.getSupportedPlaybackRates(), [1]);
+  assert.equal(await player.setPlaybackRate(2), false);
+  assert.equal(await player.setPlaybackRate(1), true);
+  assert.equal(player.video.playbackRate, 1);
+});

@@ -77,6 +77,7 @@ export const PlayerController = {
     session.sourceUrl = this.compatibility?.sourceUrl || this.currentPlaybackUrl;
     session.sourceHeaders = this.compatibility?.sourceHeaders || this.currentPlaybackHeaders;
     this.compatibility = session;
+    await this.setPlaybackRate(1);
     this.compatibilityPendingPosition = session.offset;
     this.currentPlaybackUrl = session.url;
     this.currentPlaybackHeaders = {};
@@ -1508,6 +1509,9 @@ export const PlayerController = {
   },
 
   getSupportedPlaybackRates() {
+    // ponytail: the bounded server buffer runs at real time; add rate-aware
+    // conversion only if compatibility playback needs variable speed.
+    if (this.compatibility) return [1];
     return [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
   },
 
@@ -1524,6 +1528,7 @@ export const PlayerController = {
       return false;
     }
     const targetSpeed = this.normalizePlaybackRate(speed);
+    if (this.compatibility && targetSpeed !== 1) return false;
     if (!Number.isFinite(targetSpeed)) {
       return false;
     }
