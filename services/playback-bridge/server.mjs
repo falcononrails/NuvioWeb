@@ -312,7 +312,10 @@ export async function createPlaybackBridge({
     while (Date.now() < deadline && !session.stopped && !session.encoderError) {
       try {
         const manifest = await readFile(join(directory, "index.m3u8"), "utf8");
-        if (manifest.includes("#EXTINF:")) {
+        // A seek can produce a very short first segment. Buffer the next one
+        // before starting playback so it cannot immediately outrun conversion.
+        const segmentCount = (manifest.match(/^#EXTINF:/gm) || []).length;
+        if (segmentCount >= 2 || (segmentCount > 0 && manifest.includes("#EXT-X-ENDLIST"))) {
           for (let old = 1; old < generation; old++)
             await rm(join(session.directory, String(old)), { recursive: true, force: true });
           return {

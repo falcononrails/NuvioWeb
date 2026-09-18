@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import vm from "node:vm";
 
 globalThis.__NUVIO_PLATFORM__ = "browser";
 
@@ -364,6 +365,30 @@ test("compatibility playback stays at the server's real-time conversion rate", a
   assert.equal(await player.setPlaybackRate(2), false);
   assert.equal(await player.setPlaybackRate(1), true);
   assert.equal(player.video.playbackRate, 1);
+});
+
+test("compatibility seek stops the old loader before replacing its server playlist", async () => {
+  const calls = [];
+  const session = { id: "test", track: 1 };
+  const result = { id: "test", track: 2, offset: 30 };
+  const player = vm.runInNewContext(`({${PlayerController.seekCompatibilityPlayback.toString()}})`, {
+    requestCompatibilityPlayback: async (path, body) => {
+      assert.deepEqual(calls, ["pause", "stop loader", "waiting"]);
+      assert.equal(path, "/test/seek");
+      assert.equal(body.position, 30);
+      assert.equal(body.track, 2);
+      return result;
+    }
+  });
+  Object.assign(player, {
+    compatibility: session,
+    video: { pause: () => calls.push("pause") },
+    teardownAdaptiveInstances: () => calls.push("stop loader"),
+    emitVideoEvent: name => calls.push(name),
+    loadCompatibilityPlayback: async value => assert.equal(value, result)
+  });
+  assert.equal(await player.seekCompatibilityPlayback(30, 2), true);
+  assert.equal(player.compatibilitySeeking, false);
 });
 
 test("leaving the page releases conversion while merely backgrounding it keeps playback", () => {

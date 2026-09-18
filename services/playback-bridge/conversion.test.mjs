@@ -113,6 +113,9 @@ test(
       assert.equal(seek.body.offset, 20);
       assert.equal(seek.body.track, session.tracks[1].index);
       assert.equal(seek.body.duration, session.duration);
+      const seekManifest = await (await fetch(base + seek.body.url, { headers: { cookie } })).text();
+      assert.ok((seekManifest.match(/^#EXTINF:/gm) || []).length >= 2,
+        "A seek must buffer beyond its first partial segment before returning");
       const removed = await fetch(base + `/api/playback/sessions/${session.id}`, {
         method: "DELETE",
         headers: { origin, cookie }

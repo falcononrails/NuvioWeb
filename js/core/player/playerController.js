@@ -105,6 +105,9 @@ export const PlayerController = {
     this.compatibilitySeeking = true;
     this.compatibilityPendingPosition = position;
     this.video?.pause();
+    // The server replaces the playlist on seek, resume and audio changes.
+    // Stop the old loader before that generation becomes unavailable.
+    this.teardownAdaptiveInstances();
     this.emitVideoEvent("waiting");
     try {
       const result = await requestCompatibilityPlayback(`/${session.id}/seek`, { position, track });
