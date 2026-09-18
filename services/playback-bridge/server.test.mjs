@@ -19,7 +19,9 @@ test("source refusals and file limits retain useful errors without exposing the 
     return new EventEmitter();
   });
   const url = "https://1.1.1.1/private-stream-token";
-  await assert.rejects(openSource(url), error => error.status === 422 && /HTTP 403/.test(error.message) && !error.message.includes("private-stream-token"));
+  await assert.rejects(openSource(url), error => error.status === 422 && /HTTP 403/.test(error.message) &&
+    error.sourceHost === "1.1.1.1" && error.upstreamStatus === 403 &&
+    !JSON.stringify(error).includes("private-stream-token"));
   statusCode = 200;
   await assert.rejects(openSource(url), { status: 422, message: "This file exceeds the 25 GB conversion limit. Choose a smaller source." });
 });

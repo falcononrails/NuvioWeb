@@ -189,7 +189,13 @@ export async function createPlaybackBridge({
         session.sourceError = error instanceof SourceReadError
           ? error
           : failure(502, "The conversion server could not reach this media host. Try another source.");
-        console.warn("[playback] source error:", session.sourceError.message);
+        console.warn("[playback] source error:", {
+          message: session.sourceError.message,
+          host: error.sourceHost,
+          status: error.upstreamStatus,
+          range: req.headers.range,
+          phase: session.encoder ? "conversion" : "probe"
+        });
       }
       if (!res.headersSent) res.writeHead(502);
       res.end();

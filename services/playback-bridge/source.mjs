@@ -106,7 +106,10 @@ export async function openSource(value, headers = {}, redirects = 0) {
   }
   if (![200, 206].includes(response.statusCode)) {
     response.resume();
-    throw new SourceReadError(`The media host refused this source (HTTP ${response.statusCode}). Try another source.`);
+    throw Object.assign(
+      new SourceReadError(`The media host refused this source (HTTP ${response.statusCode}). Try another source.`),
+      { sourceHost: url.hostname, upstreamStatus: response.statusCode }
+    );
   }
   const length = Number(
     response.headers["content-range"]?.split("/")[1] || response.headers["content-length"] || 0
