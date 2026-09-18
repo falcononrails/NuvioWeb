@@ -1,0 +1,3 @@
+sidebar_home.svg and sidebar_settings.svg are from Google Material Design Icons.
+Copyright Google LLC. Licensed under Apache-2.0 (LICENSE-material-icons.txt).
+https://github.com/google/material-design-icons

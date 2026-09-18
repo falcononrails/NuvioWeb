@@ -1,0 +1,4 @@
+JetBrains Sans: regular, semibold and bold, copied unchanged from NuvioDesktop:
+https://github.com/NuvioMedia/NuvioDesktop/tree/ac7e9ed/composeApp/src/commonMain/composeResources/font
+Embedded copyright: Copyright 2020 by Philipp Nurullin. All rights reserved.
+The source repository is distributed under GPL-3.0; see the project LICENSE.

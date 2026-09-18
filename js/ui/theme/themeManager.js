@@ -2,6 +2,7 @@ import { ThemeStore } from "../../data/local/themeStore.js";
 import { ThemeColors } from "./themeColors.js";
 
 const FONT_STACKS = {
+  JETBRAINS_SANS: '"JetBrains Sans", "Inter", "Segoe UI", sans-serif',
   INTER: '"Inter", "Segoe UI", Arial, sans-serif',
   DM_SANS: '"DM Sans", "Segoe UI", Arial, sans-serif',
   OPEN_SANS: '"Open Sans", "Segoe UI", Arial, sans-serif'
@@ -156,7 +157,7 @@ export const ThemeManager = {
 
     document.documentElement.style.setProperty(
       "--app-font-family",
-      FONT_STACKS[String(theme.fontFamily || "INTER").toUpperCase()] || FONT_STACKS.INTER
+      FONT_STACKS[String(theme.fontFamily || "JETBRAINS_SANS").toUpperCase()] || FONT_STACKS.JETBRAINS_SANS
     );
     document.documentElement.style.setProperty("color-scheme", "dark");
 

@@ -270,6 +270,7 @@ const THEME_OPTIONS = [
 ];
 
 const FONT_OPTIONS = [
+  { id: "JETBRAINS_SANS", label: "JetBrains Sans (Desktop)" },
   { id: "INTER", label: "Inter" },
   { id: "DM_SANS", label: "DM Sans" },
   { id: "OPEN_SANS", label: "Open Sans" }

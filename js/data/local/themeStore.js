@@ -6,7 +6,7 @@ const DEFAULT_THEME = {
   mode: "dark",
   themeName: "WHITE",
   accentColor: "#ffffff",
-  fontFamily: "INTER",
+  fontFamily: "JETBRAINS_SANS",
   language: null,
   amoledMode: false,
   amoledSurfacesMode: false,

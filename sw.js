@@ -39,6 +39,13 @@ const APP_SHELL = [
   "./assets/icons/ic_player_external.svg",
   "./assets/icons/ic_player_back.svg",
   "./assets/icons/ic_player_more.svg",
+  "./assets/icons/sidebar_home.svg",
+  "./assets/icons/sidebar_search.svg",
+  "./assets/icons/sidebar_library.svg",
+  "./assets/icons/sidebar_settings.svg",
+  "./assets/fonts/jetbrains_sans_regular.ttf",
+  "./assets/fonts/jetbrains_sans_semibold.ttf",
+  "./assets/fonts/jetbrains_sans_bold.ttf",
   "./assets/libs/qrcode-generator.js",
   ...LOCALE_ASSETS
 ];
