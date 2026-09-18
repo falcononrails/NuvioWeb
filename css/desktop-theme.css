@@ -82,9 +82,10 @@ html.desktop-browser :is(.series-season-btn, .series-season-download-action,
   box-shadow: none;
 }
 
-html.desktop-browser :is(.series-season-btn.selected, .player-sources-filter.selected,
-  .player-episode-season-tab.selected, .library-presentation-button.selected,
-  .stream-route-chip.selected) {
+.desktop-browser #detail .series-season-btn.selected,
+.desktop-browser #player :is(.player-sources-filter.selected, .player-episode-season-tab.selected),
+.desktop-browser .library-shell.desktop-navigation-enabled .library-presentation-button.selected,
+.desktop-browser #stream .stream-route-chip.selected {
   background: var(--desktop-selected);
   color: var(--text-color);
 }
