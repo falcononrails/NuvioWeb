@@ -668,6 +668,26 @@ test("Player app Back returns to the original Stream entry, then Detail", async 
   assert.equal(history.index, 0);
 });
 
+test("Player error Back leaves even when a pause overlay appears behind the error", async () => {
+  for (const action of ["button", "browser"]) {
+    const stream = makeStreamScreen();
+    const player = makePlayerBackScreen();
+    player.isStartupErrorVisible = () => true;
+    player.pauseOverlayVisible = true;
+    resetRouter({ stream, player });
+    Router.init();
+    await Router.navigate("stream", { itemId: "movie-1" });
+    await Router.navigate("player", { itemId: "movie-1", returnToStreamOnBack: true });
+    if (action === "button") player.navigateBackToStreamScreen();
+    else history.back();
+    await history.whenSettled();
+    await flushNavigation();
+    assert.equal(Router.getCurrent(), "stream", `${action} must leave the error screen`);
+    assert.equal(history.index, 0);
+    assert.deepEqual(historyRoutes(), ["stream", "player"]);
+  }
+});
+
 test("Player app and browser Back both reuse the existing Stream entry", async () => {
   for (const secondBack of ["app", "browser"]) {
     const detail = makeDetailScreen();

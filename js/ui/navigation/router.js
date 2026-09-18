@@ -439,9 +439,12 @@ export const Router = {
       resolve
     };
     try {
+      // The caller already chose to leave; overlays must not consume this Back.
+      this.skipConsumeNextPopstate = true;
       window.history.back();
       return { accepted: true, settled };
     } catch (_) {
+      this.skipConsumeNextPopstate = false;
       this.settlePreviousRouteBack(false);
       return { accepted: false, settled: Promise.resolve(false) };
     }

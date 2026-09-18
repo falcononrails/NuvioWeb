@@ -6481,6 +6481,7 @@ export const PlayerScreen = {
   canShowPauseOverlay() {
     return (
       PlayerSettingsStore.get().pauseOverlayEnabled !== false &&
+      !this.isStartupErrorVisible() &&
       !this.isExternalFrameMode() &&
       this.paused &&
       !this.loadingVisible &&
@@ -16241,6 +16242,7 @@ export const PlayerScreen = {
   },
 
   hasBackDismissableOverlay() {
+    if (this.isStartupErrorVisible()) return false;
     return Boolean(
       this.stillWatchingPromptVisible ||
       this.seekOverlayVisible ||
