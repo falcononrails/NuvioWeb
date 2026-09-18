@@ -387,8 +387,7 @@ html.desktop-browser :is(.series-season-btn, .series-season-download-action,
 
 /* Settings: a sidebar and grouped rows, without multiple nested outlined cards. */
 .desktop-browser .settings-shell .settings-workspace {
-  max-width: 1320px;
-  margin-inline: auto;
+  max-width: none;
   gap: 32px;
   grid-template-columns: 260px minmax(0, 1fr);
 }

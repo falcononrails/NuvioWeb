@@ -3272,13 +3272,12 @@ export const SettingsScreen = {
         <button class="settings-action-row settings-collapsible-trigger settings-content-focusable focusable${expanded ? " is-open" : ""}"
                 data-zone="content"
                 ${this.registerAction(focusKey, this.actionMap.get(focusKey))}
-                data-role="section-toggle">
+                data-role="section-toggle" aria-expanded="${Boolean(expanded)}">
           <span class="settings-row-copy">
             <span class="settings-row-title">${escapeHtml(title)}</span>
             ${subtitle ? `<span class="settings-row-subtitle">${escapeHtml(subtitle)}</span>` : ""}
           </span>
           <span class="settings-row-tail">
-            <span class="settings-row-value">${expanded ? t("common.open") : t("common.closed")}</span>
             ${iconSvg(expanded ? ROW_ICONS.expand : ROW_ICONS.chevron, "settings-row-icon")}
           </span>
         </button>

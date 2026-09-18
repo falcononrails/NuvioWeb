@@ -178,9 +178,7 @@ html.desktop-browser {
 .desktop-browser .library-main > *,
 .desktop-browser .settings-workspace,
 .desktop-browser .discover-content {
-  max-width: 1440px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: none;
 }
 
 /* Home already receives its desktop inset from .home-main. Remove the TV-only
@@ -839,9 +837,7 @@ html.desktop-browser {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    color 120ms ease,
-    transform 120ms ease;
+  transition: color 120ms ease;
 }
 
 .desktop-browser .home-screen-shell .home-continue-text-action:focus-visible {
@@ -856,14 +852,10 @@ html.desktop-browser {
 
   .desktop-browser .home-screen-shell .home-continue-title.home-continue-text-action:hover {
     color: #fff;
-    transform: scale(1.03);
-    transform-origin: left center;
   }
 
   .desktop-browser .home-screen-shell .home-continue-subtitle.home-continue-text-action:hover {
     color: rgba(255, 255, 255, 0.84);
-    transform: scale(1.02);
-    transform-origin: left center;
   }
 }
 
@@ -892,7 +884,7 @@ html.desktop-browser {
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-row-continue .home-continue-card:hover .home-continue-media {
-    transform: scale(1.03);
+    transform: none;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
   }
 }
@@ -1762,13 +1754,9 @@ html.desktop-browser {
   font-size: 18px;
 }
 
-/* The TV focus state changes selected circle actions to black text. Keep the
- * desktop library icon legible against this browser-specific dark action tile. */
-.desktop-browser #detail .series-circle-btn[data-action="toggleLibrary"],
-.desktop-browser #detail .series-circle-btn[data-action="toggleLibrary"]:hover,
-.desktop-browser #detail .series-circle-btn[data-action="toggleLibrary"]:active,
-.desktop-browser #detail .series-circle-btn[data-action="toggleLibrary"]:focus-visible,
-.desktop-browser #detail .series-circle-btn[data-action="toggleLibrary"].focused {
+/* TV focus uses black icons on white tiles; browser actions keep dark tiles. */
+.desktop-browser #detail .series-circle-btn,
+.desktop-browser #detail .series-circle-btn:is(:hover, :active, :focus-visible, .focused) {
   color: var(--detail-text-primary);
 }
 
@@ -2072,7 +2060,7 @@ html.desktop-browser {
 
 .desktop-browser #stream .stream-route-panel-shell {
   flex: 1 1 auto;
-  max-width: 1280px;
+  max-width: none;
   padding: 16px 14px;
   border-radius: 18px;
   background: rgb(var(--bg-elevated-rgb) / 0.18);
@@ -2135,6 +2123,18 @@ html.desktop-browser {
 
 .desktop-browser #stream .stream-route-offline-action {
   cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .desktop-browser #stream .stream-route-offline-action:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.16);
+    color: var(--text-color);
+  }
+}
+
+.desktop-browser #stream .stream-route-offline-action:active:not(:disabled) {
+  background: rgb(255 255 255 / 0.24);
+  color: var(--text-color);
 }
 
 .desktop-browser #stream .stream-route-offline-action.download {

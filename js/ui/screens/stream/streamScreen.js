@@ -1922,6 +1922,7 @@ export const StreamScreen = {
         streamBadgesEnabled,
         addonLogoLookup: this.addonLogoLookup
       });
+      sourceModel.showAddonLogo &&= this.addonFilter === "all";
       return `
         <div class="stream-route-card-row" data-stream-row="${index}">
           <article class="stream-route-card stream-route-card-action focusable${this.isCardActionFocused(index, "play") ? " focused" : ""}"
