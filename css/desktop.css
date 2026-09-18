@@ -2963,6 +2963,43 @@ html.desktop-browser {
 
 /* Desktop Player Step 1 panel refinement: use the existing dialog markup and
    actions, but replace the Android-TV dimensions with compact browser panels. */
+.desktop-browser #player .player-startup-error-shell {
+  width: min(100%, 560px);
+  gap: 16px;
+}
+
+.desktop-browser #player .player-startup-error-title {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.desktop-browser #player .player-startup-error-message {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.desktop-browser #player .player-startup-error-button {
+  min-width: 120px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.desktop-browser #player .player-startup-error-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.desktop-browser #player .player-startup-error-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
 .desktop-browser #player .player-modal-backdrop {
   z-index: 34;
 }
@@ -3695,12 +3732,12 @@ html.desktop-browser {
 
 .desktop-browser #player .player-audio-modal {
   left: clamp(28px, 3vw, 48px);
-  bottom: clamp(28px, 3vw, 48px);
-  width: min(540px, calc(100vw - 56px));
-  height: min(66vh, calc(100vh - 96px));
-  max-height: min(66vh, calc(100vh - 96px));
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  bottom: 72px;
+  width: min(444px, calc(100vw - 56px));
+  height: auto;
+  max-height: min(620px, calc(100dvh - 120px));
+  padding: 20px;
+  border: 0;
   border-radius: 16px;
   background: rgba(24, 24, 29, 0.96);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
@@ -3709,7 +3746,15 @@ html.desktop-browser {
 }
 
 .desktop-browser #player .player-audio-modal .player-dialog-title {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  font-size: 22px;
+}
+
+.desktop-browser #player .player-audio-modal .player-dialog-empty {
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--player-text-secondary);
 }
 
 .desktop-browser #player .player-audio-overlay-grid {
@@ -3733,21 +3778,43 @@ html.desktop-browser {
 }
 
 .desktop-browser #player .player-audio-track-list .player-dialog-item {
-  min-height: 46px;
-  padding: 7px 9px;
-  border-width: 1px;
-  border-radius: 9px;
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 36px 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  text-align: left;
+  color: var(--player-text-primary);
+  background: transparent;
+  font-family: inherit;
+}
+
+.desktop-browser #player .player-audio-track-list .player-dialog-item:hover,
+.desktop-browser #player .player-audio-track-list .player-dialog-item.focused {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-browser #player .player-audio-track-list .player-dialog-item.selected {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.desktop-browser #player .player-audio-track-list .player-dialog-item:focus-visible {
+  outline: 2px solid var(--player-text-primary);
+  outline-offset: -2px;
 }
 
 .desktop-browser #player .player-audio-track-list .player-dialog-item-main,
 .desktop-browser #player .player-audio-control-title,
 .desktop-browser #player .player-audio-control-value {
+  display: block;
   font-size: 14px;
   line-height: 1.22;
 }
 
 .desktop-browser #player .player-audio-track-list .player-dialog-item-sub,
 .desktop-browser #player .player-audio-control-card > .player-dialog-item-sub {
+  display: block;
   margin-top: 2px;
   font-size: 12px;
   line-height: 1.2;
@@ -3977,7 +4044,7 @@ html.desktop-browser {
 
   .desktop-browser #player .player-audio-modal {
     width: calc(100vw - 32px);
-    height: min(74vh, calc(100vh - 32px));
+    height: auto;
     padding: 14px;
   }
 
@@ -11761,8 +11828,7 @@ body.desktop-browser {
     max-height: calc(100dvh - var(--browser-safe-area-top) - var(--browser-safe-area-bottom) - 24px);
   }
 
-  .desktop-browser #player .player-subtitle-modal,
-  .desktop-browser #player .player-audio-modal {
+  .desktop-browser #player .player-subtitle-modal {
     height: min(78dvh, calc(100dvh - var(--browser-safe-area-top) - var(--browser-safe-area-bottom) - 24px));
   }
 

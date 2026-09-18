@@ -190,7 +190,7 @@ export function normalizeSourceForDisplay(
 
 /** Renders the shared card body; callers own the outer card action. */
 export function renderBrowserSourceWarnings(warnings = []) {
-  return warnings.map((warning) => `<span class="stream-route-compatibility" title="${escapeHtml(warning)}" aria-label="${escapeHtml(warning)}">${warning.startsWith("Audio") ? "May be silent" : "May not play"}</span>`).join("");
+  return warnings.map((warning) => `<span class="stream-route-compatibility" title="${escapeHtml(warning)}" aria-label="${escapeHtml(warning)}">${warning.startsWith("Audio") ? "Audio may not work" : "Video may not work"}</span>`).join("");
 }
 
 export function renderBrowserSourceCardContent(model = {}) {

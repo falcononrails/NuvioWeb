@@ -2,6 +2,7 @@ import vm from "node:vm";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { browserSourceWarnings } from "../../../core/player/browserMediaSupport.js";
 
 const playerScreenUrl = new URL("./playerScreen.js", import.meta.url);
 const desktopCssUrl = new URL("../../../../css/desktop.css", import.meta.url);
@@ -100,4 +101,57 @@ test("audio boost does not capture native cross-origin media", async () => {
   assert.equal(context.supportsWebAudioAmplification(), true);
   video.currentSrc = "";
   assert.equal(context.supportsWebAudioAmplification(), false);
+});
+
+test("automatic audio recovery requires codec or decoding evidence and only tries once", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const method = source.match(/  attemptSilentAudioRecovery\(reason = "silent-audio"\) \{[\s\S]*?\n  \},/)[0];
+  const player = { playRequestToken: 1, currentPlaybackUrl: "https://media.example/video.mkv", video: { currentTime: 0, paused: false, canPlayType: () => "" } };
+  const screen = vm.runInNewContext(`({${method}})`, { PlayerController: player, browserSourceWarnings });
+  screen.compatibilityAvailable = true;
+  screen.getCurrentStreamCandidate = () => ({ title: "Pilot" });
+  let attempts = 0;
+  screen.startCompatibilityPlayback = () => { attempts++; screen.compatibilityAttemptToken = player.playRequestToken; };
+  assert.equal(screen.attemptSilentAudioRecovery(), false, "No audio track list is not evidence of silence");
+  Object.assign(player.video, { currentTime: 7, webkitVideoDecodedByteCount: 10000, webkitAudioDecodedByteCount: 0 });
+  assert.equal(screen.attemptSilentAudioRecovery("progress"), true);
+  assert.equal(screen.attemptSilentAudioRecovery("progress"), false);
+  assert.equal(attempts, 1);
+  player.playRequestToken++;
+  player.video.webkitAudioDecodedByteCount = 100;
+  assert.equal(screen.attemptSilentAudioRecovery(), false);
+  screen.getCurrentStreamCandidate = () => ({ title: "Pilot Dolby Digital Plus" });
+  assert.equal(screen.attemptSilentAudioRecovery(), true);
+  player.playRequestToken++;
+  screen.getCurrentStreamCandidate = () => ({ title: "Pilot" });
+  assert.equal(screen.attemptSilentAudioRecovery("error"), true);
+  player.playRequestToken++;
+  player.compatibility = {};
+  assert.equal(screen.attemptSilentAudioRecovery("error"), false, "Do not retry the converted stream");
+});
+
+test("preparing audio closes the modal backdrop and cannot cover already started playback", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const methods = ["startCompatibilityPlayback", "closeAudioDialog"].map(name =>
+    source.match(new RegExp(`  (?:async )?${name}\\(\\) \\{[\\s\\S]*?\\n  \\},`))[0]
+  ).join("\n");
+  const player = { playRequestToken: 1, video: { paused: false, readyState: 4 } };
+  const screen = vm.runInNewContext(`({${methods}})`, { PlayerController: player });
+  let backdropVisible = true;
+  Object.assign(screen, {
+    audioDialogVisible: true, isActiveMountToken: () => true,
+    clearStartupError() {}, renderAudioDialog() {}, resetControlsAutoHide() {},
+    dismissPauseOverlay() {}, releaseStartupAudioGate() {}, clearPlaybackStallGuard() {},
+    updateLoadingVisibility() {}, refreshTrackDialogs() {},
+    updateModalBackdrop() { backdropVisible = this.audioDialogVisible; },
+    presentStartedPlayback() { this.loadingVisible = false; },
+    showStartupError() { assert.fail("Preparation must not use an error overlay"); }
+  });
+  player.enableCompatibilityPlayback = async () => {
+    assert.equal(backdropVisible, false);
+    assert.equal(screen.loadingVisible, true);
+  };
+  await screen.startCompatibilityPlayback();
+  assert.equal(screen.loadingVisible, false);
+  assert.equal(screen.compatibilityPending, false);
 });

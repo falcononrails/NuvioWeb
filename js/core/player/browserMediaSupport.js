@@ -8,8 +8,8 @@ export function browserSourceWarnings(stream = {}, video = null) {
   const canPlay = (mime) => {
     try { return Boolean(video?.canPlayType?.(mime)); } catch { return false; }
   };
-  if (/\b(?:truehd|dts(?:-hd)?|eac-?3|e-ac-?3|ac-?3)\b|\bddp(?=\d|\b)/i.test(label)) {
-    const codec = /\b(?:truehd|dts(?:-hd)?)\b/i.test(label) ? "" : /\b(?:eac-?3|e-ac-?3)\b|\bddp(?=\d|\b)/i.test(label) ? "ec-3" : "ac-3";
+  if (/\b(?:truehd|dts(?:-hd)?|eac-?3|e-ac-?3|ac-?3|dolby digital(?: plus)?)\b|\bddp(?=\d|\b)/i.test(label)) {
+    const codec = /\b(?:truehd|dts(?:-hd)?)\b/i.test(label) ? "" : /\b(?:eac-?3|e-ac-?3|dolby digital plus)\b|\bddp(?=\d|\b)/i.test(label) ? "ec-3" : "ac-3";
     if (!codec || !canPlay(`audio/mp4; codecs="${codec}"`)) {
       warnings.push("Audio may not play in this browser. Try an AAC source if it is silent.");
     }
@@ -23,5 +23,5 @@ export function browserSourceWarnings(stream = {}, video = null) {
 }
 
 export function unavailableAudioMessage() {
-  return "Audio track selection is unavailable for this source in this browser. Sound may still play. If it is silent, try an AAC source or an external player.";
+  return "This browser doesn't expose audio track selection for this source.";
 }

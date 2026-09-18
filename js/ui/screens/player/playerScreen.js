@@ -2169,8 +2169,10 @@ export const PlayerScreen = {
 
     this.audioDialogVisible = false;
     this.audioDialogIndex = 0;
-    this.audioMixFocusIndex = 0;
-    this.audioFocusedColumn = "tracks";
+    this.compatibilityAvailable = false;
+    this.compatibilityPending = false;
+    this.compatibilityAttemptToken = null;
+    this.audioDecodeSample = null;
     this.selectedAudioTrackIndex = -1;
     this.audioFallbackApplying = false;
     this.failedAutomaticAudioFallbackEntryId = "";
@@ -5907,6 +5909,7 @@ export const PlayerScreen = {
     this.renderSpeedDialog();
     this.renderEpisodePanel();
     this.renderPauseOverlay();
+    this.updateModalBackdrop();
     this.renderStartupErrorOverlay();
     this.focusStartupErrorButton();
   },
@@ -5932,6 +5935,7 @@ export const PlayerScreen = {
       if (playbackUrl !== String(this.activePlaybackUrl || "").trim()) {
         return;
       }
+      if (this.compatibilityPending && this.compatibilityAttemptToken === PlayerController.playRequestToken) return;
       if (this.isStartupErrorVisible()) {
         return;
       }
@@ -6021,29 +6025,32 @@ export const PlayerScreen = {
     void PlayerController.attemptBrowserVideoPlay();
   },
 
-  renderCompatibilityAction() {
-    if (!this.compatibilityAvailable || PlayerController.compatibility) return "";
-    return `<button type="button" class="player-startup-error-button" data-player-pointer-action="compatibility" ${this.compatibilityPending ? "disabled" : ""}>${this.compatibilityPending ? "Preparing playback…" : "Try compatibility playback"}</button>`;
-  },
-
   async startCompatibilityPlayback() {
-    if (this.compatibilityPending) return;
     const mountToken = this.playerMountToken;
+    const playToken = PlayerController.playRequestToken;
+    this.compatibilityAttemptToken = playToken;
     this.compatibilityPending = true;
-    this.awaitingPlaybackGesture = false;
-    this.showStartupError("Preparing compatible audio. This can take a few seconds.", { details: [] });
+    this.clearStartupError();
+    this.closeAudioDialog();
+    this.dismissPauseOverlay();
+    this.releaseStartupAudioGate({ resume: false });
+    this.clearPlaybackStallGuard();
+    this.loadingVisible = true;
+    this.updateLoadingVisibility();
     try {
       await PlayerController.enableCompatibilityPlayback();
-      if (!this.isActiveMountToken(mountToken)) return;
-      this.clearStartupError();
-      this.loadingVisible = true;
-      this.updateLoadingVisibility();
+      if (!this.isActiveMountToken(mountToken) || playToken !== PlayerController.playRequestToken) return;
       this.refreshTrackDialogs();
+      // Loading may have completed before the request promise settled.
+      if (!PlayerController.video.paused && PlayerController.video.readyState >= 3) {
+        this.presentStartedPlayback();
+      }
     } catch (error) {
-      if (this.isActiveMountToken(mountToken)) this.showStartupError(error.message, { details: [] });
+      if (this.isActiveMountToken(mountToken) && playToken === PlayerController.playRequestToken) {
+        this.showStartupError(error.message, { details: [] });
+      }
     } finally {
-      this.compatibilityPending = false;
-      if (this.isActiveMountToken(mountToken)) this.renderStartupErrorOverlay();
+      if (this.compatibilityAttemptToken === playToken) this.compatibilityPending = false;
     }
   },
 
@@ -6067,7 +6074,7 @@ export const PlayerScreen = {
       : [];
     overlay.innerHTML = `
       <div class="player-startup-error-shell">
-        <div class="player-startup-error-title">${this.compatibilityPending ? "Preparing playback" : this.awaitingPlaybackGesture ? "Ready to play" : escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
+        <div class="player-startup-error-title">${this.awaitingPlaybackGesture ? "Ready to play" : escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
         <div class="player-startup-error-message">${escapeHtml(message)}</div>
         ${
           detailLines.length
@@ -6079,7 +6086,6 @@ export const PlayerScreen = {
             : ""
         }
         ${this.awaitingPlaybackGesture ? '<button class="player-startup-error-button focusable focused" type="button" data-player-error-action="play">Play</button>' : ""}
-        ${this.awaitingPlaybackGesture ? "" : this.renderCompatibilityAction()}
         <button class="player-startup-error-button focusable" type="button" tabindex="0" data-player-error-action="back">
           ${escapeHtml(t("player_go_back", {}, "Go Back"))}
         </button>
@@ -8280,8 +8286,7 @@ export const PlayerScreen = {
     void fetch("/api/playback/health").then(response => response.ok ? response.json() : null).then(health => {
       if (!this.isActiveMountToken(mountToken)) return;
       this.compatibilityAvailable = health?.available === true;
-      this.renderAudioDialog();
-      this.renderStartupErrorOverlay();
+      this.attemptSilentAudioRecovery("health");
     }).catch(() => {});
     const video = PlayerController.video;
     if (!video) {
@@ -8311,6 +8316,7 @@ export const PlayerScreen = {
         this.seekLoadingTargetSeconds = null;
         this.clearBufferingSpinnerTimer();
       }
+      if (PlayerController.compatibility) this.presentStartedPlayback();
       if (this.startupAudioGateActive && !this.startupAudioGateAllowsPlayback) {
         this.paused = false;
         this.startupTrackPreferenceReady = true;
@@ -8354,6 +8360,7 @@ export const PlayerScreen = {
     };
 
     const onPause = () => {
+      if (this.compatibilityPending || PlayerController.compatibilitySeeking) return;
       if (this.startupAudioGateActive) {
         this.paused = false;
         this.updateMediaSessionPlaybackState();
@@ -8380,6 +8387,7 @@ export const PlayerScreen = {
     };
 
     const onTimeUpdate = () => {
+      this.attemptSilentAudioRecovery("progress");
       if (this.isStartupErrorVisible()) {
         return;
       }
@@ -8461,6 +8469,7 @@ export const PlayerScreen = {
     };
 
     const onError = async (event) => {
+      if (this.compatibilityPending && this.compatibilityAttemptToken === PlayerController.playRequestToken) return;
       if (this.isStartupErrorVisible()) {
         return;
       }
@@ -8482,6 +8491,8 @@ export const PlayerScreen = {
         detailErrorCode || Number(video?.error?.code || 0) || controllerErrorCode;
       const eventDetail = event?.detail && typeof event.detail === "object" ? event.detail : {};
       const playbackErrorDetail = this.getPlaybackEventErrorDetail(eventDetail);
+      const currentSourceCandidate = this.getCurrentStreamCandidate();
+      if (this.attemptSilentAudioRecovery("error")) return;
       const terminalHlsHttpFailure = isTerminalHlsHttpStatus(eventDetail.hlsResponseCode);
       if (
         !this.hasPresentedPlaybackFrame &&
@@ -10711,8 +10722,25 @@ export const PlayerScreen = {
   },
 
   attemptSilentAudioRecovery(reason = "silent-audio") {
-    void reason;
-    return false;
+    const video = PlayerController.video;
+    const playToken = PlayerController.playRequestToken;
+    if (!this.compatibilityAvailable || !video || PlayerController.compatibility ||
+        !/^https?:/i.test(PlayerController.currentPlaybackUrl) ||
+        this.compatibilityAttemptToken === playToken) return false;
+
+    const unsupportedAudio = browserSourceWarnings(this.getCurrentStreamCandidate() || {}, video)
+      .some(warning => warning.startsWith("Audio"));
+    if (this.audioDecodeSample?.token !== playToken) {
+      this.audioDecodeSample = { token: playToken, time: video.currentTime };
+    }
+    // Chromium exposes decoded bytes even when it hides its audio track list.
+    // Six seconds of decoded video with zero audio bytes is useful evidence; an empty track list isn't.
+    const audioNotDecoding = !video.paused && video.currentTime - this.audioDecodeSample.time >= 6 &&
+      video.webkitVideoDecodedByteCount > 0 && video.webkitAudioDecodedByteCount === 0;
+    const mediaError = [2, 3, 4].includes(Number(video.error?.code)) || reason === "error";
+    if (!unsupportedAudio && !audioNotDecoding && !mediaError) return false;
+    void this.startCompatibilityPlayback();
+    return true;
   },
 
   clearPlaybackStallGuard() {
@@ -13729,24 +13757,6 @@ export const PlayerScreen = {
     return true;
   },
 
-  adjustAudioAmplification(delta = 0) {
-    const nextDb = clamp(
-      Number(this.audioAmplificationDb || 0) + Number(delta || 0),
-      AUDIO_AMPLIFICATION_MIN_DB,
-      AUDIO_AMPLIFICATION_MAX_DB
-    );
-    this.audioAmplificationDb = nextDb;
-    this.persistPlayerPresentationSettings();
-    this.applyAudioAmplification();
-    this.renderAudioDialog();
-  },
-
-  togglePersistAudioAmplification() {
-    this.persistAudioAmplification = !this.persistAudioAmplification;
-    this.persistPlayerPresentationSettings();
-    this.renderAudioDialog();
-  },
-
   openAudioDialog() {
     this.cancelSeekPreview({ commit: false });
     this.syncTrackState();
@@ -13821,146 +13831,29 @@ export const PlayerScreen = {
 
   renderAudioDialog() {
     const dialog = this.uiRefs?.audioDialog;
-    if (!dialog) {
-      return;
-    }
-
+    if (!dialog) return;
     dialog.classList.toggle("hidden", !this.audioDialogVisible);
-    if (!this.audioDialogVisible) {
-      dialog.innerHTML = "";
-      return;
-    }
-
+    if (!this.audioDialogVisible) { dialog.innerHTML = ""; return; }
     const entries = this.getAudioEntries();
-    const hasSupportedEntries = entries.some((entry) => entry?.supported !== false);
-    const audioControls = [
-      {
-        id: "amplification",
-        title: t("audio_mix_label", {}, "Audio boost"),
-        value: `${Math.round(Number(this.audioAmplificationDb || 0))} dB`,
-        helper: this.audioAmplificationAvailable
-          ? t(
-              "audio_mix_range",
-              { min: AUDIO_AMPLIFICATION_MIN_DB, max: AUDIO_AMPLIFICATION_MAX_DB },
-              `Range ${AUDIO_AMPLIFICATION_MIN_DB}-${AUDIO_AMPLIFICATION_MAX_DB} dB`
-            )
-          : t("audio_mix_unavailable", {}, "Unavailable on this device"),
-        enabled: Boolean(this.audioAmplificationAvailable),
-        canDecrease:
-          this.audioAmplificationAvailable &&
-          Number(this.audioAmplificationDb || 0) > AUDIO_AMPLIFICATION_MIN_DB,
-        canIncrease:
-          this.audioAmplificationAvailable &&
-          Number(this.audioAmplificationDb || 0) < AUDIO_AMPLIFICATION_MAX_DB
-      },
-      {
-        id: "persist",
-        title: this.persistAudioAmplification
-          ? t("audio_mix_persist_on", {}, "Save audio boost: On")
-          : t("audio_mix_persist_off", {}, "Save audio boost: Off"),
-        value: "",
-        helper: t("audio_mix_persist_help", {}, "Remember boost for future playback"),
-        enabled: true,
-        toggle: true
-      }
-    ];
-    this.audioMixFocusIndex = clamp(this.audioMixFocusIndex, 0, audioControls.length - 1);
-    if (!entries.length) {
-      this.audioFocusedColumn = "controls";
-      const loading =
-        this.isCurrentSourceAdaptiveManifest() &&
-        (this.manifestLoading || this.trackDiscoveryInProgress);
-      const emptyMessage = loading
-        ? "Loading audio tracks..."
-        : this.getUnavailableTrackMessage("audio");
-      dialog.innerHTML = `
-        <div class="player-dialog-title">${escapeHtml(t("audio_dialog_title", {}, "Audio"))}</div>
-        <div class="player-dialog-empty${loading ? " player-dialog-loading" : ""}">
-          ${loading ? renderLoadingIndicator() : ""}
-          <span>${escapeHtml(emptyMessage)}</span>
-        </div>
-        <div class="player-audio-controls-list">
-          ${this.renderCompatibilityAction()}
-          ${audioControls.map((control, index) => this.renderAudioControlItem(control, index)).join("")}
-        </div>
-      `;
-      return;
-    }
-
-    this.audioDialogIndex = clamp(this.audioDialogIndex, 0, entries.length - 1);
+    const loading = this.isCurrentSourceAdaptiveManifest() &&
+      (this.manifestLoading || this.trackDiscoveryInProgress);
+    this.audioDialogIndex = clamp(this.audioDialogIndex, 0, Math.max(0, entries.length - 1));
     dialog.innerHTML = `
       <div class="player-dialog-title">${escapeHtml(t("audio_dialog_title", {}, "Audio"))}</div>
-      ${hasSupportedEntries ? "" : `<div class="player-audio-support-message">${escapeHtml(t("player.audio.noSupportedTracks", {}, "No supported audio tracks available"))}</div>`}
-      <div class="player-audio-overlay-grid">
-        <div class="player-dialog-list player-audio-track-list">
-          ${entries
-            .map((entry, index) => {
-              const selected = entry.selected;
-              const focused =
-                this.audioFocusedColumn === "tracks" && index === this.audioDialogIndex;
-              const disabled = entry.supported === false;
-              const label = disabled
-                ? `${entry.label || ""} · ${t("player.audio.unsupported", {}, "Unsupported")}`
-                : entry.label || "";
-              const secondary = disabled
-                ? [
-                    entry.secondary,
-                    t("player.audio.unsupportedCodec", {}, "Codec not supported by this device")
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-                : entry.secondary || "";
-              return `
-              <div class="player-dialog-item focusable${selected ? " selected" : ""}${focused ? " focused" : ""}${disabled ? " disabled" : ""}" data-audio-column="tracks" data-audio-index="${index}" aria-disabled="${disabled ? "true" : "false"}">
-                <div class="player-dialog-item-main">${escapeHtml(label)}</div>
-                <div class="player-dialog-item-sub">${escapeHtml(secondary)}</div>
-                <div class="player-dialog-item-check">${selected ? "&#10003;" : ""}</div>
-              </div>
-            `;
-            })
-            .join("")}
-        </div>
-        <div class="player-audio-controls-list">
-          ${this.renderCompatibilityAction()}
-          ${audioControls.map((control, index) => this.renderAudioControlItem(control, index)).join("")}
-        </div>
-      </div>
+      ${!entries.length ? `<div class="player-dialog-empty${loading ? " player-dialog-loading" : ""}">
+        ${loading ? renderLoadingIndicator() : ""}
+        <span>${escapeHtml(loading ? "Loading audio tracks..." : this.getUnavailableTrackMessage("audio"))}</span>
+      </div>` : `<div class="player-dialog-list player-audio-track-list">
+        ${entries.map((entry, index) => `
+          <button type="button" class="player-dialog-item focusable${entry.selected ? " selected" : ""}${index === this.audioDialogIndex ? " focused" : ""}${entry.supported === false ? " disabled" : ""}"
+            data-audio-column="tracks" data-audio-index="${index}" aria-pressed="${Boolean(entry.selected)}" ${entry.supported === false ? "disabled" : ""}>
+            <span class="player-dialog-item-main">${escapeHtml(entry.label || "")}</span>
+            <span class="player-dialog-item-sub">${escapeHtml(entry.supported === false ? "Audio not supported" : entry.secondary || "")}</span>
+            <span class="player-dialog-item-check" aria-hidden="true">${entry.selected ? "&#10003;" : ""}</span>
+          </button>`).join("")}
+      </div>`}
     `;
     this.scrollAudioDialogIntoView();
-  },
-
-  renderAudioControlItem(control, index) {
-    const focused = this.audioFocusedColumn === "controls" && index === this.audioMixFocusIndex;
-    if (control.toggle) {
-      return `
-        <div class="player-audio-control-card player-audio-toggle focusable${this.persistAudioAmplification ? " selected" : ""}${focused ? " focused" : ""}" data-audio-column="controls" data-audio-index="${index}">
-          <div class="player-dialog-item-main">${escapeHtml(control.title)}</div>
-          <div class="player-dialog-item-sub">${escapeHtml(control.helper || "")}</div>
-        </div>
-      `;
-    }
-    return `
-      <div class="player-audio-control-card focusable${focused ? " focused" : ""}${!control.enabled ? " disabled" : ""}" data-audio-column="controls" data-audio-index="${index}">
-        <div class="player-audio-control-title">${escapeHtml(control.title)}</div>
-        <div class="player-audio-control-value">${escapeHtml(control.value)}</div>
-        <div class="player-audio-step-row">
-          <button class="player-dialog-step player-dialog-step-minus focusable${focused ? " focused" : ""}${!control.canDecrease ? " disabled" : ""}" type="button" tabindex="-1" data-audio-column="controls" data-audio-index="${index}" data-audio-step="-1">&#8722;</button>
-          <button class="player-dialog-step player-dialog-step-plus focusable${focused ? " focused" : ""}${!control.canIncrease ? " disabled" : ""}" type="button" tabindex="-1" data-audio-column="controls" data-audio-index="${index}" data-audio-step="1">&#43;</button>
-        </div>
-        <div class="player-dialog-item-sub">${escapeHtml(control.helper || "")}</div>
-      </div>
-    `;
-  },
-
-  activateAudioControl(direction = 0) {
-    if (this.audioMixFocusIndex === 0) {
-      if (!this.audioAmplificationAvailable) {
-        return;
-      }
-      this.adjustAudioAmplification(direction < 0 ? -1 : 1);
-      return;
-    }
-    this.togglePersistAudioAmplification();
   },
 
   scrollAudioDialogIntoView() {
@@ -13975,70 +13868,17 @@ export const PlayerScreen = {
   handleAudioDialogKey(event) {
     const keyCode = Number(event?.keyCode || 0);
     const entries = this.getAudioEntries();
-    const isNavigationKey =
-      keyCode === 37 ||
-      keyCode === 38 ||
-      keyCode === 39 ||
-      keyCode === 40 ||
-      isSelectKeyCode(keyCode);
-
-    if (keyCode === 37) {
-      if (this.audioFocusedColumn === "controls") {
-        if (this.audioMixFocusIndex === 0) {
-          this.activateAudioControl(-1);
-        } else if (entries.length) {
-          this.audioFocusedColumn = "tracks";
-          this.renderAudioDialog();
-        }
-      }
-      return true;
-    }
-
-    if (keyCode === 39) {
-      if (this.audioFocusedColumn === "tracks") {
-        if (!entries.length) {
-          this.audioFocusedColumn = "controls";
-          this.renderAudioDialog();
-          return true;
-        }
-        this.audioFocusedColumn = "controls";
-        this.renderAudioDialog();
-      } else if (this.audioMixFocusIndex === 0) {
-        this.activateAudioControl(1);
-      }
-      return true;
-    }
-
-    if (keyCode === 38) {
-      if (this.audioFocusedColumn === "tracks") {
-        this.audioDialogIndex = clamp(this.audioDialogIndex - 1, 0, entries.length - 1);
-      } else {
-        this.audioMixFocusIndex = clamp(this.audioMixFocusIndex - 1, 0, 1);
-      }
+    if (keyCode === 38 || keyCode === 40) {
+      this.audioDialogIndex = clamp(this.audioDialogIndex + (keyCode === 38 ? -1 : 1), 0, Math.max(0, entries.length - 1));
       this.renderAudioDialog();
+      this.uiRefs?.audioDialog?.querySelector(".focused")?.focus();
       return true;
     }
-
-    if (keyCode === 40) {
-      if (this.audioFocusedColumn === "tracks") {
-        this.audioDialogIndex = clamp(this.audioDialogIndex + 1, 0, entries.length - 1);
-      } else {
-        this.audioMixFocusIndex = clamp(this.audioMixFocusIndex + 1, 0, 1);
-      }
-      this.renderAudioDialog();
-      return true;
-    }
-
     if (isSelectKeyCode(keyCode)) {
-      if (this.audioFocusedColumn === "tracks") {
-        this.applyAudioTrack(this.audioDialogIndex, { rememberSelection: true });
-      } else {
-        this.activateAudioControl(this.audioMixFocusIndex === 0 ? 1 : 0);
-      }
+      this.applyAudioTrack(this.audioDialogIndex, { rememberSelection: true });
       return true;
     }
-
-    return isNavigationKey;
+    return keyCode === 37 || keyCode === 39;
   },
 
   openSpeedDialog() {
@@ -16074,13 +15914,7 @@ export const PlayerScreen = {
 
     const audioNode = target?.closest?.("[data-audio-column]");
     if (audioNode && this.audioDialogVisible) {
-      this.audioFocusedColumn = audioNode.dataset.audioColumn || "tracks";
-      const index = Number(audioNode.dataset.audioIndex || 0);
-      if (this.audioFocusedColumn === "tracks") {
-        this.audioDialogIndex = index;
-      } else {
-        this.audioMixFocusIndex = index;
-      }
+      this.audioDialogIndex = Number(audioNode.dataset.audioIndex || 0);
       return;
     }
 
@@ -16215,10 +16049,6 @@ export const PlayerScreen = {
     }
 
     const errorAction = target.closest?.("[data-player-error-action]");
-    if (target.closest?.('[data-player-pointer-action="compatibility"]')) {
-      await this.startCompatibilityPlayback();
-      return true;
-    }
     if (errorAction && this.isStartupErrorVisible()) {
       if (errorAction.dataset.playerErrorAction === "play" && this.awaitingPlaybackGesture) {
         this.resumePlaybackFromGesture();
@@ -16298,19 +16128,9 @@ export const PlayerScreen = {
       return handled;
     }
 
-    const audioStep = target.closest?.("[data-audio-step]");
-    if (audioStep && this.audioDialogVisible) {
-      this.activateAudioControl(Number(audioStep.dataset.audioStep || 1));
-      return true;
-    }
-
     const audioNode = target.closest?.("[data-audio-column]");
     if (audioNode && this.audioDialogVisible) {
-      if (this.audioFocusedColumn === "tracks") {
-        this.applyAudioTrack(this.audioDialogIndex, { rememberSelection: true });
-      } else {
-        this.activateAudioControl(this.audioMixFocusIndex === 0 ? 1 : 0);
-      }
+      this.applyAudioTrack(Number(audioNode.dataset.audioIndex), { rememberSelection: true });
       return true;
     }
 
@@ -16530,7 +16350,7 @@ export const PlayerScreen = {
       event?.stopPropagation?.();
       if (isSelectKeyCode(keyCode)) {
         const active = document.activeElement;
-        if (active?.matches?.('[data-player-pointer-action="compatibility"], [data-player-error-action]')) active.click();
+        if (active?.matches?.('[data-player-error-action]')) active.click();
         else if (this.awaitingPlaybackGesture) this.resumePlaybackFromGesture();
         else this.navigateBackToStreamScreen();
         return true;
