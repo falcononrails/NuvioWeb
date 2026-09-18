@@ -340,3 +340,18 @@ test("compatibility playback reports the original timeline and actual selectable
     PlayerController.compatibilityPendingPosition=saved.pending;
   }
 });
+
+test("resuming compatibility playback renews segments even when old ranges remain buffered", () => {
+  const player = Object.create(PlayerController);
+  player.video = { paused: true, currentTime: 8, seekable: { length: 1, start: () => 0 } };
+  player.compatibility = { offset: 120 };
+  player.compatibilityPendingPosition = null;
+  player.startupAudioGateActive = false;
+  player.releaseExternalPlaybackOwnership = () => {};
+  player.flushCurrentProgress = () => {};
+  let resumedAt;
+  player.seekCompatibilityPlayback = position => { resumedAt = position; };
+  player.attemptBrowserVideoPlay = () => assert.fail("Do not resume an expired segment window");
+  player.resume();
+  assert.equal(resumedAt, 128);
+});

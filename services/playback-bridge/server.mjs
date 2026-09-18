@@ -85,7 +85,15 @@ export async function createPlaybackBridge({
         signal: AbortSignal.timeout(8000),
         redirect: "error"
       });
-      if (!response.ok) throw failure(401, "Your Nuvio session expired. Sign in again.");
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        const code = String(detail.code || detail.error_code || "unknown");
+        // Keep authentication diagnostics free of tokens and account details.
+        console.warn("Nuvio verification rejected", response.status, /^[a-z_]{1,80}$/.test(code) ? code : "unknown");
+        if ([401, 403].includes(response.status))
+          throw failure(401, "Nuvio could not verify this session. Please sign in again.");
+        throw failure(503, "Nuvio session verification is temporarily unavailable. Try again shortly.");
+      }
       user = await response.json();
     }
     if (!user?.id || user.is_anonymous || user.role !== "authenticated")
@@ -236,7 +244,7 @@ export async function createPlaybackBridge({
       "-nostdin",
       ...inputArgs,
       "-readrate",
-      "1.1",
+      "1",
       "-ss",
       String(position),
       "-i",

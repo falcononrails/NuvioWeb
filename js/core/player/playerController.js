@@ -1915,7 +1915,9 @@ export const PlayerController = {
       return;
     }
 
-    if (this.compatibility && this.video.seekable?.length && this.video.currentTime < this.video.seekable.start(0)) {
+    // The server keeps a short segment window. A paused browser may still report
+    // buffered ranges whose following segments have already expired.
+    if (this.compatibility && this.video.paused) {
       void this.seekCompatibilityPlayback(this.getCurrentTimeSeconds());
       return;
     }

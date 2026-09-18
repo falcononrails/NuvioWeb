@@ -49,6 +49,20 @@ test(
         url: process.env.NUVIO_BRIDGE_FIXTURE_URL
       });
       assert.equal(duplicate.status, 409);
+      const ownerCookie = cookie;
+      const second = await post("/api/playback/sessions", {
+        url: process.env.NUVIO_BRIDGE_FIXTURE_URL
+      }, "second");
+      assert.equal(second.status, 201);
+      const third = await post("/api/playback/sessions", {
+        url: process.env.NUVIO_BRIDGE_FIXTURE_URL
+      }, "third");
+      assert.equal(third.status, 429);
+      assert.equal((await fetch(base + session.url, { headers: { cookie } })).status, 403);
+      await fetch(base + `/api/playback/sessions/${second.body.id}`, {
+        method: "DELETE", headers: { origin, cookie }
+      });
+      cookie = ownerCookie;
       assert.equal((await fetch(base + session.url)).status, 403);
       const manifest = await (await fetch(base + session.url, { headers: { cookie } })).text();
       const segment = manifest.split("\n").find((line) => line.endsWith(".m4s"));
