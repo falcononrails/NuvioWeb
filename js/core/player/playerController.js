@@ -7,6 +7,7 @@ import { dashJsEngine } from "./engines/dashJsEngine.js";
 import { isTerminalHlsHttpStatus } from "./hlsNetworkErrorPolicy.js";
 import { loadStreamingLibs } from "../../runtime/loadStreamingLibs.js";
 import { requestCompatibilityPlayback, closeCompatibilityPlayback } from "./compatibilityPlayback.js";
+import { LocalAudioEngine, supportsLocalAudio, unlockLocalAudio } from "./engines/localAudioEngine.js";
 
 const MIN_PROGRESS_SYNC_DURATION_MS = 1000;
 const HLS_TRANSIENT_LEVEL_404_RETRY_LIMIT = 2;
@@ -50,6 +51,8 @@ export const PlayerController = {
   compatibilitySeeking: false,
   compatibilityPendingPosition: null,
   audioInspection: null,
+  localAudio: null,
+  localAudioAttemptToken: null,
   screenWakeLock: null,
   screenWakeLockPending: false,
 
@@ -85,10 +88,47 @@ export const PlayerController = {
     return inspection.promise;
   },
 
-  async enableCompatibilityPlayback(position = this.getCurrentTimeSeconds(), { track = null, preferredLanguages = [] } = {}) {
+  canUseLocalAudioPlayback() {
+    return supportsLocalAudio() && this.playbackEngine === "native-file";
+  },
+
+  stopLocalAudioPlayback() {
+    const engine = this.localAudio;
+    this.localAudio = null;
+    return engine?.destroy().catch(() => {});
+  },
+
+  async enableCompatibilityPlayback(position = this.getCurrentTimeSeconds(), { track = null, preferredLanguages = [], serverOnly = false } = {}) {
     if (this.compatibility) return;
     const playToken = this.playRequestToken;
     this.video?.pause();
+    if (!serverOnly && this.localAudioAttemptToken !== playToken && this.canUseLocalAudioPlayback()) {
+      this.localAudioAttemptToken = playToken;
+      const local = new LocalAudioEngine(this.video, (event) => {
+        if (this.localAudio === local && playToken === this.playRequestToken) this.emitVideoEvent(event);
+      });
+      this.localAudio = local;
+      this.teardownAdaptiveInstances();
+      this.video.removeAttribute("src");
+      Array.from(this.video.querySelectorAll("source")).forEach(node => node.remove());
+      this.video.load();
+      try {
+        await local.start(this.currentPlaybackUrl, { headers: this.currentPlaybackHeaders, position, track });
+        if (playToken !== this.playRequestToken) return;
+        if (local.failed) throw new Error("Local audio playback failed.");
+        this.playbackEngine = "avplayer";
+        await this.setPlaybackRate(this.desiredPlaybackRate);
+        this.lastPlaybackErrorCode = 0;
+        this.emitVideoEvent("audiotrackschanged");
+        return;
+      } catch {
+        // A decoder or CORS failure falls through once to the existing server path.
+        if (this.localAudio === local) await this.stopLocalAudioPlayback();
+      }
+    }
+    if (playToken !== this.playRequestToken) return;
+    await this.stopLocalAudioPlayback();
+    if (playToken !== this.playRequestToken) return;
     // Finish an in-flight probe before reserving its replacement conversion slot.
     await this.audioInspection?.promise;
     if (playToken !== this.playRequestToken) return;
@@ -404,6 +444,7 @@ export const PlayerController = {
   },
 
   getBrowserAudioTracks() {
+    if (this.localAudio) return this.localAudio.tracks;
     if (this.compatibility) return this.compatibility.tracks.map((track, index) => ({
       id: String(track.index), index, label: track.title || track.language || `Audio ${index + 1}`,
       language: track.language, codec: "aac", selected: track.index === this.compatibility.track,
@@ -452,6 +493,10 @@ export const PlayerController = {
       return false;
     }
     const engine = tracks[targetIndex]?.engine;
+    if (engine === "avplayer") {
+      void this.localAudio.seek(this.getCurrentTimeSeconds(), tracks[targetIndex].id);
+      return true;
+    }
     if (engine === "compatibility") {
       void this.seekCompatibilityPlayback(this.getCurrentTimeSeconds(), this.compatibility.tracks[targetIndex].index);
       return true;
@@ -601,12 +646,14 @@ export const PlayerController = {
   },
 
   getCurrentTimeSeconds() {
+    if (this.localAudio) return this.localAudio.position;
     if (Number.isFinite(this.compatibilityPendingPosition)) return this.compatibilityPendingPosition;
     if (this.compatibility) return this.compatibility.offset + Math.max(0, Number(this.video?.currentTime || 0));
     return Math.max(0, Number(this.video?.currentTime || 0));
   },
 
   getDurationSeconds() {
+    if (this.localAudio) return this.localAudio.duration || this.lastKnownDurationSeconds;
     if (this.compatibility) return this.compatibility.duration;
     const durationSeconds = Number(this.video?.duration || 0);
     if (
@@ -619,6 +666,7 @@ export const PlayerController = {
   },
 
   getBufferedTimeSeconds() {
+    if (this.localAudio) return null;
     try {
       const video = this.video;
       const durationSeconds = this.compatibility ? this.compatibility.duration - this.compatibility.offset : Number(video?.duration || 0);
@@ -672,6 +720,10 @@ export const PlayerController = {
       void this.seekCompatibilityPlayback(Math.min(seconds, this.compatibility.duration - 0.1));
       return true;
     }
+    if (this.localAudio) {
+      void this.localAudio.seek(Math.min(seconds, Math.max(0, this.getDurationSeconds() - 0.1)));
+      return true;
+    }
     try {
       this.video.currentTime = seconds;
       return true;
@@ -681,6 +733,7 @@ export const PlayerController = {
   },
 
   isPlaybackEnded() {
+    if (this.localAudio) return Boolean(this.localAudio.ended);
     return Boolean(this.video?.ended);
   },
 
@@ -879,7 +932,7 @@ export const PlayerController = {
     itemType = this.currentItemType
   ) {
     // Recovery must not replace converted HLS with the original unsupported file.
-    if (this.compatibility) return null;
+    if (this.compatibility || this.localAudio) return null;
     const normalizedUrl = String(url || "").trim();
     if (!normalizedUrl) {
       return null;
@@ -965,6 +1018,7 @@ export const PlayerController = {
       return false;
     }
     this.playbackEngine = String(engineName || "native-file");
+    void this.setPlaybackRate(this.desiredPlaybackRate);
     return true;
   },
 
@@ -1587,7 +1641,8 @@ export const PlayerController = {
     }
 
     try {
-      this.video.playbackRate = targetSpeed;
+      if (this.localAudio) this.localAudio.player.setPlaybackRate(targetSpeed);
+      else this.video.playbackRate = targetSpeed;
     } catch (_) {
       return false;
     }
@@ -1752,6 +1807,7 @@ export const PlayerController = {
     };
 
     this.playRequestToken = Number(this.playRequestToken || 0) + 1;
+    void this.stopLocalAudioPlayback();
     this.unbindVideoElementListeners();
     this.teardownAdaptiveInstances();
     try {
@@ -1789,10 +1845,13 @@ export const PlayerController = {
 
     if (!this.lifecycleBound) {
       this.lifecycleBound = true;
+      window.addEventListener("pointerdown", unlockLocalAudio, { capture: true, passive: true });
+      window.addEventListener("keydown", unlockLocalAudio, { capture: true });
       this.lifecycleFlushHandler = (event) => {
         this.flushCurrentProgress({ forceCloudSync: true });
         if (event?.type === "pagehide" || event?.type === "beforeunload") {
           this.playRequestToken += 1;
+          void this.stopLocalAudioPlayback();
           this.stopCompatibilityPlayback();
         }
       };
@@ -1838,6 +1897,9 @@ export const PlayerController = {
     }
 
     this.stopCompatibilityPlayback();
+
+    await this.stopLocalAudioPlayback();
+    if (!this.isPlaybackRequestActive(playToken)) return;
 
     // Starting a new built-in playback session is an intentional local-player
     // action. Any stale protection left by an earlier external handoff must
@@ -2000,6 +2062,7 @@ export const PlayerController = {
       ? this.flushCurrentProgress({ forceCloudSync, allowCloudSync })
       : Promise.resolve(false);
     this.stopCompatibilityPlayback();
+    void this.stopLocalAudioPlayback();
     if (!this.playbackSessionActive) {
       if (this.progressSaveTimer) {
         clearInterval(this.progressSaveTimer);

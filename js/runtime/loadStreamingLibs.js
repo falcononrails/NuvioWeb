@@ -1,5 +1,10 @@
 const STREAMING_LIBS = [
   {
+    id: "avplayer",
+    sources: ["assets/libs/avplayer-1.3.1/avplayer.js"],
+    isLoaded: () => Boolean(globalThis.AVPlayer)
+  },
+  {
     id: "hls",
     sources: [
       "assets/libs/hls.min.js",
@@ -64,8 +69,9 @@ function ensureStreamingLibrary(entry) {
   return loadingPromise;
 }
 
-export async function loadStreamingLibs({ hls = true, dash = true } = {}) {
+export async function loadStreamingLibs({ hls = true, dash = true, avplayer = false } = {}) {
   const requiredLibraryIds = new Set([
+    ...(avplayer ? ["avplayer"] : []),
     ...(hls ? ["hls"] : []),
     ...(dash ? ["dash"] : [])
   ]);

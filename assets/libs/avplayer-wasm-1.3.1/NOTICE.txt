@@ -1,0 +1,5 @@
+AVPlayer/libmedia by Gaoxing Zhao, LGPL-3.0-or-later.
+JavaScript package: @libmedia/avplayer 1.3.1 (copied unchanged at build time).
+These WASM files are unchanged from libmedia revision 152f629d3021fd8013efa464fcb7b55f9fbe7753.
+Source, license and WASM build recipes:
+https://github.com/zhaohappy/libmedia/tree/152f629d3021fd8013efa464fcb7b55f9fbe7753

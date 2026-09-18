@@ -515,6 +515,11 @@ async function runBuild() {
       cp(path.join(rootDir, "manifest.webmanifest"), path.join(distDir, "manifest.webmanifest"))
     ]);
     await buildCoreJsBundle();
+    await cp(
+      path.join(rootDir, "node_modules", "@libmedia", "avplayer", "dist", "umd"),
+      path.join(distDir, "assets", "libs", "avplayer-1.3.1"),
+      { recursive: true }
+    );
     await Promise.all([
       cp(
         path.join(rootDir, "node_modules", "hls.js", "dist", "hls.min.js"),

@@ -10,6 +10,7 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
 - Fixes for animated collection backdrops, browser playback and audio controls.
+- Local AC3, EAC3 and DTS audio decoding with AVPlayer when native playback cannot handle the source. It loads on demand and keeps the existing player controls.
 - An open-source [playback service](services/playback-bridge) for files whose audio the browser cannot play. It copies supported video and converts the selected audio track to AAC, starting automatically when needed.
 
 Sign in with your existing Nuvio account and use your synced addons and collections. Browser playback still depends on the source, its server and your device's codec support.
@@ -17,6 +18,8 @@ Sign in with your existing Nuvio account and use your synced addons and collecti
 ## Playback limits
 
 Direct playback runs in your browser. HTTP sources, missing CORS headers and unsupported codecs can prevent it from working. HTTPS alone doesn't guarantee a playable file.
+
+Playback tries the browser first, then [local audio decoding](docs/local-audio.md) on supported devices, then the server. Local decoding uses WebCodecs for video and WASM for unsupported audio; it does not use a server conversion slot. CORS restrictions and rejected media URLs can still require the server or another source.
 
 Server-assisted playback requires a signed-in Nuvio account. The hosted service allows two sessions overall and one per account, with limits on duration, file size and resources. It supports H.264 and browser-compatible HEVC video with audio converted to stereo AAC. It does **not** convert unsupported video, remove DRM or handle live streams. When a source cannot be handled, choose another source or an external player.
 
@@ -65,6 +68,7 @@ Checks: `npm test`, `npm run lint`, `npm run build`.
 - [alphasquare404/NuvioWeb](https://github.com/alphasquare404/NuvioWeb) for the browser/PWA fork this repository builds on.
 - [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb) for the mobile navigation and hero behavior adapted here. This is a selective port, not a full merge of that fork.
 - [WhiteGiso/NuvioTV-WebOS](https://github.com/WhiteGiso/NuvioTV-WebOS), [edoedac0](https://github.com/edoedac0), and [all upstream contributors](https://github.com/alphasquare404/NuvioWeb/graphs/contributors) for the earlier web work and ongoing fixes.
+- [Gaoxing Zhao / libmedia](https://github.com/zhaohappy/libmedia) for AVPlayer and its WASM audio decoders (LGPL-3.0-or-later).
 - The maintainers of FFmpeg, hls.js, dash.js and the other dependencies used by this project.
 
 Licensed under [GPL-3.0](LICENSE). Existing attribution and license notices are retained. NuvioWeb supplies no media catalog of its own; use sources you are authorized to access.

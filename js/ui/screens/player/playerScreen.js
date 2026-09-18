@@ -6026,7 +6026,7 @@ export const PlayerScreen = {
     void PlayerController.attemptBrowserVideoPlay();
   },
 
-  async startCompatibilityPlayback(track = null) {
+  async startCompatibilityPlayback(track = null, { serverOnly = false } = {}) {
     if (this.compatibilityPending) return;
     const mountToken = this.playerMountToken;
     const playToken = PlayerController.playRequestToken;
@@ -6043,9 +6043,14 @@ export const PlayerScreen = {
       // Conversion can start before the browser has restored the saved position.
       const position = this.pendingPlaybackRestore?.timeSeconds || this.getPlaybackCurrentSeconds();
       await PlayerController.enableCompatibilityPlayback(position, {
-        track, preferredLanguages: this.getStartupPreferredAudioLanguageTargets()
+        track, preferredLanguages: this.getStartupPreferredAudioLanguageTargets(), serverOnly
       });
       if (!this.isActiveMountToken(mountToken) || playToken !== PlayerController.playRequestToken) return;
+      if (PlayerController.localAudio) {
+        this.startupAudioPreferenceApplied = false;
+        const subtitleIndex = this.subtitles.findIndex(s => (s.id || s.url) === this.selectedAddonSubtitleId);
+        if (subtitleIndex >= 0) void this.applyFallbackAddonSubtitle(subtitleIndex);
+      }
       this.refreshTrackDialogs();
       // Loading may have completed before the request promise settled.
       if (!PlayerController.video.paused && PlayerController.video.readyState >= 3) {
@@ -8324,7 +8329,7 @@ export const PlayerScreen = {
         this.seekLoadingTargetSeconds = null;
         this.clearBufferingSpinnerTimer();
       }
-      if (PlayerController.compatibility) this.presentStartedPlayback();
+      if (PlayerController.compatibility || PlayerController.localAudio) this.presentStartedPlayback();
       if (this.startupAudioGateActive && !this.startupAudioGateAllowsPlayback) {
         this.paused = false;
         this.startupTrackPreferenceReady = true;
@@ -8588,6 +8593,9 @@ export const PlayerScreen = {
 
     const bindings = [
       ["compatibilityerror", event => this.showStartupError(event.detail?.message || "Compatibility playback stopped.", { details: [] })],
+      ["localaudioerror", () => {
+        if (!this.compatibilityPending) void this.startCompatibilityPlayback(null, { serverOnly: true });
+      }],
       ["playbackgesture", () => {
         this.awaitingPlaybackGesture = true;
         this.showStartupError("Tap Play to start this video.", { details: [] });
@@ -10733,7 +10741,7 @@ export const PlayerScreen = {
   attemptSilentAudioRecovery(reason = "silent-audio") {
     const video = PlayerController.video;
     const playToken = PlayerController.playRequestToken;
-    if (!this.compatibilityAvailable || !video || PlayerController.compatibility ||
+    if ((!this.compatibilityAvailable && !PlayerController.canUseLocalAudioPlayback?.()) || !video || PlayerController.compatibility || PlayerController.localAudio ||
         !/^https?:/i.test(PlayerController.currentPlaybackUrl) ||
         this.compatibilityAttemptToken === playToken) return false;
 
@@ -13303,6 +13311,27 @@ export const PlayerScreen = {
 
     const resolvedSubtitleUrl = await this.resolveSubtitlePlaybackUrl(subtitle.url);
     if (!isCurrentSelection() || !resolvedSubtitleUrl) {
+      this.settleSubtitlePointerScrollTransaction(selectionToken);
+      return;
+    }
+
+    if (PlayerController.localAudio) {
+      // MediaStream time starts at zero and cannot follow seeks. Use the existing
+      // subtitle overlay, which reads the controller's original media timeline.
+      try {
+        const response = await fetch(resolvedSubtitleUrl);
+        if (!response.ok) throw new Error("Subtitle load failed");
+        const text = await response.text();
+        if (!isCurrentSelection()) return;
+        this.clearHtmlSubtitleOverlay();
+        this.htmlSubtitleCues = this.parseSubtitleCues(text);
+        this.htmlSubtitleSelectedId = subtitleId;
+        this.selectedAddonSubtitleId = subtitleId;
+        this.selectedSubtitleTrackIndex = -1;
+        this.scheduleHtmlSubtitleOverlayRender();
+        this.renderControlButtons();
+        this.renderSubtitleDialog();
+      } catch { /* Keep playback running if an addon subtitle cannot be fetched. */ }
       this.settleSubtitlePointerScrollTransaction(selectionToken);
       return;
     }
