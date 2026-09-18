@@ -36,6 +36,18 @@ html.desktop-browser :is(button, [role="button"]):disabled {
   opacity: 0.38;
 }
 
+/* Shared by native controls and the TV-originated clickable cards. Text fields
+   keep their text cursor; the player still hides the cursor with its controls. */
+html.desktop-browser :is(button, a[href], select, input[type="range"],
+  input[type="checkbox"], input[type="radio"], [role="button"], [role="slider"],
+  [role="tab"], [role="switch"], [role="menuitem"], .focusable) {
+  cursor: pointer;
+}
+
+html.desktop-browser :is(:disabled, [aria-disabled="true"]) {
+  cursor: default;
+}
+
 /* Navigation uses the desktop app's floating surface and filled active item. */
 .desktop-browser .desktop-navigation {
   border: 0;
@@ -56,6 +68,163 @@ html.desktop-browser :is(.home-poster-frame, .home-continue-media, .library-grid
   border: 0 !important;
   box-shadow: none !important;
   border-radius: 12px;
+}
+
+/* Detail cards follow Desktop's episode dimensions and artwork treatment. */
+.desktop-browser #detail {
+  --desktop-episode-width: min(296px, calc(100vw - 40px));
+  --desktop-episode-height: 184px;
+  --desktop-episode-title: 14px;
+  --desktop-episode-body: 11px;
+  --desktop-episode-lines: 2;
+  --desktop-episode-padding: 10px;
+}
+
+.desktop-browser #detail .series-seasons-heading {
+  margin: 0;
+  padding: 0 clamp(20px, 3.4vw, 64px) 8px;
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+.desktop-browser #detail .series-season-btn {
+  min-height: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.desktop-browser #detail .series-episode-card {
+  flex-basis: var(--desktop-episode-width);
+  width: var(--desktop-episode-width);
+}
+
+.desktop-browser #detail .series-episode-thumb {
+  height: var(--desktop-episode-height);
+  aspect-ratio: auto;
+  border-radius: 12px;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.desktop-browser #detail .series-episode-image {
+  transition: transform var(--desktop-motion);
+}
+
+.desktop-browser #detail .series-episode-overlay {
+  background: linear-gradient(180deg, transparent 0%, transparent 42%,
+    rgb(0 0 0 / 0.2) 56%, rgb(0 0 0 / 0.45) 70%,
+    rgb(0 0 0 / 0.68) 84%, rgb(0 0 0 / 0.92) 100%);
+}
+
+.desktop-browser #detail .series-episode-copy {
+  gap: 6px;
+  padding: var(--desktop-episode-padding);
+}
+
+.desktop-browser #detail .series-episode-badge {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.desktop-browser #detail .series-episode-title {
+  font-size: var(--desktop-episode-title);
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.desktop-browser #detail .series-episode-overview {
+  font-size: var(--desktop-episode-body);
+  line-height: 1.4;
+  -webkit-line-clamp: var(--desktop-episode-lines);
+  line-clamp: var(--desktop-episode-lines);
+}
+
+.desktop-browser #detail .series-episode-status {
+  top: 16px;
+  right: 16px;
+  left: auto;
+  width: 22px;
+  height: 22px;
+}
+
+.desktop-browser #detail .series-watched-badge-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.desktop-browser #detail :is(.series-episode-status.idle, .series-episode-runtime-icon) {
+  display: none;
+}
+
+.desktop-browser #detail :is(.series-episode-offline-status, .series-episode-unavailable) {
+  right: auto;
+  left: 16px;
+}
+
+.desktop-browser #detail .movie-cast-avatar {
+  border-radius: 50%;
+}
+
+@media (min-width: 760px) {
+  .desktop-browser #detail {
+    --desktop-episode-width: 340px;
+    --desktop-episode-height: 212px;
+    --desktop-episode-title: 16px;
+    --desktop-episode-body: 12px;
+    --desktop-episode-padding: 12px;
+  }
+}
+
+@media (min-width: 1000px) {
+  .desktop-browser #detail {
+    --desktop-episode-width: 384px;
+    --desktop-episode-height: 236px;
+    --desktop-episode-title: 17px;
+    --desktop-episode-body: 13px;
+    --desktop-episode-lines: 3;
+    --desktop-episode-padding: 14px;
+  }
+}
+
+@media (min-width: 1300px) {
+  .desktop-browser #detail {
+    --desktop-episode-width: 420px;
+    --desktop-episode-height: 256px;
+    --desktop-episode-title: 18px;
+    --desktop-episode-body: 14px;
+    --desktop-episode-padding: 16px;
+  }
+}
+
+/* Icons already share Desktop's SVGs. Give all player actions the same quiet
+   circular target instead of mixing outlined tools and filled TV buttons. */
+.desktop-browser #player :is(.player-control-btn, .player-desktop-tool-button) {
+  border-radius: 50%;
+  background: transparent;
+  transition: background-color var(--desktop-motion), color var(--desktop-motion);
+}
+
+.desktop-browser #player .player-control-btn.is-primary {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.desktop-browser #player :is(.player-control-icon, img.player-desktop-tool-icon) {
+  width: 22px;
+  height: 22px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .desktop-browser #player :is(.player-control-btn, .player-desktop-tool-button):hover {
+    background: rgb(255 255 255 / 0.18);
+  }
+
+  .desktop-browser #detail .series-episode-card:hover .series-episode-image {
+    transform: scale(1.03);
+  }
 }
 
 html.desktop-browser :is(.home-poster-card, .library-grid-card, .search-result-card,
@@ -82,12 +251,20 @@ html.desktop-browser :is(.series-season-btn, .series-season-download-action,
   box-shadow: none;
 }
 
-.desktop-browser #detail .series-season-btn.selected,
 .desktop-browser #player :is(.player-sources-filter.selected, .player-episode-season-tab.selected),
 .desktop-browser .library-shell.desktop-navigation-enabled .library-presentation-button.selected,
 .desktop-browser #stream .stream-route-chip.selected {
   background: var(--desktop-selected);
   color: var(--text-color);
+}
+
+.desktop-browser #detail .series-season-btn.selected {
+  background: var(--desktop-surface);
+  color: var(--text-color);
+}
+
+.desktop-browser #stream .stream-route-offline-action .material-icons {
+  font-size: 22px;
 }
 
 .desktop-browser .library-shell.desktop-navigation-enabled .library-presentation-toggle {

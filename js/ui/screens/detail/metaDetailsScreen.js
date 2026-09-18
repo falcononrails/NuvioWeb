@@ -3690,7 +3690,7 @@ export const MetaDetailsScreen = {
     return `
       <button class="detail-desktop-back-button" type="button" data-detail-back
               aria-label="${escapeAttribute(t("common.back", {}, "Back"))}">
-        <span class="material-icons" aria-hidden="true">chevron_left</span>
+        <span class="material-icons" aria-hidden="true">arrow_back</span>
       </button>
     `;
   },
@@ -3801,7 +3801,7 @@ export const MetaDetailsScreen = {
               <span>${escapeHtml(playLabel)}</span>
             </button>
             ${!Platform.isBrowser() && this.getActiveResumeProgress() ? `<button class="series-secondary-btn focusable" data-action="playFromBeginning">${escapeHtml(t("detail.playFromBeginning", {}, "Play from Beginning"))}</button>` : ""}
-            <button class="series-circle-btn focusable${this.isSavedInLibrary ? " is-library-selected" : ""}" data-action="toggleLibrary">
+            <button class="series-circle-btn focusable${this.isSavedInLibrary ? " is-library-selected" : ""}" data-action="toggleLibrary" aria-label="${escapeAttribute(this.isSavedInLibrary ? t("detail.removeFromLibrary", {}, "Remove from Library") : t("detail.addToLibrary", {}, "Add to Library"))}">
               ${renderLibraryGlyph(this.isSavedInLibrary)}
             </button>
             ${showWatchedButton ? `<button class="series-circle-btn focusable${this.isMarkedWatched ? " is-selected" : ""}" data-action="toggleWatched" aria-label="${escapeAttribute(this.isMarkedWatched ? t("common.markUnwatched", {}, "Mark Unwatched") : t("common.markWatched", {}, "Mark Watched"))}">${renderWatchedGlyph(this.isMarkedWatched)}</button>` : ""}
@@ -3809,7 +3809,7 @@ export const MetaDetailsScreen = {
             ${downloadedIndicator}
           </div>
           ${this.renderResumeIndicator()}
-          ${creditLine ? `<p class="series-detail-support">${escapeHtml(creditPrefix)}: ${escapeHtml(creditLine)}</p>` : ""}
+          ${String(creditLine || "").trim() ? `<p class="series-detail-support">${escapeHtml(creditPrefix)}: ${escapeHtml(creditLine)}</p>` : ""}
           ${externalRatings}
           <p class="series-detail-description">${escapeHtml(meta.description || t("detail.noDescription", {}, "No description."))}</p>
           ${this.renderHeroMetaRows(meta)}
@@ -4416,6 +4416,7 @@ export const MetaDetailsScreen = {
 
   renderSeasonControls() {
     return `
+      ${Platform.isBrowser() ? `<h2 class="series-seasons-heading">${escapeHtml(t("detail.seasons", {}, "Seasons"))}</h2>` : ""}
       <div class="series-season-row" data-scroll-key="season-tabs">${this.renderSeasonButtons()}</div>
       ${this.renderSeasonDownloadAction()}
     `;
@@ -5167,7 +5168,7 @@ export const MetaDetailsScreen = {
           ${Platform.isBrowser() && isDownloaded ? `<span class="series-episode-offline-status" role="img" aria-label="${escapeAttribute(t("offline.downloaded", {}, "Downloaded"))}"><span class="material-icons" aria-hidden="true">download</span></span>` : ""}
           ${isUnavailable ? `<div class="series-episode-unavailable">${escapeHtml(t("episodes_unavailable", {}, "Unavailable").toUpperCase())}</div>` : ""}
           <div class="series-episode-copy">
-            <div class="series-episode-badge">${escapeHtml(t("episodes_episode", {}, "Episode").toUpperCase())} ${Number(episode.episode || 0)}</div>
+            <div class="series-episode-badge">${Platform.isBrowser() ? `S${Number(episode.season || 0)}E${Number(episode.episode || 0)}` : `${escapeHtml(t("episodes_episode", {}, "Episode").toUpperCase())} ${Number(episode.episode || 0)}`}</div>
             <div class="series-episode-title">${escapeHtml(normalizeEpisodeTitle(episode.title, episode.episode))}</div>
             <div class="series-episode-overview">${escapeHtml(episode.overview || t("episodes_episode", {}, "Episode"))}</div>
             ${metaParts ? `<div class="series-episode-meta">${metaParts}</div>` : ""}

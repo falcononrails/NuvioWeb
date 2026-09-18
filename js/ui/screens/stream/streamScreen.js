@@ -802,7 +802,7 @@ export const StreamScreen = {
     return `
       <button class="stream-desktop-back-button" type="button" data-stream-desktop-back
               aria-label="${escapeHtml(t("common.back", {}, "Back"))}">
-        <span class="material-icons" aria-hidden="true">chevron_left</span>
+        <span class="material-icons" aria-hidden="true">arrow_back</span>
       </button>
     `;
   },
@@ -1883,22 +1883,22 @@ export const StreamScreen = {
       const progressLabel = total > 0
         ? `${Math.min(100, Math.round((current / total) * 100))}%`
         : formatBytes(current) || "Downloading";
-      return `<div class="stream-route-offline-actions"><span class="stream-route-offline-progress" aria-live="polite">${escapeHtml(progressLabel)}</span>${button("pause", "Ⅱ", "Pause", "secondary")}${button("cancel", "×", "Cancel", "secondary")}</div>`;
+      return `<div class="stream-route-offline-actions"><span class="stream-route-offline-progress" aria-live="polite">${escapeHtml(progressLabel)}</span>${button("pause", "pause", "Pause", "secondary")}${button("cancel", "close", "Cancel", "secondary")}</div>`;
     }
     if (status === "queued") {
       const position = this.offlineQueuePositions?.get(downloadId);
       const label = position ? `⌛ Queued · #${position}` : "⌛ Queued";
-      return `<div class="stream-route-offline-actions"><span class="stream-route-offline-progress" aria-live="polite">${escapeHtml(label)}</span>${button("cancel", "×", "Cancel", "secondary")}</div>`;
+      return `<div class="stream-route-offline-actions"><span class="stream-route-offline-progress" aria-live="polite">${escapeHtml(label)}</span>${button("cancel", "close", "Cancel", "secondary")}</div>`;
     }
     if (status === "completed") {
-      return `<div class="stream-route-offline-actions">${button("playOffline", "▶", "Play Offline")}${button("deleteOffline", "⌫", "Delete Offline", "secondary")}</div>`;
+      return `<div class="stream-route-offline-actions">${button("playOffline", "play_arrow", "Play Offline")}${button("deleteOffline", "delete_outline", "Delete Offline", "secondary")}</div>`;
     }
     if (["paused", "interrupted", "failed"].includes(status)) {
       const label = status === "paused" ? "Paused" : status === "interrupted" ? "Interrupted" : "Retry";
-      return `<div class="stream-route-offline-actions"><span class="stream-route-offline-progress" aria-live="polite">${escapeHtml(label)}</span>${button("resume", "▶", status === "failed" ? "Retry" : "Resume", "download")}${button("cancel", "×", "Delete", "secondary")}</div>`;
+      return `<div class="stream-route-offline-actions"><span class="stream-route-offline-progress" aria-live="polite">${escapeHtml(label)}</span>${button("resume", "play_arrow", status === "failed" ? "Retry" : "Resume", "download")}${button("cancel", "close", "Delete", "secondary")}</div>`;
     }
     if (!canQueueBrowserOfflineDownload(context)) return "";
-    return `<div class="stream-route-offline-actions">${button("download", status === "failed" ? "↻" : "↓", status === "failed" ? "Retry Download" : "Download", "download")}</div>`;
+    return `<div class="stream-route-offline-actions">${button("download", status === "failed" ? "refresh" : "download", status === "failed" ? "Retry Download" : "Download", "download")}</div>`;
   },
 
   renderOfflineCopyRow(download = {}) {
@@ -1908,11 +1908,11 @@ export const StreamScreen = {
     if (isMatched) return "";
     const quality = String(download.quality || download.filename || "Offline media");
     const size = formatBytes(download.downloadedBytes || download.totalBytes) || "";
-    return `<div class="stream-route-card-row stream-route-offline-copy"><article class="stream-route-card stream-route-offline-card"><div class="stream-route-card-copy"><div class="stream-route-card-heading">OFFLINE COPY</div><div class="stream-route-card-quality">${escapeHtml([quality, size].filter(Boolean).join(" • "))}</div><div class="stream-route-card-line secondary">${escapeHtml(download.sourceName || "Downloaded")}</div></div><div class="stream-route-offline-actions">${this.renderOfflineButton("playOfflineCopy", "▶", "Play Offline", download.downloadId)}${this.renderOfflineButton("deleteOfflineCopy", "⌫", "Delete Offline", download.downloadId, "secondary")}</div></article></div>`;
+    return `<div class="stream-route-card-row stream-route-offline-copy"><article class="stream-route-card stream-route-offline-card"><div class="stream-route-card-copy"><div class="stream-route-card-heading">OFFLINE COPY</div><div class="stream-route-card-quality">${escapeHtml([quality, size].filter(Boolean).join(" • "))}</div><div class="stream-route-card-line secondary">${escapeHtml(download.sourceName || "Downloaded")}</div></div><div class="stream-route-offline-actions">${this.renderOfflineButton("playOfflineCopy", "play_arrow", "Play Offline", download.downloadId)}${this.renderOfflineButton("deleteOfflineCopy", "delete_outline", "Delete Offline", download.downloadId, "secondary")}</div></article></div>`;
   },
 
   renderOfflineButton(action, icon, label, streamId = "", className = "") {
-    return `<button type="button" class="stream-route-offline-action ${className}" data-offline-action="${action}" data-stream-id="${escapeHtml(streamId)}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${escapeHtml(icon)}</button>`;
+    return `<button type="button" class="stream-route-offline-action ${className}" data-offline-action="${action}" data-stream-id="${escapeHtml(streamId)}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><span class="material-icons" aria-hidden="true">${escapeHtml(icon)}</span></button>`;
   },
 
   renderStreamCard(stream, index, streamBadgesEnabled = true, badgeSettings = null) {
