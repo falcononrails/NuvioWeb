@@ -266,7 +266,7 @@ export async function createPlaybackBridge({
       "-hls_time",
       "4",
       "-hls_list_size",
-      "15",
+      "8",
       "-hls_flags",
       "delete_segments+independent_segments+temp_file",
       "-hls_segment_type",

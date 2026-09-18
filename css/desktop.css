@@ -12057,9 +12057,9 @@ body.desktop-browser {
     max-height: 100px;
     object-position: center;
   }
-  .desktop-browser .home-hero-meta-primary,
-  .desktop-browser .home-hero-meta-secondary,
-  .desktop-browser .home-hero-actions {
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-meta-primary,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-meta-secondary,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-actions {
     justify-content: center;
   }
   .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-description {

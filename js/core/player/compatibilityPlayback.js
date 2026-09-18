@@ -5,7 +5,7 @@ export async function requestCompatibilityPlayback(path = "", data = {}) {
   if (SessionStore.isAnonymousSession || !(await AuthManager.refreshSessionIfNeeded())) {
     throw new Error("Sign in to Nuvio to use compatibility playback.");
   }
-  const response = await fetch(`/api/playback/sessions${path}`, {
+  const send = () => fetch(`/api/playback/sessions${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -14,6 +14,10 @@ export async function requestCompatibilityPlayback(path = "", data = {}) {
     body: JSON.stringify(data),
     signal: AbortSignal.timeout(60000)
   });
+  let response = await send();
+  if (response.status === 401 && await AuthManager.refreshSessionIfNeeded({ force: true })) {
+    response = await send();
+  }
   const result = await response.json().catch(() => ({}));
   if (!response.ok)
     throw new Error(result.error || "Compatibility playback is unavailable on this server.");

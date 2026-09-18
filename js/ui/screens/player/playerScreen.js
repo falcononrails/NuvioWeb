@@ -34,7 +34,7 @@ import { metaRepository } from "../../../data/repository/metaRepository.js";
 import { I18n } from "../../../i18n/index.js";
 import { Environment } from "../../../platform/environment.js";
 import { Router } from "../../navigation/router.js";
-import { browserSourceWarnings, canAmplifyBrowserMedia, unavailableAudioMessage } from "../../../core/player/browserMediaSupport.js";
+import { browserSourceWarnings, unavailableAudioMessage } from "../../../core/player/browserMediaSupport.js";
 import { renderBrowserSourceWarnings } from "../../components/browserStreamSourceCard.js";
 import { setBrowserMediaTitle } from "../../navigation/browserDocumentTitle.js";
 import { renderLoadingIndicator } from "../../components/loadingIndicator.js";
@@ -1660,7 +1660,17 @@ function dbToGain(db = 0) {
 }
 
 function supportsWebAudioAmplification() {
-  return canAmplifyBrowserMedia(PlayerController.video);
+  const video = PlayerController.video;
+  const source = video?.currentSrc || video?.src;
+  const origin = globalThis.location?.origin;
+  if (!source || !origin) return false;
+  // Native remote media can play without CORS, but Web Audio may silence it.
+  // Keep direct playback intact rather than changing the video's CORS mode.
+  try {
+    return new URL(source, origin).origin === origin;
+  } catch (_) {
+    return false;
+  }
 }
 
 function isMagnetUrl(value = "") {
@@ -16515,9 +16525,9 @@ export const PlayerScreen = {
     }
 
     if (this.isStartupErrorVisible()) {
+      if (keyCode === 9) return false;
       event?.preventDefault?.();
       event?.stopPropagation?.();
-      if (keyCode === 9) return false;
       if (isSelectKeyCode(keyCode)) {
         const active = document.activeElement;
         if (active?.matches?.('[data-player-pointer-action="compatibility"], [data-player-error-action]')) active.click();

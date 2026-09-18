@@ -22,15 +22,6 @@ export function browserSourceWarnings(stream = {}, video = null) {
   return warnings;
 }
 
-export function canAmplifyBrowserMedia(video, origin = globalThis.location?.origin) {
-  if (!video) return false;
-  const source = video.currentSrc || video.src;
-  if (!source) return false;
-  // Native cross-origin media can play without CORS, but routing it through
-  // Web Audio silences it. Never change crossOrigin just to enable a booster.
-  try { return new URL(source, origin).origin === origin; } catch { return false; }
-}
-
 export function unavailableAudioMessage() {
   return "Audio track selection is unavailable for this source in this browser. Sound may still play. If it is silent, try an AAC source or an external player.";
 }
