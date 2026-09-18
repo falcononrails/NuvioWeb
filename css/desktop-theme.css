@@ -11,7 +11,7 @@
 @font-face {
   font-family: "JetBrains Sans";
   src: url("../assets/fonts/jetbrains_sans_semibold.ttf") format("truetype");
-  font-weight: 500 600;
+  font-weight: 500 699;
   font-style: normal;
   font-display: swap;
 }
@@ -72,7 +72,7 @@ html.desktop-browser :is(button, [role="button"]):disabled {
    keep their text cursor; the player still hides the cursor with its controls. */
 html.desktop-browser :is(button, a[href], select, input[type="range"],
   input[type="checkbox"], input[type="radio"], [role="button"], [role="slider"],
-  [role="tab"], [role="switch"], [role="menuitem"], .focusable,
+  [role="tab"], [role="switch"], [role="menuitem"], .focusable:not(input):not(textarea),
   [data-player-pointer-action], [data-player-error-action], [data-sources-zone],
   [data-subtitle-rail], [data-subtitle-style-action], [data-episode-index],
   [data-episode-season-index], [data-episode-stream-index], [data-speed-index]) {

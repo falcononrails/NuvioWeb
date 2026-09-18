@@ -462,8 +462,8 @@ html.desktop-browser {
 /* The browser hero is a full-bleed, cinematic section while rows retain their
    existing rendering and card dimensions below it. */
 .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero {
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  width: 100%;
+  margin-left: 0;
 }
 
 .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-card {
@@ -699,8 +699,8 @@ html.desktop-browser {
    is intentionally excluded because it remains a separate landscape section. */
 .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-catalogs {
   box-sizing: border-box;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  width: 100%;
+  margin-left: 0;
   padding-inline: clamp(24px, 2vw, 40px);
 }
 
@@ -732,8 +732,8 @@ html.desktop-browser {
    carousel with the same outer gutter as the desktop catalog shelves. */
 .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-row-continue {
   box-sizing: border-box;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  width: 100%;
+  margin-left: 0;
   padding-inline: calc(clamp(24px, 2vw, 40px) - 8px);
 }
 
@@ -12114,8 +12114,9 @@ body.desktop-browser {
   .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-card,
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-card {
     touch-action: pan-y pinch-zoom;
-    height: clamp(420px, 76svh, 700px);
-    min-height: 420px;
+    /* NurvX's phone composition reserves room for the first shelf below the hero. */
+    height: min(62svh, 700px);
+    min-height: min(360px, calc(100svh - 180px));
   }
   .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-copy,
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-copy {

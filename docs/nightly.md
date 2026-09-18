@@ -19,3 +19,5 @@ The previous release remains at `/srv/nuvio-web/previous`. Roll back by atomical
 `npm test` and `npm run build` cover the application. The optional `NUVIO_BRIDGE_FIXTURE_URL` conversion test needs FFmpeg and a public, synthetic H.264 file with two E-AC3 audio tracks. It checks decoded, non-silent AAC output, track selection, seeking and session deletion. Production authentication is never bypassed.
 
 The phone navigation styling and hero swipe thresholds are adapted from [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb), under GPL-3.0. Existing routes, catalog data and desktop layout are retained.
+
+The phone hero also uses its 62% viewport ceiling to leave room for Continue Watching. This is a selective adaptation, not a full merge: NurvX's Preact screens, sheet/picker framework, hero parallax and screen-transition host are not included. Browser typography, navigation icons and episode cards follow NuvioDesktop; shared mobile shelves retain 16px page insets and 12px card gaps.
