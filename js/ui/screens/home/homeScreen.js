@@ -1,4 +1,5 @@
 import { Router } from "../../navigation/router.js";
+import { bindBrowserHeroSwipe } from "../../components/browserHeroSwipe.js";
 import { ensureSpatialFocusVisible, ScreenUtils } from "../../navigation/screen.js";
 import { addonRepository } from "../../../data/repository/addonRepository.js";
 import { catalogRepository } from "../../../data/repository/catalogRepository.js";
@@ -11294,6 +11295,12 @@ export const HomeScreen = {
     if (!heroCard) {
       return;
     }
+
+    bindBrowserHeroSwipe(heroCard, {
+      rotate: direction => this.rotateHero(direction),
+      pause: () => this.stopHeroRotation(),
+      resume: () => this.startHeroRotation()
+    });
 
     let carousel = heroCard.querySelector(".desktop-hero-carousel");
     if (!carousel) {

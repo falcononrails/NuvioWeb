@@ -11990,3 +11990,89 @@ body.desktop-browser {
 }
 .home-offline-downloads-action:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .home-offline-reconnect { max-width: 380px; font-size: .9rem; }
+
+/* Phone layout adapted from NurvX/NuvioWeb's GPL-3.0 phone.css tab bar.
+   Keep this fork's shared navigation and retain both Settings and Profile. */
+@media (max-width: 600px) {
+  html.desktop-browser {
+    --browser-mobile-nav-clearance: calc(var(--browser-safe-area-top) + 24px);
+  }
+  .desktop-browser .desktop-navigation {
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    width: min(360px, calc(100vw - 24px));
+    border-radius: 999px;
+    background: rgba(28, 28, 30, 0.82);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+  .desktop-browser .desktop-navigation-scroll {
+    display: flex;
+    justify-content: space-evenly;
+    gap: 2px;
+    padding: 6px;
+    overflow: visible;
+  }
+  .desktop-browser .desktop-navigation-item {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    height: 54px;
+    flex-direction: column;
+    gap: 3px;
+    border-radius: 999px;
+  }
+  .desktop-browser .desktop-navigation-label {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+    line-height: 13px;
+  }
+  .desktop-browser .desktop-navigation-item.is-active {
+    background: rgb(var(--secondary-color-rgb) / 0.15);
+  }
+  .desktop-browser .home-main,
+  .desktop-browser .library-main,
+  .desktop-browser .search-main,
+  .desktop-browser .settings-main {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-card,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-card {
+    touch-action: pan-y pinch-zoom;
+    height: clamp(420px, 76svh, 700px);
+    min-height: 420px;
+  }
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-copy,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-copy {
+    align-items: center;
+    text-align: center;
+    padding-bottom: 64px;
+    margin-inline: auto;
+  }
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-logo {
+    max-width: 78%;
+    max-height: 100px;
+    object-position: center;
+  }
+  .desktop-browser .home-hero-meta-primary,
+  .desktop-browser .home-hero-meta-secondary,
+  .desktop-browser .home-hero-actions {
+    justify-content: center;
+  }
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 34ch;
+  }
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 14px;
+  }
+}
