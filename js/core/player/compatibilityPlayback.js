@@ -14,6 +14,9 @@ export async function requestCompatibilityPlayback(path = "", data = {}) {
         credentials: "omit",
         signal: AbortSignal.timeout(8000)
       });
+      console.info("[Nuvio playback] source resolved", {
+        host: response.url ? new URL(response.url).hostname : null, status: response.status
+      });
       await response.body?.cancel();
       const resolved = new URL(response.url);
       if (response.ok && /^https?:$/.test(resolved.protocol)) {
@@ -22,7 +25,10 @@ export async function requestCompatibilityPlayback(path = "", data = {}) {
           .filter(([name]) => sameOrigin || name.toLowerCase() !== "authorization"));
         data = { ...data, url: resolved.href, headers };
       }
-    } catch { /* CORS-restricted sources can still be read directly by the bridge. */ }
+    } catch (error) {
+      // CORS-restricted sources can still be read directly by the bridge.
+      console.info("[Nuvio playback] source resolution unavailable", { reason: error.name });
+    }
   }
   const send = () => fetch(`/api/playback/sessions${path}`, {
     method: "POST",
