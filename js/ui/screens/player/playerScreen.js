@@ -4915,9 +4915,9 @@ export const PlayerScreen = {
       finishProgressPointer(event, { cancelled: true });
 
     this.boundDesktopPlayerClickHandler = (event) => {
-      // Enter already activates the TV/D-pad focus target through onKeyDown.
-      // Do not run its keyboard-generated browser click a second time.
-      if (event.defaultPrevented || Number(event.detail || 0) === 0) {
+      // Handled keyboard shortcuts prevent their native click in onKeyDown.
+      // Keep zero-detail clicks from accessibility activation working too.
+      if (event.defaultPrevented) {
         return;
       }
       const target = event.target;

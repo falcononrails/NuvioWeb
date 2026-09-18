@@ -198,3 +198,23 @@ test("error and dialog controls retain their cursor and keyboard activation", as
   screen.setControlsVisible(false);
   assert.equal(hiddenCursor, true, "Normal playback still hides the pointer");
 });
+
+test("player actions accept mouse and accessibility clicks", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const body = source.match(/this\.boundDesktopPlayerClickHandler = \(event\) => \{([\s\S]*?)\n    \};/)[1];
+  class Element {
+    closest(selector) { return selector.includes("[data-player-error-action]") ? this : null; }
+  }
+  const target = new Element();
+  let activations = 0;
+  const screen = {
+    container: { contains: () => true },
+    dismissDesktopPlayerPanelFromPointer: () => false,
+    onPointerActivate: () => { activations++; }
+  };
+  const click = vm.runInNewContext(`(function(event) {${body}})`, { Element }).bind(screen);
+  click({target, detail: 0});
+  click({target, detail: 1});
+  click({target, detail: 1, defaultPrevented: true});
+  assert.equal(activations, 2);
+});

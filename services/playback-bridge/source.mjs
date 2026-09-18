@@ -3,6 +3,14 @@ import https from "node:https";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 
+// These messages are safe to show to the client; raw network errors may contain URLs.
+export class SourceReadError extends Error {
+  constructor(message, status = 422) {
+    super(message);
+    this.status = status;
+  }
+}
+
 const blocked = new BlockList();
 for (const [ip, prefix] of [
   ["0.0.0.0", 8],
@@ -85,7 +93,7 @@ export async function openSource(value, headers = {}, redirects = 0) {
       },
       resolve
     );
-    request.on("timeout", () => request.destroy(new Error("Media source timed out.")));
+    request.on("timeout", () => request.destroy(new SourceReadError("The media host timed out. Try another source.", 504)));
     request.on("error", reject);
   });
   if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
@@ -98,14 +106,14 @@ export async function openSource(value, headers = {}, redirects = 0) {
   }
   if (![200, 206].includes(response.statusCode)) {
     response.resume();
-    throw new Error("The media host refused this source.");
+    throw new SourceReadError(`The media host refused this source (HTTP ${response.statusCode}). Try another source.`);
   }
   const length = Number(
     response.headers["content-range"]?.split("/")[1] || response.headers["content-length"] || 0
   );
   if (length > 25 * 1024 ** 3) {
     response.destroy();
-    throw new Error("Compatibility playback supports files up to 25 GB. Choose a smaller source.");
+    throw new SourceReadError("This file exceeds the 25 GB conversion limit. Choose a smaller source.");
   }
   return response;
 }

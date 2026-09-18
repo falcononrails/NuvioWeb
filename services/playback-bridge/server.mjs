@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
-import { mediaHeaders, openSource, validateSource } from "./source.mjs";
+import { mediaHeaders, openSource, validateSource, SourceReadError } from "./source.mjs";
 
 const MAX_SESSIONS = 2;
 const IDLE_MS = 90_000;
@@ -171,7 +171,12 @@ export async function createPlaybackBridge({
         upstream.destroy();
         res.end();
       } else await pipeline(upstream, res);
-    } catch {
+    } catch (error) {
+      if (!session.stopped && !res.destroyed) {
+        session.sourceError = error instanceof SourceReadError
+          ? error
+          : failure(502, "The conversion server could not reach this media host. Try another source.");
+      }
       if (!res.headersSent) res.writeHead(502);
       res.end();
     }
@@ -215,7 +220,7 @@ export async function createPlaybackBridge({
       child.once("close", (code) => {
         clearTimeout(timer);
         if (code !== 0) {
-          reject(failure(422, "This source could not be read. Try another source."));
+          reject(session.sourceError || failure(422, "This source is not a readable media file. Try another source."));
           return;
         }
         try {
@@ -229,6 +234,7 @@ export async function createPlaybackBridge({
 
   async function start(session, position, track) {
     const generation = ++session.generation;
+    session.sourceError = null;
     if (
       session.encoder &&
       session.encoder.exitCode === null &&
@@ -322,7 +328,7 @@ export async function createPlaybackBridge({
       } catch {}
       await pause(250);
     }
-    throw failure(422, "This source could not start in compatibility mode. Try another source.");
+    throw session.sourceError || failure(422, "This source could not start in compatibility mode. Try another source.");
   }
 
   async function body(req) {
@@ -430,7 +436,7 @@ export async function createPlaybackBridge({
       }
       if (req.method === "POST" && action === "heartbeat") {
         if (session.encoderError)
-          throw failure(422, "Compatibility playback stopped. Try another source.");
+          throw session.sourceError || failure(422, "Compatibility playback stopped. Try another source.");
         session.seen = Date.now();
         setCookie(req, res, user);
         json(res, 200, { active: true });

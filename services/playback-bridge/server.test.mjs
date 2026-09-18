@@ -3,8 +3,26 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isPublicAddress, validateSource, mediaHeaders } from "./source.mjs";
+import https from "node:https";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+import { isPublicAddress, validateSource, mediaHeaders, openSource } from "./source.mjs";
 import { compatibleProbe, createPlaybackBridge, verifyNuvioAccount } from "./server.mjs";
+
+test("source refusals and file limits retain useful errors without exposing the URL", async (t) => {
+  let statusCode = 403;
+  t.mock.method(https, "get", (_url, _options, respond) => {
+    const response = new PassThrough();
+    response.statusCode = statusCode;
+    response.headers = { "content-length": String(26 * 1024 ** 3) };
+    queueMicrotask(() => { respond(response); response.end(); });
+    return new EventEmitter();
+  });
+  const url = "https://1.1.1.1/private-stream-token";
+  await assert.rejects(openSource(url), error => error.status === 422 && /HTTP 403/.test(error.message) && !error.message.includes("private-stream-token"));
+  statusCode = 200;
+  await assert.rejects(openSource(url), { status: 422, message: "This file exceeds the 25 GB conversion limit. Choose a smaller source." });
+});
 
 test("Nuvio verifies linked-device account ownership and rejects guests or invalid tokens", async (t) => {
   const owner = "11111111-1111-4111-8111-111111111111";

@@ -703,7 +703,7 @@ export const PlayerController = {
       mediaError: this.sanitizePlaybackDiagnosticText(video?.error?.message)
     };
     this.lastHlsErrorDiagnostic = diagnostic;
-    console.warn("[Nuvio playback] hls.js error", diagnostic);
+    console.warn("[Nuvio playback] hls.js error", JSON.stringify(diagnostic));
     return diagnostic;
   },
 
