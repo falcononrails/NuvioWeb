@@ -1,0 +1,51 @@
+name: Deploy nightly
+
+on:
+  push:
+    branches: [nightly]
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.repository == 'falcononrails/NuvioWeb' && github.ref == 'refs/heads/nightly'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run lint
+      - name: Build with deployment configuration
+        env:
+          NUVIO_PROPERTIES: ${{ secrets.NUVIO_PROPERTIES }}
+          NUVIO_REQUIRE_LOCAL_PROPERTIES: '1'
+        run: |
+          printf '%s' "$NUVIO_PROPERTIES" > local.properties
+          npm run build
+          node --input-type=module -e 'import {writeFileSync} from "node:fs"; writeFileSync("dist/release.json", JSON.stringify({commit:process.env.GITHUB_SHA,channel:"nightly",builtAt:new Date().toISOString()}));'
+          tar -czf release.tar.gz -C dist .
+      - name: Deploy release
+        env:
+          DEPLOY_KEY: ${{ secrets.NUVIO_DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.NUVIO_DEPLOY_HOST }}
+          DEPLOY_HOST_KEY: ${{ secrets.NUVIO_DEPLOY_HOST_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/nuvio
+          printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/nuvio ~/.ssh/known_hosts
+          ssh -i ~/.ssh/nuvio -o BatchMode=yes -o StrictHostKeyChecking=yes "nuvio-deploy@$DEPLOY_HOST" "deploy $GITHUB_SHA" < release.tar.gz
+      - name: Verify public release
+        run: |
+          curl --fail --retry 3 --silent "https://nuvioweb.space/release.json?commit=$GITHUB_SHA" > deployed.json
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync("deployed.json")); if(r.commit!==process.env.GITHUB_SHA) throw Error("Deployment did not serve the expected commit"); console.log("Deployed",r.commit);'

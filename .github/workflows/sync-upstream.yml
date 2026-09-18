@@ -1,0 +1,46 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'falcononrails/NuvioWeb'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: nightly
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Merge and check upstream
+        id: merge
+        run: |
+          git fetch https://github.com/alphasquare404/NuvioWeb.git web
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -c core.hooksPath=/dev/null merge --no-edit FETCH_HEAD
+          npm ci --ignore-scripts
+          npm test
+          npm run lint
+          npm run build
+          git push origin HEAD:nightly
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+      - name: Deploy checked merge
+        if: steps.merge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run nightly.yml --ref nightly
