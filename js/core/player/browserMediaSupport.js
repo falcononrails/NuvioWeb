@@ -1,6 +1,7 @@
 // A filename is only a hint. A missing browser capability is not proof that a
 // file has no audio, and an advertised codec is not a guarantee for every profile.
-export function browserSourceWarnings(stream = {}, video = globalThis.document?.createElement?.("video")) {
+export function browserSourceWarnings(stream = {}, video = null) {
+  if (!video && globalThis.document) video = globalThis.document.createElement("video");
   const raw = stream.raw || stream;
   const label = [stream.label, raw.name, raw.title, raw.description, raw.behaviorHints?.filename].join(" ");
   const warnings = [];

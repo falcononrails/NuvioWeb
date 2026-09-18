@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import vm from "node:vm";
+import { transform } from "esbuild";
+import { browserCompatibilityPolicy } from "../../../scripts/browserCompatibilityPolicy.mjs";
 import { browserSourceWarnings, canAmplifyBrowserMedia, unavailableAudioMessage } from "./browserMediaSupport.js";
 
 test("source warnings distinguish codec hints from confirmed playback support", () => {
@@ -17,4 +21,12 @@ test("the audio booster never captures native cross-origin media", () => {
   assert.equal(canAmplifyBrowserMedia({ currentSrc: "blob:https://nuvioweb.space/123" }, origin), true);
   assert.equal(canAmplifyBrowserMedia({ currentSrc: "/movie.mp4" }, origin), true);
   assert.equal(canAmplifyBrowserMedia({ currentSrc: "" }, origin), false);
+});
+
+test("the production transform can create a media probe without an injected video", async () => {
+  const source = await readFile(new URL("./browserMediaSupport.js", import.meta.url), "utf8");
+  const { code } = await transform(source, { format: "cjs", minify: true, target: `chrome${browserCompatibilityPolicy.chromiumVersion}` });
+  const context = { module: { exports: {} }, document: { createElement: () => ({ canPlayType: () => "" }) } };
+  vm.runInNewContext(code, context);
+  assert.equal(context.module.exports.browserSourceWarnings({title:"Pilot x265 DDP5.1"}).length,2);
 });
