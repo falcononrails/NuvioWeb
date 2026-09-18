@@ -113,7 +113,7 @@ export async function createPlaybackBridge({
   }
 
   async function stop(session) {
-    if (!session || session.stopped) return;
+    if (!session) return;
     session.stopped = true;
     sessions.delete(session.id);
     for (const child of session.processes) child.kill("SIGKILL");
@@ -379,9 +379,12 @@ export async function createPlaybackBridge({
         sessions.set(session.id, session);
         try {
           await validateSource(session.url);
+          if (session.stopped) throw failure(409, "Playback was cancelled.");
           session.directory = await mkdtemp(join(root, "session-"));
+          if (session.stopped) throw failure(409, "Playback was cancelled.");
           session.readerUrl = `http://127.0.0.1:${reader.address().port}/${session.readerToken}`;
           Object.assign(session, await probe(session));
+          if (session.stopped) throw failure(409, "Playback was cancelled.");
           if (session.videoCodec === "hevc" && data.hevc !== true)
             throw failure(422, "Your browser cannot play this HEVC video. Choose an H.264 source.");
           const position = Math.min(session.duration - 1, Math.max(0, Number(data.position) || 0));
