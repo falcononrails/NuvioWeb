@@ -3821,6 +3821,11 @@ html.desktop-browser {
 }
 
 .desktop-browser #player .player-audio-track-list .player-dialog-item-check {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--player-text-primary);
   font-size: 16px;
 }
 

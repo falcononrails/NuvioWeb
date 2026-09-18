@@ -140,6 +140,7 @@ test("preparing audio closes the modal backdrop and cannot cover already started
   let backdropVisible = true;
   Object.assign(screen, {
     audioDialogVisible: true, isActiveMountToken: () => true,
+    pendingPlaybackRestore: { timeSeconds: 1948 }, getPlaybackCurrentSeconds: () => 0,
     clearStartupError() {}, renderAudioDialog() {}, resetControlsAutoHide() {},
     dismissPauseOverlay() {}, releaseStartupAudioGate() {}, clearPlaybackStallGuard() {},
     updateLoadingVisibility() {}, refreshTrackDialogs() {},
@@ -147,7 +148,8 @@ test("preparing audio closes the modal backdrop and cannot cover already started
     presentStartedPlayback() { this.loadingVisible = false; },
     showStartupError() { assert.fail("Preparation must not use an error overlay"); }
   });
-  player.enableCompatibilityPlayback = async () => {
+  player.enableCompatibilityPlayback = async (position) => {
+    assert.equal(position, 1948, "Preserve resume when recovery starts before metadata");
     assert.equal(backdropVisible, false);
     assert.equal(screen.loadingVisible, true);
   };

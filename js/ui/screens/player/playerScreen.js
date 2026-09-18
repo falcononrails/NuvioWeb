@@ -6038,7 +6038,9 @@ export const PlayerScreen = {
     this.loadingVisible = true;
     this.updateLoadingVisibility();
     try {
-      await PlayerController.enableCompatibilityPlayback();
+      // Conversion can start before the browser has restored the saved position.
+      const position = this.pendingPlaybackRestore?.timeSeconds || this.getPlaybackCurrentSeconds();
+      await PlayerController.enableCompatibilityPlayback(position);
       if (!this.isActiveMountToken(mountToken) || playToken !== PlayerController.playRequestToken) return;
       this.refreshTrackDialogs();
       // Loading may have completed before the request promise settled.

@@ -50,14 +50,14 @@ export const PlayerController = {
   compatibilitySeeking: false,
   compatibilityPendingPosition: null,
 
-  async enableCompatibilityPlayback() {
+  async enableCompatibilityPlayback(position = this.getCurrentTimeSeconds()) {
     if (this.compatibility) return;
     const playToken = this.playRequestToken;
     this.video?.pause();
     const session = await requestCompatibilityPlayback("", {
       url: this.currentPlaybackUrl,
       headers: this.currentPlaybackHeaders,
-      position: this.getCurrentTimeSeconds(),
+      position,
       hevc: Boolean(this.video?.canPlayType?.('video/mp4; codecs="hvc1.1.6.L93.B0"'))
     });
     if (playToken !== this.playRequestToken) { closeCompatibilityPlayback(session.id); return; }
