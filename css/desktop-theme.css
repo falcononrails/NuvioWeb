@@ -643,6 +643,46 @@ html.desktop-browser .settings-shell .settings-dialog .settings-hero-catalog-met
 }
 
 @media (max-width: 600px) {
+  .desktop-browser #stream {
+    overflow-x: hidden;
+  }
+
+  .desktop-browser #stream .stream-route-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .desktop-browser #stream .stream-route-card-copy {
+    grid-column: 1 / -1;
+  }
+
+  .desktop-browser #stream .stream-route-card-side {
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .desktop-browser #stream .stream-route-addon-badge {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border: 0;
+  }
+
+  .desktop-browser #stream .stream-route-addon-badge span {
+    font-size: 14px;
+  }
+
+  .desktop-browser #stream .stream-route-offline-actions {
+    grid-column: 2;
+    margin: 0;
+  }
+
+  .desktop-browser #stream .stream-route-offline-action {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .desktop-browser #detail .series-detail-actions {
     padding: 0;
   }
