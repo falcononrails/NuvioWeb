@@ -53,6 +53,9 @@ export const FocusEngine = {
     this.boundHandleKeyUp = this.handleKeyUp.bind(this);
     document.addEventListener("keydown", this.boundHandleKey, true);
     document.addEventListener("keyup", this.boundHandleKeyUp, true);
+    document.addEventListener("pointerdown", () => {
+      document.documentElement?.classList.remove("keyboard-navigation");
+    }, true);
   },
 
   handleBack(event, normalizedEvent = buildNormalizedEvent(event)) {
@@ -84,6 +87,9 @@ export const FocusEngine = {
   },
 
   handleKey(event) {
+    if (["Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event?.key)) {
+      document.documentElement?.classList.add("keyboard-navigation");
+    }
     if (event?.target && !document.contains(event.target)) {
       return;
     }

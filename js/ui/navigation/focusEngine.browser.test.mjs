@@ -131,16 +131,30 @@ test("legacy non-browser aliases and back codes no longer become browser actions
   }
 });
 
-test("FocusEngine installs only browser key listeners", () => {
+test("FocusEngine switches focus indicators between keyboard and pointer input", () => {
+  const classes = new Set();
+  testDocument.documentElement = { classList: {
+    add: name => classes.add(name), remove: name => classes.delete(name)
+  } };
   registeredEvents.length = 0;
   FocusEngine.init();
   assert.deepEqual(
     registeredEvents.map(({ type, capture }) => ({ type, capture })),
     [
       { type: "keydown", capture: true },
-      { type: "keyup", capture: true }
+      { type: "keyup", capture: true },
+      { type: "pointerdown", capture: true }
     ]
   );
+  const restore = installScreen({});
+  try {
+    FocusEngine.handleKey(makeKeyboardEvent("Tab"));
+    assert.equal(classes.has("keyboard-navigation"), true);
+    registeredEvents.find(event => event.type === "pointerdown").handler();
+    assert.equal(classes.has("keyboard-navigation"), false);
+    FocusEngine.handleKey(makeKeyboardEvent("ArrowDown"));
+    assert.equal(classes.has("keyboard-navigation"), true);
+  } finally { restore(); delete testDocument.documentElement; }
 });
 
 test.after(() => {

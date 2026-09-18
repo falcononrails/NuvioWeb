@@ -1,0 +1,323 @@
+/* Shared browser appearance, following NuvioDesktop's ThemeColors and NuvioTokens.
+   Keep layout/behavior in desktop.css; use one surface and interaction treatment here. */
+html.desktop-browser {
+  --desktop-surface: var(--bg-elevated);
+  --desktop-hover: rgb(255 255 255 / 0.08);
+  --desktop-selected: rgb(var(--secondary-color-rgb) / 0.15);
+  --desktop-divider: rgb(37 42 42 / 0.55);
+  --desktop-radius: 16px;
+  --desktop-motion: 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* TV focus classes also mark the last mouse selection. They are not persistent borders. */
+html.desktop-browser :is(button, [role="button"], .focusable),
+html.desktop-browser .settings-shell :is(.focusable.focused, .settings-dialog-option:focus-visible) {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html.desktop-browser:not(.keyboard-navigation) .focused:not(:focus-visible) {
+  outline: none !important;
+}
+
+html.desktop-browser :is(button, a, input, select, textarea, [tabindex]):focus-visible,
+html.desktop-browser.keyboard-navigation .focusable.focused,
+html.desktop-browser.keyboard-navigation .nuvio-dialog-button.focused {
+  outline: 2px solid var(--focus-color) !important;
+  outline-offset: 2px;
+}
+
+html.desktop-browser :is(button, [role="button"]) {
+  transition: background-color var(--desktop-motion), color var(--desktop-motion), opacity var(--desktop-motion);
+}
+
+html.desktop-browser :is(button, [role="button"]):disabled {
+  opacity: 0.38;
+}
+
+/* Navigation uses the desktop app's floating surface and filled active item. */
+.desktop-browser .desktop-navigation {
+  border: 0;
+  background: rgb(28 28 30 / 0.72);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.desktop-browser .desktop-navigation-item.is-active {
+  background: var(--desktop-selected);
+}
+
+/* Use artwork, rather than a bright frame, to define media cards. */
+html.desktop-browser :is(.home-poster-frame, .home-continue-media, .library-grid-poster,
+  .search-result-poster-wrap, .seeall-card-poster-wrap, .detail-morelike-poster-wrap,
+  .movie-cast-avatar, .series-episode-card, .home-collection-card) {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 12px;
+}
+
+html.desktop-browser :is(.home-poster-card, .library-grid-card, .search-result-card,
+  .seeall-card, .detail-morelike-card):hover {
+  color: var(--text-color);
+}
+
+.desktop-browser :is(.home-row-title, .library-status-heading, .search-results-title) {
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+/* Buttons and filters share a quiet surface; primary and destructive colors stay semantic. */
+html.desktop-browser :is(.series-season-btn, .series-season-download-action,
+  .library-picker-anchor, .library-clear-filters, .discover-filter,
+  .stream-route-chip, .player-sources-filter, .player-sources-top-btn,
+  .player-episode-season-tab, .series-secondary-btn, .desktop-addon-action,
+  .desktop-plugin-action) {
+  background: var(--desktop-surface);
+  border-radius: var(--desktop-radius);
+  box-shadow: none;
+}
+
+html.desktop-browser :is(.series-season-btn.selected, .player-sources-filter.selected,
+  .player-episode-season-tab.selected, .library-presentation-button.selected,
+  .stream-route-chip.selected) {
+  background: var(--desktop-selected);
+  color: var(--text-color);
+}
+
+.desktop-browser .library-shell.desktop-navigation-enabled .library-presentation-toggle {
+  border: 0;
+  background: var(--desktop-surface);
+  border-radius: 16px;
+  padding: 4px;
+}
+
+/* Settings: a sidebar and grouped rows, without multiple nested outlined cards. */
+.desktop-browser .settings-shell .settings-workspace {
+  max-width: 1320px;
+  margin-inline: auto;
+  gap: 32px;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.desktop-browser .settings-shell .settings-sidebar {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 4px;
+}
+
+.desktop-browser .settings-shell .settings-nav-item {
+  min-height: 48px;
+  padding-inline: 16px;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.desktop-browser .settings-shell .settings-nav-item.selected,
+.desktop-browser .settings-shell .settings-nav-item.active {
+  background: var(--desktop-selected);
+  color: var(--text-color);
+}
+
+.desktop-browser .settings-shell .settings-nav-chevron {
+  display: none;
+}
+
+.desktop-browser .settings-shell .settings-title,
+.desktop-browser .library-page-title {
+  font-size: 38px;
+  line-height: 42px;
+  font-weight: 600;
+  letter-spacing: -1.2px;
+}
+
+.desktop-browser .settings-shell .settings-content-header {
+  padding-bottom: 12px;
+}
+
+.desktop-browser .settings-shell :is(.settings-group-card, .settings-subsection-card) {
+  border: 0.5px solid var(--desktop-divider);
+  background: var(--desktop-surface);
+  border-radius: var(--desktop-radius);
+  padding: 8px;
+  box-shadow: none;
+}
+
+.desktop-browser .settings-shell :is(.settings-group-card, .settings-subsection-card)
+  :is(.settings-subsection-card, .settings-group-card) {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.desktop-browser .settings-shell .settings-stack {
+  gap: 4px;
+}
+
+.desktop-browser .settings-shell :is(.settings-action-row, .settings-toggle-row,
+  .settings-collapsible-trigger, .settings-subsection-card .settings-action-row) {
+  min-height: 68px;
+  padding: 14px 16px;
+  background: transparent;
+  border-radius: 12px;
+}
+
+.desktop-browser .settings-shell .settings-group-heading {
+  padding: 12px 16px 8px;
+}
+
+.desktop-browser .settings-shell .settings-group-title {
+  font-size: 18px;
+  line-height: 22px;
+}
+
+.desktop-browser .settings-shell .settings-row-title {
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.desktop-browser .settings-shell .settings-row-subtitle {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+
+.desktop-browser .settings-shell :is(.desktop-addon-card, .desktop-plugin-source,
+  .desktop-home-catalog-row, .settings-fusion-source-card, .desktop-plugin-section) {
+  border: 0;
+  border-radius: 12px;
+  background: var(--desktop-surface);
+}
+
+/* Search and forms keep a subtle boundary and a visible keyboard focus indicator. */
+html.desktop-browser :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  textarea, select) {
+  border: 1px solid var(--desktop-divider);
+  border-radius: 12px;
+  background-color: var(--desktop-surface);
+  color: var(--text-color);
+  box-shadow: none !important;
+  font-family: inherit;
+}
+
+.desktop-browser .search-screen-shell.desktop-navigation-enabled .search-input-field {
+  height: 52px;
+  font-size: 16px;
+  border-radius: 16px;
+}
+
+/* Source selection and player panels use the same surfaces as other menus. */
+.desktop-browser #stream .stream-route-card,
+.desktop-browser #player .player-source-card {
+  border: 0;
+  border-radius: 12px;
+  background: var(--desktop-surface);
+}
+
+.desktop-browser #player :is(.player-modal, .player-sources-panel, .player-episode-panel) {
+  border: 0;
+  border-radius: 24px;
+  background: rgb(26 26 26 / 0.96);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.24);
+}
+
+.desktop-browser #player :is(.player-subtitle-rail,
+  .player-subtitle-language-rail, .player-subtitle-options-rail, .player-subtitle-style-rail) {
+  border: 0;
+  background: transparent;
+}
+
+.desktop-browser #player :is(.player-dialog-item, .player-dialog-step,
+  .player-dialog-style-reset, .player-dialog-style-item) {
+  border-color: transparent;
+  border-radius: 12px;
+}
+
+/* Shared dialogs were still using doubled TV dimensions. */
+.desktop-browser .nuvio-dialog-panel {
+  max-width: min(560px, calc(100vw - 32px)) !important;
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  gap: 16px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--desktop-surface);
+  overflow-y: auto;
+}
+
+.desktop-browser .nuvio-dialog-title {
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+.desktop-browser :is(.nuvio-dialog-subtitle, .nuvio-dialog-error) {
+  margin-top: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.desktop-browser .nuvio-dialog-actions {
+  gap: 8px;
+}
+
+.desktop-browser .poster-list-picker-actions {
+  margin-inline: 0;
+  padding: 4px;
+}
+
+html.desktop-browser .nuvio-dialog-button.focused {
+  transform: none;
+}
+
+.desktop-browser .settings-shell :is(.settings-dialog, .settings-text-dialog,
+  .settings-p2p-consent-dialog) {
+  border: 0;
+  border-radius: 24px;
+  background: var(--desktop-surface);
+}
+
+.desktop-browser .nuvio-dialog-button {
+  min-height: 44px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .desktop-browser .settings-shell :is(.settings-nav-item, .settings-action-row,
+    .settings-toggle-row, .settings-collapsible-trigger):hover,
+  .desktop-browser #stream .stream-route-card:hover,
+  .desktop-browser #player .player-source-card:hover {
+    background: var(--desktop-hover);
+  }
+}
+
+@media (max-width: 900px) {
+  .desktop-browser .settings-shell .settings-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .desktop-browser .settings-shell .settings-nav-item {
+    min-height: 44px;
+  }
+
+  .desktop-browser :is(.settings-title, .library-page-title) {
+    font-size: 32px;
+    line-height: 36px;
+  }
+
+  .desktop-browser .nuvio-dialog-panel {
+    padding: 20px;
+    max-height: calc(100dvh - var(--browser-safe-area-top) - var(--browser-safe-area-bottom) - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.desktop-browser { --desktop-motion: 0ms; }
+}
