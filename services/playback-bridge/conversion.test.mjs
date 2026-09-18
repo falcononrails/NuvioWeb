@@ -38,13 +38,27 @@ test(
       return { status: response.status, body: await response.json() };
     };
     try {
+      const inspected = await post("/api/playback/sessions", {
+        url: process.env.NUVIO_BRIDGE_FIXTURE_URL, inspect: true
+      });
+      assert.equal(inspected.status, 200, JSON.stringify(inspected.body));
+      assert.equal(inspected.body.tracks.length, 2);
+      assert.equal(inspected.body.url, undefined, "Inspection does not create a converted stream");
+      assert.equal(cookie, undefined, "Inspection releases its slot without creating a session cookie");
       const created = await post("/api/playback/sessions", {
-        url: process.env.NUVIO_BRIDGE_FIXTURE_URL
+        url: process.env.NUVIO_BRIDGE_FIXTURE_URL,
+        preferredLanguages: [inspected.body.tracks[1].language]
       });
       assert.equal(created.status, 201, JSON.stringify(created.body));
       let session = created.body;
       assert.equal(session.tracks.length, 2);
       assert.equal(session.videoCodec, "h264");
+      assert.equal(session.track, inspected.body.tracks[1].index, "Conversion starts in the preferred language");
+      const inspectDuringPlayback = await post("/api/playback/sessions", {
+        url: process.env.NUVIO_BRIDGE_FIXTURE_URL, inspect: true
+      });
+      assert.equal(inspectDuringPlayback.status, 409, "Inspection must not interrupt an active conversion");
+      assert.equal((await fetch(base + session.url, { headers: { cookie } })).status, 200);
       const duplicate = await post("/api/playback/sessions", {
         url: process.env.NUVIO_BRIDGE_FIXTURE_URL
       });

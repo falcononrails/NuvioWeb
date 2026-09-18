@@ -51,9 +51,22 @@ export function compatibleProbe(data) {
       index: stream.index,
       language: stream.tags?.language || "und",
       title: stream.tags?.title || "",
+      default: Boolean(stream.disposition?.default),
       codec: stream.codec_name
     }))
   };
+}
+
+export function selectAudioTrack(tracks, preferredLanguages = []) {
+  const language = (value) => {
+    try { return new Intl.Locale(value).language; } catch { return "und"; }
+  };
+  for (const preferred of preferredLanguages) {
+    const code = language(preferred);
+    const match = code !== "und" && tracks.find(track => language(track.language) === code);
+    if (match) return match.index;
+  }
+  return (tracks.find(track => track.default) || tracks[0]).index;
 }
 
 export async function verifyNuvioAccount(bearer, authUrl, apiKey) {
@@ -382,10 +395,17 @@ export async function createPlaybackBridge({
         const user = await verify(req);
         const data = await body(req);
         if (typeof data.url !== "string") throw failure(400, "Missing media source.");
+        if (data.preferredLanguages !== undefined && (!Array.isArray(data.preferredLanguages) ||
+            data.preferredLanguages.length > 2 || data.preferredLanguages.some(value =>
+              typeof value !== "string" || !/^[A-Za-z-]{2,35}$/.test(value))))
+          throw failure(400, "Invalid audio language preference.");
         const headers = mediaHeaders(data.headers);
         // A new stream replaces this account's old one, even if its tab never sent DELETE.
         // stop() removes the old reservation synchronously; reserve the new one before awaiting.
         const previous = [...sessions.values()].find((session) => session.user === user);
+        // Inspection shares the probe limit, but must not interrupt another tab's playback.
+        if (data.inspect === true && previous)
+          throw failure(409, "Audio tracks cannot be checked while another source is being prepared or converted.");
         const stopped = stop(previous);
         if (sessions.size >= MAX_SESSIONS)
           throw failure(
@@ -415,10 +435,20 @@ export async function createPlaybackBridge({
           session.readerUrl = `http://127.0.0.1:${reader.address().port}/${session.readerToken}`;
           Object.assign(session, await probe(session));
           if (session.stopped) throw failure(409, "Playback was cancelled.");
+          if (data.inspect === true) {
+            const result = { tracks: session.tracks, track: selectAudioTrack(session.tracks),
+              duration: session.duration, videoCodec: session.videoCodec };
+            await stop(session);
+            json(res, 200, result);
+            return;
+          }
           if (session.videoCodec === "hevc" && data.hevc !== true)
             throw failure(422, "Your browser cannot play this HEVC video. Choose an H.264 source.");
           const position = Math.min(session.duration - 1, Math.max(0, Number(data.position) || 0));
-          const result = await start(session, position, session.tracks[0].index);
+          const track = data.track ?? selectAudioTrack(session.tracks, data.preferredLanguages);
+          if (!session.tracks.some(value => value.index === track))
+            throw failure(400, "Invalid audio track.");
+          const result = await start(session, position, track);
           setCookie(req, res, user);
           json(res, 201, result);
         } catch (error) {

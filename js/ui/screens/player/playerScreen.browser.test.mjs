@@ -133,13 +133,14 @@ test("automatic audio recovery requires codec or decoding evidence and only trie
 test("preparing audio closes the modal backdrop and cannot cover already started playback", async () => {
   const source = await readFile(playerScreenUrl, "utf8");
   const methods = ["startCompatibilityPlayback", "closeAudioDialog"].map(name =>
-    source.match(new RegExp(`  (?:async )?${name}\\(\\) \\{[\\s\\S]*?\\n  \\},`))[0]
+    source.match(new RegExp(`  (?:async )?${name}\\([^\\n]*\\) \\{[\\s\\S]*?\\n  \\},`))[0]
   ).join("\n");
   const player = { playRequestToken: 1, video: { paused: false, readyState: 4 } };
   const screen = vm.runInNewContext(`({${methods}})`, { PlayerController: player });
   let backdropVisible = true;
   Object.assign(screen, {
     audioDialogVisible: true, isActiveMountToken: () => true,
+    getStartupPreferredAudioLanguageTargets: () => ["en"],
     pendingPlaybackRestore: { timeSeconds: 1948 }, getPlaybackCurrentSeconds: () => 0,
     clearStartupError() {}, renderAudioDialog() {}, resetControlsAutoHide() {},
     dismissPauseOverlay() {}, releaseStartupAudioGate() {}, clearPlaybackStallGuard() {},
@@ -245,4 +246,52 @@ test("the stall guard allows conversion preparation and rechecks an older timer"
   assert.equal(screen.getPlaybackStallTimeoutMs(), 65000);
   screen.compatibilityPending = false;
   assert.equal(screen.getPlaybackStallTimeoutMs({ startup: true }), 18000);
+});
+
+test("hidden-track discovery refreshes preferences once and ignores stale playback", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const method = source.match(/  async discoverHiddenAudioTracks\(\) \{[\s\S]*?\n  \},/)[0];
+  let complete;
+  let refreshed = 0;
+  const player = { playRequestToken: 4, playbackEngine: "native-file", video: { readyState: 4 },
+    currentPlaybackUrl: "https://media.example/multilingual.mp4",
+    inspectBrowserAudioTracks() {
+      this.audioInspection = { playToken: this.playRequestToken };
+      return new Promise(resolve => { complete = resolve; });
+    }
+  };
+  const screen = vm.runInNewContext(`({${method}})`, { PlayerController: player });
+  Object.assign(screen, { compatibilityAvailable: true, getAudioEntries: () => [], renderAudioDialog() {},
+    isActiveMountToken: () => true, refreshTrackDialogs() { refreshed++; }, startupAudioPreferenceApplied: true });
+  const pending = screen.discoverHiddenAudioTracks();
+  complete();
+  await pending;
+  assert.equal(screen.startupAudioPreferenceApplied, false);
+  assert.equal(refreshed, 1);
+  await screen.discoverHiddenAudioTracks();
+  assert.equal(refreshed, 1, "Inspect a file only once");
+  player.playRequestToken++;
+  const stale = screen.discoverHiddenAudioTracks();
+  player.playRequestToken++;
+  complete();
+  await stale;
+  assert.equal(refreshed, 1, "A late probe must not change another source");
+});
+
+test("selecting hidden native audio requests its source index and remembers manual choices", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const method = source.match(/  applyAudioTrack\([^\n]*\) \{[\s\S]*?\n  \},/)[0];
+  const screen = vm.runInNewContext(`({${method}})`, { PlayerController: {} });
+  let track, remembered;
+  const entry = { selected: false, track: { engine: "inspected", sourceIndex: 3 } };
+  Object.assign(screen, { getAudioEntries: () => [entry],
+    startCompatibilityPlayback: value => { track = value; },
+    rememberAudioTrackSelection: value => { remembered = value; }, getAudioTrackPreference: () => "en" });
+  screen.applyAudioTrack(0, { rememberSelection: true });
+  assert.equal(track, 3);
+  assert.equal(remembered, "en");
+  track = null;
+  entry.selected = true;
+  screen.applyAudioTrack(0);
+  assert.equal(track, null, "The file's existing default does not need conversion");
 });

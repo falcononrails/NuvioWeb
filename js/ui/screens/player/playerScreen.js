@@ -6026,7 +6026,8 @@ export const PlayerScreen = {
     void PlayerController.attemptBrowserVideoPlay();
   },
 
-  async startCompatibilityPlayback() {
+  async startCompatibilityPlayback(track = null) {
+    if (this.compatibilityPending) return;
     const mountToken = this.playerMountToken;
     const playToken = PlayerController.playRequestToken;
     this.compatibilityAttemptToken = playToken;
@@ -6041,7 +6042,9 @@ export const PlayerScreen = {
     try {
       // Conversion can start before the browser has restored the saved position.
       const position = this.pendingPlaybackRestore?.timeSeconds || this.getPlaybackCurrentSeconds();
-      await PlayerController.enableCompatibilityPlayback(position);
+      await PlayerController.enableCompatibilityPlayback(position, {
+        track, preferredLanguages: this.getStartupPreferredAudioLanguageTargets()
+      });
       if (!this.isActiveMountToken(mountToken) || playToken !== PlayerController.playRequestToken) return;
       this.refreshTrackDialogs();
       // Loading may have completed before the request promise settled.
@@ -8290,6 +8293,7 @@ export const PlayerScreen = {
       if (!this.isActiveMountToken(mountToken)) return;
       this.compatibilityAvailable = health?.available === true;
       this.attemptSilentAudioRecovery("health");
+      void this.discoverHiddenAudioTracks();
     }).catch(() => {});
     const video = PlayerController.video;
     if (!video) {
@@ -8430,6 +8434,7 @@ export const PlayerScreen = {
       this.scheduleLoadingCompletionCheck(900);
       setTimeout(() => {
         this.attemptSilentAudioRecovery("metadata");
+        void this.discoverHiddenAudioTracks();
       }, 500);
     };
 
@@ -13706,6 +13711,22 @@ export const PlayerScreen = {
     );
   },
 
+  async discoverHiddenAudioTracks() {
+    const playToken = PlayerController.playRequestToken;
+    if (!this.compatibilityAvailable || this.compatibilityPending || PlayerController.compatibility ||
+        PlayerController.playbackEngine !== "native-file" || PlayerController.video?.readyState < 1 ||
+        !/^https?:/i.test(PlayerController.currentPlaybackUrl) ||
+        PlayerController.audioInspection?.playToken === playToken || this.getAudioEntries().length) return;
+    const mountToken = this.playerMountToken;
+    const pending = PlayerController.inspectBrowserAudioTracks();
+    this.renderAudioDialog();
+    await pending;
+    if (!this.isActiveMountToken(mountToken) || playToken !== PlayerController.playRequestToken ||
+        this.compatibilityPending || PlayerController.compatibility) return;
+    this.startupAudioPreferenceApplied = false;
+    this.refreshTrackDialogs();
+  },
+
   getAudioEntries() {
     const cachedEntries = this.trackDialogCache?.audioEntries;
     if (cachedEntries) {
@@ -13772,6 +13793,7 @@ export const PlayerScreen = {
     this.syncTrackState();
     this.applyAudioAmplification();
     this.audioDialogVisible = true;
+    void this.discoverHiddenAudioTracks();
     this.subtitleDialogVisible = false;
     this.speedDialogVisible = false;
     this.sourcesPanelVisible = false;
@@ -13815,6 +13837,12 @@ export const PlayerScreen = {
       return;
     }
 
+    if (selectedEntry.track.engine === "inspected") {
+      if (rememberSelection) this.rememberAudioTrackSelection(this.getAudioTrackPreference(selectedEntry));
+      if (!selectedEntry.selected) void this.startCompatibilityPlayback(selectedEntry.track.sourceIndex);
+      return;
+    }
+
     const browserAudioTrackIndex = Number(selectedEntry.browserAudioTrackIndex);
     if (!Number.isFinite(browserAudioTrackIndex)) {
       return;
@@ -13845,14 +13873,16 @@ export const PlayerScreen = {
     dialog.classList.toggle("hidden", !this.audioDialogVisible);
     if (!this.audioDialogVisible) { dialog.innerHTML = ""; return; }
     const entries = this.getAudioEntries();
-    const loading = this.isCurrentSourceAdaptiveManifest() &&
-      (this.manifestLoading || this.trackDiscoveryInProgress);
+    const inspection = PlayerController.audioInspection?.playToken === PlayerController.playRequestToken
+      ? PlayerController.audioInspection : null;
+    const loading = inspection?.pending || (this.isCurrentSourceAdaptiveManifest() &&
+      (this.manifestLoading || this.trackDiscoveryInProgress));
     this.audioDialogIndex = clamp(this.audioDialogIndex, 0, Math.max(0, entries.length - 1));
     dialog.innerHTML = `
       <div class="player-dialog-title">${escapeHtml(t("audio_dialog_title", {}, "Audio"))}</div>
       ${!entries.length ? `<div class="player-dialog-empty${loading ? " player-dialog-loading" : ""}">
         ${loading ? renderLoadingIndicator() : ""}
-        <span>${escapeHtml(loading ? "Loading audio tracks..." : this.getUnavailableTrackMessage("audio"))}</span>
+        <span>${escapeHtml(loading ? "Loading audio tracks..." : inspection?.error || this.getUnavailableTrackMessage("audio"))}</span>
       </div>` : `<div class="player-dialog-list player-audio-track-list">
         ${entries.map((entry, index) => `
           <button type="button" class="player-dialog-item focusable${entry.selected ? " selected" : ""}${index === this.audioDialogIndex ? " focused" : ""}${entry.supported === false ? " disabled" : ""}"
@@ -14268,7 +14298,8 @@ export const PlayerScreen = {
     const filters = this.getSourceFilters(orderedSources);
     const filtered = this.getFilteredSources(orderedSources);
     const badgeSettings = StreamBadgeSettingsStore.snapshot();
-    const showAddonLogo = badgeSettings.showAddonLogo === true;
+    const showAddonLogo = badgeSettings.showAddonLogo === true &&
+      (!Environment.isBrowser() || this.sourceFilter === "all");
     const badgePlacement = resolvePlayerSourceBadgePlacement(badgeSettings);
     this.ensureSourcesFocus(filters, filtered);
 
@@ -15320,7 +15351,8 @@ export const PlayerScreen = {
     const streams = this.getFilteredEpisodePanelStreams();
     const focus = this.episodePanelStreamFocus || { zone: "actions", index: 0 };
     const badgeSettings = StreamBadgeSettingsStore.snapshot();
-    const showAddonLogo = badgeSettings.showAddonLogo === true;
+    const showAddonLogo = badgeSettings.showAddonLogo === true &&
+      (!Environment.isBrowser() || this.episodePanelStreamFilter === "all");
     const badgePlacement = resolvePlayerSourceBadgePlacement(badgeSettings);
     const episodeCode = episodeDisplayCode(selectedEpisode);
     const episodeTitle = String(

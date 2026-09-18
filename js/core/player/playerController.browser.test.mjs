@@ -419,3 +419,47 @@ test("leaving the page releases conversion while merely backgrounding it keeps p
     if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow); else delete globalThis.window;
   }
 });
+
+test("hidden native audio is exposed only for the current source", () => {
+  const player = Object.create(PlayerController);
+  player.playRequestToken = 10;
+  player.playbackEngine = "native-file";
+  player.getNativeAudioTracks = () => [];
+  player.audioInspection = { playToken: 10, track: 1, tracks: [
+    { index: 1, language: "spa", codec: "aac" }, { index: 3, language: "eng", codec: "aac" }
+  ] };
+  assert.deepEqual(player.getBrowserAudioTracks().map(track => [track.sourceIndex, track.selected]), [[1, true], [3, false]]);
+  assert.equal(player.getBrowserAudioTracks()[1].engine, "inspected");
+  player.playRequestToken++;
+  assert.deepEqual(player.getBrowserAudioTracks(), [], "Do not reuse the previous file's tracks");
+  player.playRequestToken--;
+  player.getNativeAudioTracks = () => [{ id: "browser-owned" }];
+  assert.equal(player.getBrowserAudioTracks()[0].id, "browser-owned");
+});
+
+test("screen wake lock releases when paused or hidden, including a pending request", async () => {
+  const player = Object.create(PlayerController);
+  const page = { visibilityState: "visible" };
+  let grant;
+  let releases = 0;
+  const lock = { released: false, release: async () => { releases++; } };
+  const method = vm.runInNewContext(`({${PlayerController.updateScreenWakeLock.toString()}})`, {
+    document: page, navigator: { wakeLock: { request: () => new Promise(resolve => { grant = resolve; }) } }
+  }).updateScreenWakeLock;
+  player.video = { paused: false };
+  player.updateScreenWakeLock = method;
+  const pending = player.updateScreenWakeLock();
+  page.visibilityState = "hidden";
+  grant(lock);
+  await pending;
+  assert.equal(releases, 1);
+  assert.equal(player.screenWakeLock, null);
+  page.visibilityState = "visible";
+  const visible = player.updateScreenWakeLock();
+  grant(lock);
+  await visible;
+  assert.equal(player.screenWakeLock, lock);
+  player.video.paused = true;
+  await player.updateScreenWakeLock();
+  assert.equal(releases, 2);
+});

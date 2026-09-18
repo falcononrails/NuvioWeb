@@ -7,7 +7,7 @@ import https from "node:https";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { isPublicAddress, validateSource, mediaHeaders, openSource } from "./source.mjs";
-import { compatibleProbe, createPlaybackBridge, verifyNuvioAccount } from "./server.mjs";
+import { compatibleProbe, selectAudioTrack, createPlaybackBridge, verifyNuvioAccount } from "./server.mjs";
 
 test("source refusals and file limits retain useful errors without exposing the URL", async (t) => {
   let statusCode = 403;
@@ -104,6 +104,17 @@ test("probes distinguish unsupported video, missing audio and convertible audio"
       }),
     /video conversion/
   );
+});
+
+test("audio preferences match file language codes before falling back to its default", () => {
+  const tracks = [{ index: 1, language: "spa" }, { index: 3, language: "eng" },
+    { index: 4, language: "fre", default: true }];
+  assert.equal(selectAudioTrack(tracks, ["en-US"]), 3);
+  assert.equal(selectAudioTrack(tracks, ["ja", "en"]), 3);
+  assert.equal(selectAudioTrack(tracks, ["fr"]), 4);
+  assert.equal(selectAudioTrack(tracks, ["ja"]), 4);
+  assert.equal(selectAudioTrack(tracks), 4);
+  assert.equal(selectAudioTrack([{ index: 2, language: "bad_language" }], ["en"]), 2);
 });
 
 test("the bridge requires account authentication and same-origin writes before reading a source", async () => {

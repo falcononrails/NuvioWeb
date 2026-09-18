@@ -8,6 +8,10 @@ The upstream workflow checks alphasquare404/NuvioWeb's `web` branch every three 
 
 Compatibility playback starts automatically for unsupported audio, detected missing audio decoding, or a browser playback error. A new stream replaces the previous conversion session for the same account. It verifies the user's existing Nuvio session through `get_sync_owner`, including approved linked devices, copies H.264/HEVC video and converts one selected audio track to stereo AAC at normal speed. It does not transcode video, process DRM or accept live playlists.
 
+When native file playback hides its audio tracks, an authenticated FFprobe request discovers them using the same resource limits. The probe releases its slot without starting conversion. Files already playing the preferred language stay direct; selecting another embedded track starts conversion at the current position. Conversion also honors the configured language from its first segment. Probes cannot interrupt another active conversion.
+
+The browser requests a screen wake lock while visible and playing, where supported, and releases it on pause or when hidden. This prevents supported devices from sleeping during playback; it is not a verified fix for Xbox Edge stuttering.
+
 Limits: two sessions overall, one per account, 90 seconds without a heartbeat, four hours per session, 25 GB source files, 60 Mbps input, 1.5 CPU cores, 1 GB memory and 1.5 GB temporary storage. Private network addresses and unsafe redirects are rejected. Stream URLs and authorization headers are never logged by the service.
 
 The VPS runs `/opt/nuvio-web/compose.yaml`. The deployment receiver can write releases only. A systemd path unit restarts the fixed playback container when `.deployed` changes. Compatibility sessions are interrupted when that container restarts; ordinary direct playback stays in the browser.

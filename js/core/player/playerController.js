@@ -49,15 +49,55 @@ export const PlayerController = {
   compatibilityTimer: null,
   compatibilitySeeking: false,
   compatibilityPendingPosition: null,
+  audioInspection: null,
+  screenWakeLock: null,
+  screenWakeLockPending: false,
 
-  async enableCompatibilityPlayback(position = this.getCurrentTimeSeconds()) {
+  async updateScreenWakeLock() {
+    const playing = this.video && !this.video.paused && !this.video.ended && !this.video.error;
+    if (!playing || globalThis.document?.visibilityState !== "visible") {
+      const lock = this.screenWakeLock;
+      this.screenWakeLock = null;
+      await lock?.release().catch(() => {});
+      return;
+    }
+    if (this.screenWakeLock && !this.screenWakeLock.released || this.screenWakeLockPending ||
+        !globalThis.navigator?.wakeLock) return;
+    this.screenWakeLockPending = true;
+    try {
+      this.screenWakeLock = await navigator.wakeLock.request("screen");
+      // Playback may have paused or the tab may have hidden while permission settled.
+      await this.updateScreenWakeLock();
+    } catch { /* Wake locks are optional; a denied request must not interrupt playback. */ }
+    finally { this.screenWakeLockPending = false; }
+  },
+
+  inspectBrowserAudioTracks() {
+    const playToken = this.playRequestToken;
+    if (this.audioInspection?.playToken === playToken) return this.audioInspection.promise;
+    const inspection = { playToken, pending: true, tracks: [], error: "" };
+    this.audioInspection = inspection;
+    inspection.promise = requestCompatibilityPlayback("", {
+      url: this.currentPlaybackUrl, headers: this.currentPlaybackHeaders, inspect: true
+    }).then(result => Object.assign(inspection, result)).catch(error => {
+      inspection.error = error.message;
+    }).finally(() => { inspection.pending = false; });
+    return inspection.promise;
+  },
+
+  async enableCompatibilityPlayback(position = this.getCurrentTimeSeconds(), { track = null, preferredLanguages = [] } = {}) {
     if (this.compatibility) return;
     const playToken = this.playRequestToken;
     this.video?.pause();
+    // Finish an in-flight probe before reserving its replacement conversion slot.
+    await this.audioInspection?.promise;
+    if (playToken !== this.playRequestToken) return;
     const session = await requestCompatibilityPlayback("", {
       url: this.currentPlaybackUrl,
       headers: this.currentPlaybackHeaders,
       position,
+      track,
+      preferredLanguages,
       hevc: Boolean(this.video?.canPlayType?.('video/mp4; codecs="hvc1.1.6.L93.B0"'))
     });
     if (playToken !== this.playRequestToken) { closeCompatibilityPlayback(session.id); return; }
@@ -390,7 +430,15 @@ export const PlayerController = {
         engine: "dash.js"
       }));
     }
-    return this.getNativeAudioTracks();
+    const nativeTracks = this.getNativeAudioTracks();
+    if (nativeTracks.length || this.playbackEngine !== "native-file" ||
+        this.audioInspection?.playToken !== this.playRequestToken) return nativeTracks;
+    return this.audioInspection.tracks.map((track, index) => ({
+      id: String(track.index), index, sourceIndex: track.index,
+      label: track.title || track.language || `Audio ${index + 1}`,
+      language: track.language, codec: track.codec,
+      selected: track.index === this.audioInspection.track, engine: "inspected", raw: track
+    }));
   },
 
   getSelectedBrowserAudioTrackIndex() {
@@ -1661,6 +1709,9 @@ export const PlayerController = {
       this.videoElementListeners.push({ target: video, eventName, handler });
     };
 
+    ["playing", "pause", "ended", "error"].forEach(eventName =>
+      listen(eventName, () => { void this.updateScreenWakeLock(); }));
+
     listen("ended", () => {
       this.isPlaying = false;
       const context = this.createProgressContext();
@@ -1746,6 +1797,7 @@ export const PlayerController = {
         }
       };
       this.visibilityFlushHandler = () => {
+        void this.updateScreenWakeLock();
         if (document.visibilityState === "hidden") {
           this.lifecycleFlushHandler?.();
         }
