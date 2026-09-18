@@ -277,6 +277,15 @@ export const Router = {
     }
     this.popstateBound = true;
     window.addEventListener("popstate", async (event) => {
+      const state = event?.state || null;
+      if (
+        this.pendingPreviousRouteBack?.expectedRoute === state?.route &&
+        this.pendingPreviousRouteBack?.expectedIndex === getNuvioHistoryIndex(state)
+      ) {
+        // Keyboard Back can arm these guards after requesting this traversal.
+        this.ignoreNextPopstate = false;
+        this.suppressPopstateUntil = 0;
+      }
       if (this.ignoreNextPopstate) {
         this.ignoreNextPopstate = false;
         return;
@@ -287,7 +296,6 @@ export const Router = {
         }
         return;
       }
-      const state = event?.state || null;
       const hasValidHistoryTarget = Boolean(state?.route && this.routes[state.route]);
       const departingBrowserHistoryIndex = this.browserHistoryIndex;
       this.browserHistoryIndex = getNuvioHistoryIndex(state);

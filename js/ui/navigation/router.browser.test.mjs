@@ -106,6 +106,7 @@ Object.defineProperty(globalThis, "window", { configurable: true, writable: true
 const { Platform } = await import("../../platform/index.js");
 Platform.current = null;
 const { Router } = await import("./router.js");
+const { FocusEngine } = await import("./focusEngine.js");
 const { RouteStateStore } = await import("./routeStateStore.js");
 
 const originalRoutes = Router.routes;
@@ -685,6 +686,39 @@ test("Player error Back leaves even when a pause overlay appears behind the erro
     assert.equal(Router.getCurrent(), "stream", `${action} must leave the error screen`);
     assert.equal(history.index, 0);
     assert.deepEqual(historyRoutes(), ["stream", "player"]);
+  }
+});
+
+test("keyboard Player Back completes after the focus engine arms popstate suppression", async () => {
+  const originalBack = history.back;
+  // Native popstate arrives after the key handler returns.
+  history.back = function () {
+    historyCalls.push({ type: "back" });
+    this.index -= 1;
+    this.pendingTraversal = Promise.resolve().then(() => dispatchPopstate(this.state));
+  };
+  try {
+    for (const startupError of [false, true]) {
+      const stream = makeStreamScreen();
+      const player = makePlayerBackScreen();
+      player.isStartupErrorVisible = () => startupError;
+      resetRouter({ stream, player });
+      Router.init();
+      await Router.navigate("stream", { itemId: "movie-1" });
+      await Router.navigate("player", { itemId: "movie-1", returnToStreamOnBack: true });
+      Router.ignoreSinglePopstate();
+      FocusEngine.lastBackHandledAt = 0;
+      FocusEngine.handleBack({ key: "Escape", preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {} });
+      assert.ok(Router.suppressPopstateUntil > Date.now());
+      await history.whenSettled();
+      await flushNavigation();
+      assert.equal(Router.getCurrent(), "stream");
+      assert.equal(player.playerBackNavigationInProgress, false);
+      assert.equal(Router.ignoreNextPopstate, false);
+      assert.deepEqual(historyRoutes(), ["stream", "player"]);
+    }
+  } finally {
+    history.back = originalBack;
   }
 });
 
