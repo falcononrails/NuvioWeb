@@ -884,7 +884,7 @@ html.desktop-browser {
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-row-continue .home-continue-card:hover .home-continue-media {
-    transform: none;
+    transform: scale(1.045);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
   }
 }
