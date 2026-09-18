@@ -4,7 +4,31 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isPublicAddress, validateSource, mediaHeaders } from "./source.mjs";
-import { compatibleProbe, createPlaybackBridge } from "./server.mjs";
+import { compatibleProbe, createPlaybackBridge, verifyNuvioAccount } from "./server.mjs";
+
+test("Nuvio verifies linked-device account ownership and rejects guests or invalid tokens", async (t) => {
+  const owner = "11111111-1111-4111-8111-111111111111";
+  const device = "22222222-2222-4222-8222-222222222222";
+  let status = 200, result = owner;
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.equal(url, "https://auth.example/rest/v1/rpc/get_sync_owner");
+    assert.equal(options.method, "POST");
+    assert.equal(options.redirect, "error");
+    return { ok: status === 200, status, json: async () => result };
+  });
+  const token = claims => `Bearer header.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.signature`;
+  const verify = claims => verifyNuvioAccount(token(claims), "https://auth.example", "public-key");
+  assert.equal((await verify({sub: owner, role: "authenticated"})).id, owner);
+  assert.equal((await verify({sub: device, role: "authenticated", is_anonymous: true})).id, owner);
+  result = device;
+  await assert.rejects(verify({sub: device, role: "authenticated", is_anonymous: true}), {status: 401});
+  result = owner;
+  await assert.rejects(verify({sub: owner, role: "anon"}), {status: 401});
+  status = 401;
+  await assert.rejects(verify({sub: owner, role: "authenticated"}), {status: 401});
+  status = 503;
+  await assert.rejects(verify({sub: owner, role: "authenticated"}), {status: 503});
+});
 
 test("media requests reject private addresses, rebinding, unsafe protocols and headers", async () => {
   for (const ip of [

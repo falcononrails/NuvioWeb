@@ -56,6 +56,31 @@ export function compatibleProbe(data) {
   };
 }
 
+export async function verifyNuvioAccount(bearer, authUrl, apiKey) {
+  // This is Nuvio's account check for both email and approved device sessions.
+  const response = await fetch(authUrl + "/rest/v1/rpc/get_sync_owner", {
+    method: "POST",
+    headers: { Authorization: bearer, apikey: apiKey, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(8000),
+    redirect: "error"
+  });
+  if (!response.ok) {
+    if ([401, 403].includes(response.status))
+      throw failure(401, "Nuvio could not verify this session. Please sign in again.");
+    throw failure(503, "Nuvio session verification is temporarily unavailable. Try again shortly.");
+  }
+  const owner = await response.json();
+  // Only inspect claims after Nuvio has verified the signed token. An unlinked
+  // anonymous device has itself as owner and must not receive a playback slot.
+  let claims;
+  try { claims = JSON.parse(Buffer.from(bearer.split(".")[1], "base64url")); } catch {}
+  if (typeof owner !== "string" || !/^[a-f0-9-]{36}$/i.test(owner) ||
+      claims?.role !== "authenticated" || !claims.sub ||
+      (claims.is_anonymous && owner === claims.sub))
+    throw failure(401, "Sign in to a Nuvio account first.");
+  return { id: owner, role: "authenticated" };
+}
+
 export async function createPlaybackBridge({
   origin,
   authUrl,
@@ -79,23 +104,7 @@ export async function createPlaybackBridge({
     if (cached?.expires > Date.now()) return cached.user;
     let user;
     if (authenticate) user = await authenticate(bearer);
-    else {
-      const response = await fetch(authUrl + "/auth/v1/user", {
-        headers: { Authorization: bearer, apikey: apiKey },
-        signal: AbortSignal.timeout(8000),
-        redirect: "error"
-      });
-      if (!response.ok) {
-        const detail = await response.json().catch(() => ({}));
-        const code = String(detail.code || detail.error_code || "unknown");
-        // Keep authentication diagnostics free of tokens and account details.
-        console.warn("Nuvio verification rejected", response.status, /^[a-z_]{1,80}$/.test(code) ? code : "unknown");
-        if ([401, 403].includes(response.status))
-          throw failure(401, "Nuvio could not verify this session. Please sign in again.");
-        throw failure(503, "Nuvio session verification is temporarily unavailable. Try again shortly.");
-      }
-      user = await response.json();
-    }
+    else user = await verifyNuvioAccount(bearer, authUrl, apiKey);
     if (!user?.id || user.is_anonymous || user.role !== "authenticated")
       throw failure(401, "Sign in to a Nuvio account first.");
     authCache.set(key, { user: user.id, expires: Date.now() + 60_000 });
