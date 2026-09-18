@@ -6,8 +6,51 @@ import { join } from "node:path";
 import https from "node:https";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
-import { isPublicAddress, validateSource, mediaHeaders, openSource } from "./source.mjs";
+import { isPublicAddress, validateSource, mediaHeaders, openSource, resolveTorboxSource } from "./source.mjs";
 import { compatibleProbe, selectAudioTrack, createPlaybackBridge, verifyNuvioAccount } from "./server.mjs";
+
+test("Torrentio TorBox sources resolve only the exact cached file without leaking credentials", async (t) => {
+  const key = "private-key-123456789", hash = "a".repeat(40);
+  const source = `https://torrentio.strem.fun/resolve/torbox/${key}/${hash}/Pilot.mkv/0/Pilot.mkv`;
+  let calls = 0, mode = "ok";
+  t.mock.method(globalThis, "fetch", async (input, options) => {
+    calls++;
+    const url = new URL(input);
+    assert.equal(url.origin, "https://api.torbox.app");
+    assert.equal(options.redirect, "error");
+    assert.equal(options.headers.Authorization, `Bearer ${key}`);
+    if (mode === "refused") throw new Error(input);
+    let data;
+    if (url.pathname.endsWith("/createtorrent")) {
+      assert.equal(options.body.get("magnet"), `magnet:?xt=urn:btih:${hash}`);
+      assert.equal(options.body.get("add_only_if_cached"), "true");
+      assert.equal(options.body.get("allow_zip"), "false");
+      data = { torrent_id: 12 };
+    } else if (url.pathname.endsWith("/mylist")) {
+      assert.equal(url.searchParams.get("id"), "12");
+      data = { files: [{ id: 8, name: "Season 1/Episode 2.mkv" },
+        { id: 9, name: mode === "missing" ? "Different.mkv" : "Season 1/Pilot.mkv" }] };
+      if (mode === "ambiguous") data.files.push({ id: 10, name: "Other/Pilot.mkv" });
+    } else {
+      assert.equal(url.pathname, "/v1/api/torrents/requestdl");
+      assert.equal(url.searchParams.get("file_id"), "9");
+      assert.equal(url.searchParams.get("token"), key);
+      assert.equal(url.searchParams.get("redirect"), "false");
+      data = mode === "private" ? "http://127.0.0.1/secret" : "https://1.1.1.1/media.mkv";
+    }
+    return new Response(JSON.stringify({ success: true, data }));
+  });
+  for (const unrelated of [source.replace("torrentio.strem.fun", "example.com"),
+    source.replace("/torbox/", "/realdebrid/"), source.replace(hash, "invalid")]) {
+    assert.equal(await resolveTorboxSource(unrelated), unrelated);
+  }
+  assert.equal(calls, 0);
+  assert.equal(await resolveTorboxSource(source), "https://1.1.1.1/media.mkv");
+  assert.equal(calls, 3);
+  for (mode of ["missing", "ambiguous", "private", "refused"]) {
+    await assert.rejects(resolveTorboxSource(source), error => !error.message.includes(key));
+  }
+});
 
 test("source refusals and file limits retain useful errors without exposing the URL", async (t) => {
   let statusCode = 403;

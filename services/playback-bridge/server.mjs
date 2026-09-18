@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
-import { mediaHeaders, openSource, validateSource, SourceReadError } from "./source.mjs";
+import { mediaHeaders, openSource, validateSource, resolveTorboxSource, SourceReadError } from "./source.mjs";
 
 const MAX_SESSIONS = 2;
 const IDLE_MS = 90_000;
@@ -440,6 +440,9 @@ export async function createPlaybackBridge({
         try {
           await stopped;
           await validateSource(session.url);
+          const resolved = await resolveTorboxSource(session.url);
+          if (new URL(resolved).origin !== new URL(session.url).origin) delete session.headers.authorization;
+          session.url = resolved;
           if (session.stopped) throw failure(409, "Playback was cancelled.");
           session.directory = await mkdtemp(join(root, "session-"));
           if (session.stopped) throw failure(409, "Playback was cancelled.");

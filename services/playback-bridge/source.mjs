@@ -78,6 +78,64 @@ export function mediaHeaders(value = {}) {
   return headers;
 }
 
+// Torrentio can be reachable by the viewer but blocked from a hosting provider.
+// Resolve its TorBox reference through the provider's API, using the same cached file.
+export async function resolveTorboxSource(value) {
+  const url = new URL(value);
+  const parts = url.pathname.split("/").slice(1);
+  if (url.origin !== "https://torrentio.strem.fun" || parts[0] !== "resolve" ||
+      parts[1] !== "torbox" || ![6, 7].includes(parts.length) ||
+      !/^[a-zA-Z0-9_-]{16,256}$/.test(parts[2]) || !/^[a-fA-F0-9]{40}$/.test(parts[3]) ||
+      !/^\d+$/.test(parts[5])) return value;
+  const key = parts[2], hash = parts[3];
+  const filename = decodeURIComponent(parts[4]).replaceAll("\\", "/");
+  const request = async (path, options = {}) => {
+    try {
+      const response = await fetch(`https://api.torbox.app/v1/api/torrents/${path}`, {
+        ...options, headers: { Authorization: `Bearer ${key}` },
+        redirect: "error", signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new Error();
+      }
+      const chunks = [];
+      let length = 0;
+      for await (const chunk of response.body) {
+        length += chunk.length;
+        if (length > 1024 * 1024) throw new Error();
+        chunks.push(chunk);
+      }
+      const result = JSON.parse(Buffer.concat(chunks));
+      if (!result.success) throw new Error();
+      return result.data;
+    } catch {
+      // Provider responses and network errors can contain account credentials.
+      throw new SourceReadError("TorBox could not prepare this cached file. Refresh sources and try again.");
+    }
+  };
+  const form = new FormData();
+  form.set("magnet", `magnet:?xt=urn:btih:${hash}`);
+  form.set("add_only_if_cached", "true");
+  form.set("allow_zip", "false");
+  const created = await request("createtorrent", { method: "POST", body: form });
+  const id = created?.torrent_id;
+  if (!Number.isSafeInteger(id) || id < 0) throw new SourceReadError("TorBox did not return a cached torrent.");
+  const torrent = await request(`mylist?id=${id}&bypass_cache=true`);
+  const files = torrent?.files?.filter(file => {
+    const name = String(file.name || "").replaceAll("\\", "/");
+    return name === filename || name.endsWith(`/${filename}`);
+  }) || [];
+  if (files.length !== 1 || !Number.isSafeInteger(files[0].id) || files[0].id < 0)
+    throw new SourceReadError("The selected file could not be matched on TorBox. Refresh sources and try again.");
+  const query = new URLSearchParams({ token: key, torrent_id: String(id), file_id: String(files[0].id),
+    redirect: "false", zip_link: "false", append_name: "false" });
+  const resolved = await request(`requestdl?${query}`);
+  // Keep the same SSRF checks as every other media URL, including subsequent redirects.
+  await validateSource(resolved);
+  return resolved;
+}
+
 // Pin each DNS lookup, including redirects. FFmpeg sees only this local reader.
 export async function openSource(value, headers = {}, redirects = 0) {
   const { url, address } = await validateSource(value);
