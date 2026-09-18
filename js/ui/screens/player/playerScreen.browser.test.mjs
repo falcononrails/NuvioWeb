@@ -157,3 +157,44 @@ test("preparing audio closes the modal backdrop and cannot cover already started
   assert.equal(screen.loadingVisible, false);
   assert.equal(screen.compatibilityPending, false);
 });
+
+test("error and dialog controls retain their cursor and keyboard activation", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const names = ["setControlsVisible", "resetControlsAutoHide", "handleBrowserKeyDown"];
+  const methods = names.map(name => source.match(
+    new RegExp(`  (?:async )?${name}\\([^\\n]*\\) \\{[\\s\\S]*?\\n  \\},`)
+  )[0]).join("\n");
+  class Element { matches() { return true; } }
+  const button = new Element();
+  let hiddenCursor = false;
+  let hideTimers = 0;
+  const screen = vm.runInNewContext(`({${methods}})`, {
+    Element, document: { activeElement: button },
+    Environment: { isBrowser: () => true },
+    setTimeout: () => { hideTimers++; },
+    isBackEvent: () => false, isSelectKeyCode: code => code === 13,
+    resolveBrowserPlayerShortcutRoute: () => "none"
+  });
+  Object.assign(screen, {
+    container: { classList: { toggle: (_, hidden) => { hiddenCursor = hidden; } } },
+    isExternalFrameMode: () => false, isDesktopPlayerFullscreen: () => false,
+    isDesktopEditableTarget: () => false, clearControlsAutoHide() {},
+    isDialogOpen: () => false, isStartupErrorVisible: () => true
+  });
+  screen.setControlsVisible(false);
+  assert.equal(hiddenCursor, false, "Errors must never hide the pointer");
+  screen.controlsVisible = true;
+  screen.resetControlsAutoHide();
+  assert.equal(hideTimers, 0, "Errors must not auto-hide their controls");
+  let activated = null;
+  screen.onPointerActivate = target => { activated = target; };
+  await screen.handleBrowserKeyDown({ keyCode: 13, target: button });
+  assert.equal(activated, button, "Enter uses the same action as a mouse click");
+  screen.isStartupErrorVisible = () => false;
+  screen.isDialogOpen = () => true;
+  screen.setControlsVisible(false);
+  assert.equal(hiddenCursor, false, "Source and track panels keep the pointer");
+  screen.isDialogOpen = () => false;
+  screen.setControlsVisible(false);
+  assert.equal(hiddenCursor, true, "Normal playback still hides the pointer");
+});

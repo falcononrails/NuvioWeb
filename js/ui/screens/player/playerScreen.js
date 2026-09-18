@@ -5911,6 +5911,7 @@ export const PlayerScreen = {
     this.renderPauseOverlay();
     this.updateModalBackdrop();
     this.renderStartupErrorOverlay();
+    this.setControlsVisible(true, { focus: false });
     this.focusStartupErrorButton();
   },
 
@@ -9123,7 +9124,7 @@ export const PlayerScreen = {
     if (Environment.isBrowser()) {
       this.container?.classList.toggle(
         "desktop-player-cursor-hidden",
-        !this.controlsVisible && !this.paused
+        !this.controlsVisible && !this.paused && !this.isDialogOpen() && !this.isStartupErrorVisible()
       );
     }
     if (this.isExternalFrameMode()) {
@@ -9539,7 +9540,7 @@ export const PlayerScreen = {
 
   resetControlsAutoHide() {
     this.clearControlsAutoHide();
-    if (!this.controlsVisible || this.paused || this.isDialogOpen() || this.seekOverlayVisible) {
+    if (!this.controlsVisible || this.paused || this.isDialogOpen() || this.isStartupErrorVisible() || this.seekOverlayVisible) {
       return;
     }
     this.controlsHideTimer = setTimeout(() => {
@@ -16352,7 +16353,7 @@ export const PlayerScreen = {
       event?.stopPropagation?.();
       if (isSelectKeyCode(keyCode)) {
         const active = document.activeElement;
-        if (active?.matches?.('[data-player-error-action]')) active.click();
+        if (active?.matches?.('[data-player-error-action]')) void this.onPointerActivate(active, event);
         else if (this.awaitingPlaybackGesture) this.resumePlaybackFromGesture();
         else this.navigateBackToStreamScreen();
         return true;
