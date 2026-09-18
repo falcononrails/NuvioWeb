@@ -830,6 +830,8 @@ export const PlayerController = {
     sourceType = this.currentPlaybackMediaSourceType,
     itemType = this.currentItemType
   ) {
+    // Recovery must not replace converted HLS with the original unsupported file.
+    if (this.compatibility) return null;
     const normalizedUrl = String(url || "").trim();
     if (!normalizedUrl) {
       return null;

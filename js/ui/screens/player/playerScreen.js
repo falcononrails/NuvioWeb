@@ -10786,6 +10786,9 @@ export const PlayerScreen = {
   },
 
   getPlaybackStallTimeoutMs({ startup = false } = {}) {
+    // The conversion request has its own 60-second deadline. A normal 9-second
+    // stall timeout would cancel a healthy seek while FFmpeg prepares segments.
+    if (this.compatibilityPending || PlayerController.compatibilitySeeking) return 65000;
     return startup ? 18000 : 9000;
   },
 
@@ -10803,6 +10806,10 @@ export const PlayerScreen = {
     this.playbackStallTimer = setTimeout(() => {
       this.playbackStallTimer = null;
       if (this.isExternalFrameMode() || !this.loadingVisible || !this.activePlaybackUrl) {
+        return;
+      }
+      if (this.compatibilityPending || PlayerController.compatibilitySeeking) {
+        this.schedulePlaybackStallGuard();
         return;
       }
 

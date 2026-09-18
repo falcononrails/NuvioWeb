@@ -365,6 +365,8 @@ test("compatibility playback stays at the server's real-time conversion rate", a
   assert.equal(await player.setPlaybackRate(2), false);
   assert.equal(await player.setPlaybackRate(1), true);
   assert.equal(player.video.playbackRate, 1);
+  player.getPlaybackEngineCandidates = () => assert.fail("Do not retry the unsupported original source");
+  assert.equal(player.getAlternativePlaybackEngine("https://media.example/movie.mkv"), null);
 });
 
 test("compatibility seek stops the old loader before replacing its server playlist", async () => {

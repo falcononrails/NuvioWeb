@@ -218,3 +218,31 @@ test("player actions accept mouse and accessibility clicks", async () => {
   click({target, detail: 1, defaultPrevented: true});
   assert.equal(activations, 2);
 });
+
+test("the stall guard allows conversion preparation and rechecks an older timer", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const methods = ["getPlaybackStallTimeoutMs", "schedulePlaybackStallGuard"].map(name =>
+    source.match(new RegExp(`  ${name}\\([^\\n]*\\) \\{[\\s\\S]*?\\n  \\},`))[0]
+  ).join("\n");
+  const player = { compatibilitySeeking: false };
+  const timers = [];
+  const screen = vm.runInNewContext(`({${methods}})`, {
+    PlayerController: player,
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }
+  });
+  Object.assign(screen, {
+    clearPlaybackStallGuard() {}, isExternalFrameMode: () => false,
+    activePlaybackUrl: "https://media.example/movie.mkv",
+    loadingVisible: true, hasPresentedPlaybackFrame: true
+  });
+  screen.schedulePlaybackStallGuard();
+  assert.equal(timers[0].delay, 9000);
+  player.compatibilitySeeking = true;
+  timers[0].callback();
+  assert.equal(timers[1].delay, 65000, "An old stall timer must not cancel conversion");
+  player.compatibilitySeeking = false;
+  screen.compatibilityPending = true;
+  assert.equal(screen.getPlaybackStallTimeoutMs(), 65000);
+  screen.compatibilityPending = false;
+  assert.equal(screen.getPlaybackStallTimeoutMs({ startup: true }), 18000);
+});
