@@ -189,6 +189,7 @@ export async function createPlaybackBridge({
         session.sourceError = error instanceof SourceReadError
           ? error
           : failure(502, "The conversion server could not reach this media host. Try another source.");
+        console.warn("[playback] source error:", session.sourceError.message);
       }
       if (!res.headersSent) res.writeHead(502);
       res.end();
@@ -246,6 +247,7 @@ export async function createPlaybackBridge({
   }
 
   async function start(session, position, track) {
+    const startedAt = Date.now();
     const generation = ++session.generation;
     session.sourceError = null;
     if (
@@ -273,6 +275,8 @@ export async function createPlaybackBridge({
       ...inputArgs,
       "-readrate",
       "1",
+      "-readrate_initial_burst",
+      "16",
       "-ss",
       String(position),
       "-i",
@@ -325,10 +329,11 @@ export async function createPlaybackBridge({
     while (Date.now() < deadline && !session.stopped && !session.encoderError) {
       try {
         const manifest = await readFile(join(directory, "index.m3u8"), "utf8");
-        // A seek can produce a very short first segment. Buffer the next one
-        // before starting playback so it cannot immediately outrun conversion.
-        const segmentCount = (manifest.match(/^#EXTINF:/gm) || []).length;
-        if (segmentCount >= 2 || (segmentCount > 0 && manifest.includes("#EXT-X-ENDLIST"))) {
+        // Short first segments after a seek do not provide a useful head start.
+        const bufferedSeconds = [...manifest.matchAll(/^#EXTINF:([\d.]+)/gm)]
+          .reduce((total, match) => total + Number(match[1]), 0);
+        if (bufferedSeconds >= 12 || (bufferedSeconds > 0 && manifest.includes("#EXT-X-ENDLIST"))) {
+          console.info("[playback] ready", { startupMs: Date.now() - startedAt, bufferedSeconds });
           for (let old = 1; old < generation; old++)
             await rm(join(session.directory, String(old)), { recursive: true, force: true });
           return {

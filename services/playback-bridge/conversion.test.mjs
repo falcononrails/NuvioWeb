@@ -51,6 +51,10 @@ test(
       });
       assert.equal(created.status, 201, JSON.stringify(created.body));
       let session = created.body;
+      const initialManifest = await (await fetch(base + session.url, { headers: { cookie } })).text();
+      assert.ok([...initialManifest.matchAll(/^#EXTINF:([\d.]+)/gm)]
+        .reduce((total, match) => total + Number(match[1]), 0) >= 12,
+        "Playback must begin with a useful buffer, not only a segment count");
       assert.equal(session.tracks.length, 2);
       assert.equal(session.videoCodec, "h264");
       assert.equal(session.track, inspected.body.tracks[1].index, "Conversion starts in the preferred language");
@@ -128,8 +132,10 @@ test(
       assert.equal(seek.body.track, session.tracks[1].index);
       assert.equal(seek.body.duration, session.duration);
       const seekManifest = await (await fetch(base + seek.body.url, { headers: { cookie } })).text();
-      assert.ok((seekManifest.match(/^#EXTINF:/gm) || []).length >= 2,
-        "A seek must buffer beyond its first partial segment before returning");
+      const bufferedSeconds = [...seekManifest.matchAll(/^#EXTINF:([\d.]+)/gm)]
+        .reduce((total, match) => total + Number(match[1]), 0);
+      assert.ok(bufferedSeconds >= 12 || seekManifest.includes("#EXT-X-ENDLIST"),
+        "A seek must buffer twelve seconds, not just two possibly tiny segments");
       const removed = await fetch(base + `/api/playback/sessions/${session.id}`, {
         method: "DELETE",
         headers: { origin, cookie }

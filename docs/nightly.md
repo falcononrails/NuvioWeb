@@ -16,6 +16,8 @@ Limits: two sessions overall, one per account, 90 seconds without a heartbeat, f
 
 The VPS runs `/opt/nuvio-web/compose.yaml`. The deployment receiver can write releases only. A systemd path unit restarts the fixed playback container when `.deployed` changes. Compatibility sessions are interrupted when that container restarts; ordinary direct playback stays in the browser.
 
+The playback image uses FFmpeg 7 from Debian Trixie. It reads an initial 16-second burst, then stays at real-time speed to keep the rolling buffer bounded. Playback starts with at least 12 seconds of completed segments (or the completed file), including after seeking. Rebuild the playback image when its Dockerfile changes; nightly releases update the mounted application code.
+
 The previous release remains at `/srv/nuvio-web/previous`. Roll back by atomically pointing `current` to that release and writing its commit to `/srv/nuvio-web/.deployed`. Deployment credentials are GitHub secrets; runtime backend configuration stays in `/opt/nuvio-web/playback.env`.
 
 ## Validation
