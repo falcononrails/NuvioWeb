@@ -6496,7 +6496,10 @@ export const HomeScreen = {
     const root = this.homeTruncationScope || this.container;
     this.homeTruncationScope = null;
     this.applyModernHeroDescriptionBounds(root);
-    const truncationSelector = this.isPerformanceConstrained()
+    // Browser CSS clamps from the first paint, without rewriting carousel text.
+    const truncationSelector = Platform.isBrowser()
+      ? ".home-poster-title, .home-poster-subtitle"
+      : this.isPerformanceConstrained()
       ? ".home-hero-description"
       : ".home-hero-description, .home-poster-title, .home-poster-subtitle";
     const nodes = root.querySelectorAll(truncationSelector);
@@ -6549,7 +6552,7 @@ export const HomeScreen = {
   },
 
   applyModernHeroDescriptionBounds(root = null) {
-    if (!this.container || this.layoutMode !== "modern") {
+    if (!this.container || this.layoutMode !== "modern" || Platform.isBrowser()) {
       return;
     }
     const modernHeroDescriptionMaxLines = 4;
