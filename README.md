@@ -67,6 +67,7 @@ Checks: `npm test`, `npm run lint`, `npm run build`.
 - [NuvioMedia](https://github.com/NuvioMedia), [tapframe/NuvioTV](https://github.com/tapframe/NuvioTV), and the official [NuvioTVSmart](https://github.com/NuvioMedia/NuvioTVSmart) and [NuvioDesktop](https://github.com/NuvioMedia/NuvioDesktop) teams for the original apps, code and design.
 - [alphasquare404/NuvioWeb](https://github.com/alphasquare404/NuvioWeb) for the browser/PWA fork this repository builds on.
 - [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb) for the mobile navigation and hero behavior adapted here. This is a selective port, not a full merge of that fork.
+- [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile) for the grouped mobile settings and account navigation used as the design reference.
 - [WhiteGiso/NuvioTV-WebOS](https://github.com/WhiteGiso/NuvioTV-WebOS), [edoedac0](https://github.com/edoedac0), and [all upstream contributors](https://github.com/alphasquare404/NuvioWeb/graphs/contributors) for the earlier web work and ongoing fixes.
 - [Gaoxing Zhao / libmedia](https://github.com/zhaohappy/libmedia) for AVPlayer and its WASM audio decoders (LGPL-3.0-or-later).
 - The maintainers of FFmpeg, hls.js, dash.js and the other dependencies used by this project.

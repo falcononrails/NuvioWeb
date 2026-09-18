@@ -7,8 +7,8 @@ import { LocalStore } from "../../../core/storage/localStore.js";
 import { SessionStore } from "../../../core/storage/sessionStore.js";
 import { TmdbSettingsStore } from "../../../data/local/tmdbSettingsStore.js";
 import { HomeCatalogStore } from "../../../data/local/homeCatalogStore.js";
-import { buildCatalogOrderKey } from "../../../core/addons/homeCatalogs.js";
-import { CollectionsStore, buildCollectionHomeKey } from "../../../data/local/collectionsStore.js";
+import { buildOrderedCatalogItems } from "../../../core/addons/homeCatalogs.js";
+import { CollectionsStore } from "../../../data/local/collectionsStore.js";
 import { ThemeStore } from "../../../data/local/themeStore.js";
 import { ThemeManager } from "../../theme/themeManager.js";
 import { PlayerSettingsStore } from "../../../data/local/playerSettingsStore.js";
@@ -136,6 +136,10 @@ const PRIVACY_URL = "https://nuvio.tv/privacy-policy";
 
 function isDesktopSettingsBrowser() {
   return Platform.isBrowser();
+}
+
+function isMobileSettingsBrowser() {
+  return Platform.isBrowser() && globalThis.matchMedia?.("(max-width: 600px)").matches;
 }
 
 function normalizeDesktopAboutUrl(value) {
@@ -2196,6 +2200,7 @@ export const SettingsScreen = {
         <div class="settings-root-sidebar-slot" data-settings-root-sidebar></div>
         <div class="settings-workspace">
           <div class="settings-sidebar-frame">
+            <h1 class="settings-mobile-title">${escapeHtml(t("sidebar.settings", {}, "Settings"))}</h1>
             <aside class="settings-sidebar" data-settings-nav></aside>
             ${settingsScrollIndicatorMarkup("vertical")}
           </div>
@@ -2227,6 +2232,12 @@ export const SettingsScreen = {
       ]);
     }
     this.settingsRouteEnterPending = true;
+    this.mobileSectionOpen = Boolean(navigationContext?.isBackNavigation && this.mobileSectionOpen);
+    if (Platform.isBrowser()) {
+      this.mobileSettingsQuery = globalThis.matchMedia?.("(max-width: 600px)");
+      this.mobileSettingsResize = () => void this.render({ refreshModel: false });
+      this.mobileSettingsQuery?.addEventListener("change", this.mobileSettingsResize);
+    }
     const persistedUiState = readSettingsUiState();
     this.restoreRailScrollTop = persistedUiState.railScrollTop;
     this.railScrollTop = persistedUiState.railScrollTop;
@@ -2478,10 +2489,15 @@ export const SettingsScreen = {
   },
 
   renderNav() {
-    return this.visibleSections
-      .map(
-        (item, index) => `
-      <button class="settings-nav-item focusable${this.activeSection === item.id ? " selected" : ""}"
+    const mobile = isMobileSettingsBrowser();
+    const renderItem = (item) => {
+      const index = this.visibleSections.indexOf(item);
+      const copy = translateSectionCopy(item);
+      const subtitle = item.id === "profiles"
+        ? this.sidebarProfile?.activeProfileName || copy.subtitle
+        : item.id === "account" ? this.model.accountEmail || copy.subtitle : copy.subtitle;
+      return `
+      <button class="settings-nav-item focusable${!mobile && this.activeSection === item.id ? " selected" : ""}"
               data-zone="nav"
               data-nav-index="${index}"
               data-focus-key="nav:${item.id}"
@@ -2489,21 +2505,32 @@ export const SettingsScreen = {
         <span class="settings-nav-leading">
           ${renderSectionNavIcon(item.id)}
           <span class="settings-nav-label-wrap">
-            <span class="settings-nav-label">${escapeHtml(translateSectionCopy(item).label)}</span>
+            <span class="settings-nav-label">${escapeHtml(copy.label)}</span>
+            ${mobile ? `<span class="settings-nav-subtitle">${escapeHtml(subtitle)}</span>` : ""}
             ${item.id === "plugins" ? `<span class="settings-nav-badge">${escapeHtml(t("common.soon", {}, "Soon"))}</span>` : ""}
           </span>
         </span>
         ${iconSvg(ROW_ICONS.chevron, "settings-nav-chevron")}
       </button>
-    `
-      )
-      .join("");
+    `;
+    };
+    if (!mobile) return this.visibleSections.map(renderItem).join("");
+    const groups = [
+      [t("settings.sections.account.label", {}, "Account"), ["profiles", "account", "trakt"]],
+      [t("settings.general", {}, "General"), this.visibleSections.map(item => item.id).filter(id => !["profiles", "account", "trakt", "advanced", "about"].includes(id))],
+      [t("settings.app", {}, "App"), ["advanced", "about"]]
+    ];
+    return groups.map(([title, ids]) => {
+      const items = ids.map(id => this.visibleSections.find(item => item.id === id)).filter(Boolean);
+      return items.length ? `<section class="settings-mobile-group"><h2>${escapeHtml(title)}</h2><div>${items.map(renderItem).join("")}</div></section>` : "";
+    }).join("");
   },
 
   renderSectionHeader(section) {
     const copy = translateSectionCopy(section);
     return `
       <header class="settings-content-header">
+        ${isMobileSettingsBrowser() ? `<button type="button" class="settings-mobile-back" data-settings-back aria-label="${escapeHtml(t("common.back", {}, "Back"))}">${iconSvg(ROW_ICONS.chevron, "settings-row-icon")}<span>${escapeHtml(t("sidebar.settings", {}, "Settings"))}</span></button>` : ""}
         <h1 class="settings-title">${escapeHtml(copy.label)}</h1>
         <p class="settings-subtitle">${escapeHtml(copy.subtitle)}</p>
       </header>
@@ -2779,6 +2806,7 @@ export const SettingsScreen = {
     const onClose = this.optionDialog.onClose;
     this.optionDialog = null;
     if (typeof onClose === "function") onClose();
+    this.model = null; // Multi-select writes stay in place; refresh summaries when the picker closes.
     this.focusZone = "content";
   },
 
@@ -2812,8 +2840,11 @@ export const SettingsScreen = {
 
     return `
       <div class="settings-dialog-backdrop">
-        <div class="settings-dialog${dialogClassName}">
-          <div class="settings-dialog-title">${escapeHtml(this.optionDialog.title || t("common.selectOption"))}</div>
+        <div class="settings-dialog${dialogClassName}" role="dialog" aria-modal="true" aria-labelledby="settings-option-title">
+          <div class="settings-dialog-heading">
+            <div class="settings-dialog-title" id="settings-option-title">${escapeHtml(this.optionDialog.title || t("common.selectOption"))}</div>
+            ${Platform.isBrowser() ? `<button type="button" class="settings-dialog-done" data-settings-dialog-close>${escapeHtml(t("common.done", {}, "Done"))}</button>` : ""}
+          </div>
           ${messageHtml}
           <div class="settings-dialog-list${useLanguageRenderer ? " settings-language-dialog-list" : ""}${useHeroCatalogRenderer ? " settings-hero-catalog-dialog-list" : ""}">
             ${this.optionDialog.options
@@ -2826,13 +2857,14 @@ export const SettingsScreen = {
               <button class="settings-dialog-option settings-content-focusable focusable${useLanguageRenderer ? " settings-language-option" : ""}${useHeroCatalogRenderer ? " settings-hero-catalog-option" : ""}${useSingleChoiceRenderer ? " settings-single-choice-option" : ""}${isSelected ? " is-selected" : ""}"
                       data-zone="dialog"
                       data-dialog-index="${index}"
+                      ${useMultiRenderer ? `role="checkbox" aria-checked="${Boolean(isSelected)}"` : ""}
                       data-dialog-option-id="${escapeHtml(option.id)}">
                 ${
                   useHeroCatalogRenderer
                     ? `<span class="settings-hero-catalog-copy">
                       <span class="settings-dialog-option-label">${escapeHtml(translateOptionLabel(option))}</span>
                       <span class="settings-hero-catalog-meta">${escapeHtml(String(option.secondary || ""))}</span>
-                    </span>`
+                    </span><span class="settings-language-option-check" aria-hidden="true">${isSelected ? "&#10003;" : ""}</span>`
                     : useLanguageRenderer
                     ? `<span class="settings-language-option-copy">
                       <span class="settings-dialog-option-label">${escapeHtml(translateOptionLabel(option))}</span>
@@ -3869,45 +3901,13 @@ export const SettingsScreen = {
     this.actionMap.set("layout:heroCatalogs", async () => {
       const catalogSettings = model.homeCatalog || HomeCatalogStore.get();
       const addons = await addonRepository.getInstalledAddons().catch(() => []);
-      const catalogDetails = new Map();
-      addons.forEach((addon) => {
-        (addon.catalogs || []).forEach((catalog) => {
-          const key = buildCatalogOrderKey(addon.id, catalog.apiType, catalog.id);
-          const catalogName = String(catalog.name || "").trim();
-          const addonName = String(addon.displayName || addon.name || "").trim();
-          if (catalogName) {
-            catalogDetails.set(key, {
-              label: catalogName,
-              typeLabel: catalogMediaTypeLabel(catalog.apiType),
-              addonName
-            });
-          }
-        });
-      });
-      const collectionKeys = new Set(CollectionsStore.get().map(buildCollectionHomeKey));
-      const options = (catalogSettings.order || [])
-        .filter((key) => !catalogSettings.disabled?.includes(key))
-        .filter(
-          (key) =>
-            !isDesktopBrowser ||
-            (!collectionKeys.has(key) && !String(key).startsWith("collection_"))
-        )
-        .map((key) => {
-          if (!isDesktopBrowser) {
-            return {
-              id: key,
-              label: catalogSettings.customTitles?.[key] || key.split("::").pop() || key
-            };
-          }
-          const details = catalogDetails.get(key);
-          const label = catalogSettings.customTitles?.[key] || details?.label || key;
-          const secondary = [details?.typeLabel, details?.addonName].filter(Boolean).join(" · ");
-          return {
-            id: key,
-            label,
-            secondary
-          };
-        });
+      const options = buildOrderedCatalogItems(addons, catalogSettings.order, catalogSettings.disabled, catalogSettings.customTitles)
+        .filter(item => !item.isDisabled)
+        .map(item => ({
+          id: item.key,
+          label: item.catalogName,
+          secondary: [catalogMediaTypeLabel(item.type), item.addonName].filter(Boolean).join(" · ")
+        }));
       this.openMultiChoiceDialog({
         title: t("layout_hero_catalog", {}, "Hero catalogs"),
         options,
@@ -8471,6 +8471,7 @@ export const SettingsScreen = {
 
     const shell = this.container.querySelector(".settings-shell");
     if (shell) {
+      shell.dataset.mobilePage = this.mobileSectionOpen ? "section" : "index";
       shell.dataset.settingsStyle = String(
         this.model.theme.settingsUiStyle || "CLASSIC"
       ).toLowerCase();
@@ -8564,6 +8565,10 @@ export const SettingsScreen = {
     }
 
     const dialogHtml = this.optionDialog ? this.renderOptionDialog() : this.renderTextDialog();
+    if (isDesktopBrowser) {
+      this.container.querySelector(".settings-workspace").inert = Boolean(dialogHtml);
+      if (rootSidebarSlot) rootSidebarSlot.inert = Boolean(dialogHtml);
+    }
     if (dialogSlot && dialogSlot.innerHTML !== dialogHtml) {
       dialogSlot.innerHTML = dialogHtml;
     }
@@ -8592,6 +8597,7 @@ export const SettingsScreen = {
 
   applyFocus() {
     const isDesktopBrowser = Platform.isBrowser();
+    if (isMobileSettingsBrowser() && !this.mobileSectionOpen) return;
     this.container
       .querySelectorAll(".focusable.focused")
       .forEach((node) => node.classList.remove("focused"));
@@ -8732,6 +8738,8 @@ export const SettingsScreen = {
     if (!section) {
       return;
     }
+    this.mobileSectionOpen = true;
+    if (isMobileSettingsBrowser()) this.focusZone = "content";
     if (section.id === "trakt") {
       if (isDesktopSettingsBrowser()) {
         this.setActiveSection("trakt");
@@ -8876,6 +8884,19 @@ export const SettingsScreen = {
   },
 
   async handleClickEvent(event) {
+    if (event.target?.closest?.("[data-settings-back]")) {
+      event.preventDefault();
+      this.mobileSectionOpen = false;
+      this.focusZone = "nav";
+      await this.render({ refreshModel: false });
+      return;
+    }
+    if (event.target?.closest?.("[data-settings-dialog-close]")) {
+      event.preventDefault();
+      this.closeOptionDialog();
+      await this.render();
+      return;
+    }
     const dialogBackdrop = event?.target?.closest?.(".settings-dialog-backdrop");
     if (
       isDesktopSettingsBrowser() &&
@@ -8992,6 +9013,7 @@ export const SettingsScreen = {
         return;
       }
       if (this.optionDialog.multiChoice) {
+        const dialog = this.optionDialog;
         const optionId = String(option.id);
         const selectedIds = new Set(this.optionDialog.selectedIds || []);
         if (selectedIds.has(optionId)) {
@@ -9000,10 +9022,16 @@ export const SettingsScreen = {
           selectedIds.add(optionId);
         }
         this.optionDialog.selectedIds = selectedIds;
-        if (typeof this.optionDialog.onToggle === "function") {
-          await this.optionDialog.onToggle(Array.from(selectedIds), option);
+        // Keep the list and its scroll position alive while multiple items are selected.
+        const row = this.container.querySelector(`.settings-dialog-option[data-dialog-index="${this.dialogFocusIndex}"]`);
+        const selected = selectedIds.has(optionId);
+        row?.classList.toggle("is-selected", selected);
+        row?.setAttribute("aria-checked", String(selected));
+        const check = row?.querySelector(".settings-language-option-check");
+        if (check) check.textContent = selected ? "✓" : "";
+        if (typeof dialog.onToggle === "function") {
+          await dialog.onToggle(Array.from(selectedIds), option);
         }
-        await this.render();
         return;
       }
       if (typeof this.optionDialog.onSelect === "function") {
@@ -9075,6 +9103,21 @@ export const SettingsScreen = {
   },
 
   async onKeyDown(event) {
+    if (this.optionDialog && Platform.isBrowser()) {
+      const index = event.target?.dataset?.dialogIndex;
+      if (index != null) this.dialogFocusIndex = Number(index);
+      if (event.key === "Tab") {
+        const buttons = [...this.container.querySelectorAll(".settings-dialog button")];
+        const current = buttons.indexOf(document.activeElement);
+        const next = (current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+        event.preventDefault();
+        buttons[next]?.focus();
+        return;
+      }
+    }
+    if (event.target?.closest?.("[data-settings-dialog-close], [data-settings-back]")) {
+      if (!Platform.isBackEvent(event)) return;
+    }
     if (Platform.isBrowser() && event?.target?.closest?.(".desktop-navigation")) {
       return;
     }
@@ -9090,6 +9133,10 @@ export const SettingsScreen = {
 
     if (Platform.isBackEvent(event)) {
       event?.preventDefault?.();
+      if (isMobileSettingsBrowser()) {
+        if (!this.consumeBackRequest()) await Router.back({ skipConsume: true });
+        return;
+      }
       if (this.textDialog) {
         this.closeTextDialog();
         await this.render({ refreshModel: false });
@@ -9304,6 +9351,13 @@ export const SettingsScreen = {
       void this.render({ refreshModel: false });
       return true;
     }
+    if (isMobileSettingsBrowser()) {
+      if (!this.mobileSectionOpen) return false;
+      this.mobileSectionOpen = false;
+      this.focusZone = "nav";
+      void this.render({ refreshModel: false });
+      return true;
+    }
     if (this.focusZone === "sidebar") {
       void this.closeSidebarToNav();
     } else {
@@ -9313,6 +9367,7 @@ export const SettingsScreen = {
   },
 
   cleanup() {
+    this.mobileSettingsQuery?.removeEventListener("change", this.mobileSettingsResize);
     this.persistUiState();
     this.offlineDownloadsUnsubscribe?.();
     this.offlineDownloadsUnsubscribe = null;

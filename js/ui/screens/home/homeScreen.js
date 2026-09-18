@@ -1,5 +1,6 @@
 import { Router } from "../../navigation/router.js";
 import { bindBrowserHeroSwipe } from "../../components/browserHeroSwipe.js";
+import { bindCollectionTouchAnimations } from "../../components/collectionTouchAnimations.js";
 import { ensureSpatialFocusVisible, ScreenUtils } from "../../navigation/screen.js";
 import { addonRepository } from "../../../data/repository/addonRepository.js";
 import { catalogRepository } from "../../../data/repository/catalogRepository.js";
@@ -5842,6 +5843,7 @@ export const HomeScreen = {
   },
 
   syncFocusedCollectionCardState(focused = this.getCurrentFocusedNode()) {
+    if (this.collectionTouchCleanup) return;
     const focusedCollection =
       focused?.classList?.contains("home-collection-card") && this.container?.contains(focused)
         ? focused
@@ -10132,7 +10134,13 @@ export const HomeScreen = {
     if (!this.container?.querySelector(".home-poster-card.focused")) {
       this.clearFocusedPosterFlowState();
     }
-    this.syncFocusedCollectionCardState();
+    this.collectionTouchCleanup?.();
+    this.collectionTouchCleanup = null;
+    if (Platform.isBrowser() && globalThis.matchMedia?.("(hover: none), (pointer: coarse)").matches) {
+      this.collectionTouchCleanup = bindCollectionTouchAnimations(this.container, (node, active) => this.hydrateCollectionFocusGif(node, active));
+    } else {
+      this.syncFocusedCollectionCardState();
+    }
     if (!this.layoutPrefs?.modernSidebar) {
       this.setSidebarExpanded(false);
     }
@@ -12057,6 +12065,8 @@ export const HomeScreen = {
   },
 
   cleanup() {
+    this.collectionTouchCleanup?.();
+    this.collectionTouchCleanup = null;
     if (this.browserOfflineHomeEventsBound) {
       window.removeEventListener("offline", this.browserOfflineHomeOfflineHandler);
       window.removeEventListener("online", this.browserOfflineHomeOnlineHandler);
