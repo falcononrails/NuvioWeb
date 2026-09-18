@@ -28,7 +28,22 @@ Converted playback uses temporary segments on the server. Sessions expire and ar
 
 Trakt catalogs supplied by addons such as AIOMetadata can still work through those addons' existing connections. Seeing those rows does not mean this website is scrobbling playback to Trakt.
 
-## Run locally
+## Docker Compose
+
+Docker with the Compose plugin is all you need; Node.js and FFmpeg are built into the images.
+
+```sh
+git clone --branch nightly https://github.com/falcononrails/NuvioWeb.git
+cd NuvioWeb
+cp .env.example .env
+docker compose up -d --build --wait
+```
+
+Open `http://localhost:4173`. Compose builds **this fork** and starts the web app, playback server and the existing integration bridges. The default configuration connects to Nuvio's hosted account backend, so you can use your existing account. Trakt remains unavailable unless you supply your own application credentials.
+
+For a domain or access from another device, configure `NUVIO_ORIGIN` and HTTPS first. See [Docker setup](docs/docker.md) for reverse proxies, updates, logs and playback limits.
+
+## Run locally without Docker
 
 Use Node.js 24 and npm:
 
@@ -40,7 +55,7 @@ npm run build
 npm run serve
 ```
 
-Open `http://localhost:4173`. This starts the frontend development server, not the production playback service. See [environment configuration](docs/environment.md) for backend settings and [nightly deployment](docs/nightly.md) for this fork's hosting setup. The inherited Docker files and image references target upstream; they aren't images of this nightly deployment.
+Open `http://localhost:4173`. This starts the frontend development server, not the production playback service. See [environment configuration](docs/environment.md) for backend settings and [nightly deployment](docs/nightly.md) for this fork's hosting setup.
 
 Checks: `npm test`, `npm run lint`, `npm run build`.
 

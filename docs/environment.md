@@ -20,8 +20,8 @@ Nuvio backend, or a newly generated Supabase anon key. The provided anon key is
 a browser-public publishable client identifier, not a password, service-role
 key, database password, or other private server secret.
 
-Using this mode self-hosts the frontend only. Profile and account data use the
-hosted Nuvio backend.
+Using this mode self-hosts the frontend and playback/integration bridges. Profile
+and account data use the hosted Nuvio backend. See [Docker setup](docker.md).
 
 ### Full self-hosting (advanced)
 
@@ -51,6 +51,8 @@ backend.
 | `NUVIO_SUPABASE_ANON_KEY`     | Yes      | Browser-public            | Hosted Nuvio publishable anon key in `.env.example` | Public client identifier for the backend. Keep the default for frontend-only deployment; replace it with `PUBLISHABLE_KEY` for full self-hosting. Empty prevents account sign-in. Never use a service-role key here. |
 | `NUVIO_SUPABASE_FALLBACK_URL` | Optional | Browser-public            | `https://api-two.nuvioapp.space`                    | Fallback hosted backend URL. For full self-hosting, leave empty unless you run a fallback.                                                                                                                           |
 | `NUVIO_PORT`                  | Optional | Host-only Compose setting | `4173`                                              | Host port mapped to Nginx. Change it when `4173` is unavailable.                                                                                                                                                     |
+| `NUVIO_BIND` | Optional | Host-only Compose setting | `127.0.0.1` | Address on which the frontend port is published. |
+| `NUVIO_ORIGIN` | Yes for playback | Server-only | `http://localhost:4173` | Exact browser origin, without a trailing slash. Set your HTTPS domain for remote access, and update this if the local port changes. |
 | `YOUTUBE_PROXY_URL`           | Optional | Browser-public            | `youtube-proxy.html`                                | Browser proxy helper path for YouTube-related playback. Empty disables that override.                                                                                                                                |
 
 ### Return-to-NuvioWeb notifications (optional)
@@ -136,5 +138,5 @@ public runtime configuration:
 docker compose up -d --force-recreate
 ```
 
-Keep all four Docker `image:` tags in `docker-compose.yml` aligned when
-switching between `stable`, `nightly`, `latest`, or a pinned `X.Y.Z` release.
+Compose builds all five services from the checked-out revision. After updating
+the source, run `docker compose up -d --build --wait` to rebuild and start them.

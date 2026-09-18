@@ -1,10 +1,9 @@
 services:
   nuvioweb:
-    container_name: nuvioweb
-    image: ghcr.io/alphasquare404/nuvioweb:stable
+    build: .
     environment:
-      NUVIO_SUPABASE_URL: ${NUVIO_SUPABASE_URL:-}
-      NUVIO_SUPABASE_ANON_KEY: ${NUVIO_SUPABASE_ANON_KEY:-}
+      NUVIO_SUPABASE_URL: ${NUVIO_SUPABASE_URL:?Copy .env.example to .env first}
+      NUVIO_SUPABASE_ANON_KEY: ${NUVIO_SUPABASE_ANON_KEY:?Copy .env.example to .env first}
       NUVIO_SUPABASE_FALLBACK_URL: ${NUVIO_SUPABASE_FALLBACK_URL:-}
       YOUTUBE_PROXY_URL: ${YOUTUBE_PROXY_URL:-youtube-proxy.html}
       INTRODB_API_URL: "${INTRODB_API_URL:-https://api.introdb.app/}"
@@ -20,12 +19,37 @@ services:
       SIMKL_APP_NAME: ${SIMKL_APP_NAME:-nuvio}
       PREMIUMIZE_CLIENT_ID: ${PREMIUMIZE_CLIENT_ID:-}
     ports:
-      - "${NUVIO_PORT:-4173}:80"
+      - "${NUVIO_BIND:-127.0.0.1}:${NUVIO_PORT:-4173}:80"
+    depends_on:
+      - playback-bridge
+      - trakt-auth-bridge
+      - debrid-api-bridge
+      - external-return-bridge
+    restart: unless-stopped
+
+  playback-bridge:
+    build:
+      context: .
+      dockerfile: services/playback-bridge/Dockerfile
+    environment:
+      NUVIO_ORIGIN: ${NUVIO_ORIGIN:-http://localhost:4173}
+      NUVIO_SUPABASE_URL: ${NUVIO_SUPABASE_URL:?Copy .env.example to .env first}
+      NUVIO_SUPABASE_ANON_KEY: ${NUVIO_SUPABASE_ANON_KEY:?Copy .env.example to .env first}
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1.5
+    mem_limit: 1g
+    pids_limit: 64
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1610612736,uid=1000,gid=1000,mode=1770
     restart: unless-stopped
 
   trakt-auth-bridge:
-    container_name: nuvioweb-trakt-auth-bridge
-    image: ghcr.io/alphasquare404/nuvioweb-trakt-auth-bridge:stable
+    build:
+      context: .
+      dockerfile: services/trakt-auth-bridge/Dockerfile
     environment:
       TRAKT_CLIENT_ID: ${TRAKT_CLIENT_ID:-}
       TRAKT_CLIENT_SECRET: ${TRAKT_CLIENT_SECRET:-}
@@ -33,13 +57,15 @@ services:
     restart: unless-stopped
 
   debrid-api-bridge:
-    container_name: nuvioweb-debrid-api-bridge
-    image: ghcr.io/alphasquare404/nuvioweb-debrid-api-bridge:stable
+    build:
+      context: .
+      dockerfile: services/debrid-api-bridge/Dockerfile
     restart: unless-stopped
 
   external-return-bridge:
-    container_name: nuvioweb-external-return-bridge
-    image: ghcr.io/alphasquare404/nuvioweb-external-return-bridge:stable
+    build:
+      context: .
+      dockerfile: services/external-return-bridge/Dockerfile
     restart: unless-stopped
     environment:
       NUVIO_WEB_PUSH_PUBLIC_KEY: ${NUVIO_WEB_PUSH_PUBLIC_KEY:-}

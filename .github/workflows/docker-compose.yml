@@ -1,0 +1,39 @@
+name: Check Docker Compose
+
+on:
+  push:
+    branches: [nightly]
+    paths: ['Dockerfile', 'docker-compose.yml', '.dockerignore', '.env.example', 'docker/**', 'nginx/**', 'services/**', 'package*.json', '.github/workflows/docker-compose.yml']
+  pull_request:
+    paths: ['Dockerfile', 'docker-compose.yml', '.dockerignore', '.env.example', 'docker/**', 'nginx/**', 'services/**', 'package*.json', '.github/workflows/docker-compose.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    env:
+      NUVIO_PORT: 4173
+      NUVIO_ORIGIN: http://localhost:4173
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build and start the stack
+        run: docker compose --env-file .env.example up -d --build --wait --wait-timeout 120
+      - name: Check the frontend and proxied services
+        run: |
+          curl --fail --silent http://localhost:4173/ > /dev/null
+          for service in playback trakt debrid external-return; do
+            curl --fail --silent "http://localhost:4173/api/$service/health"
+          done
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            -H 'Origin: http://localhost:4173' -H 'Content-Type: application/json' \
+            --data '{}' http://localhost:4173/api/playback/sessions)
+          test "$status" = 401
+      - name: Show failed container logs
+        if: failure()
+        run: docker compose --env-file .env.example logs --tail=100
+      - name: Stop the test stack
+        if: always()
+        run: docker compose --env-file .env.example down

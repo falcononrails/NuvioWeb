@@ -44,14 +44,21 @@ test("GHCR publishing separates web development and release channels consistentl
   assert.match(workflow, /steps\.external-return-meta\.outputs\.tags/);
 });
 
-test("Compose defaults every production service to stable without a tag environment variable", async () => {
-  const compose = await readRepositoryFile("docker-compose.yml");
-
-  assert.match(compose, /ghcr\.io\/alphasquare404\/nuvioweb:stable/);
-  assert.match(compose, /ghcr\.io\/alphasquare404\/nuvioweb-trakt-auth-bridge:stable/);
-  assert.match(compose, /ghcr\.io\/alphasquare404\/nuvioweb-debrid-api-bridge:stable/);
-  assert.match(compose, /ghcr\.io\/alphasquare404\/nuvioweb-external-return-bridge:stable/);
-  assert.doesNotMatch(compose, /NUVIO_TAG/);
+test("Compose builds this fork and keeps conversion behind the same-origin proxy", async () => {
+  const [compose, nginx, playback] = await Promise.all([
+    readRepositoryFile("docker-compose.yml"), readRepositoryFile("nginx/default.conf"),
+    readRepositoryFile("services/playback-bridge/Dockerfile")
+  ]);
+  assert.doesNotMatch(compose, /ghcr\.io\/alphasquare404/);
+  assert.match(compose, /build: \./);
+  for (const service of ["playback", "trakt-auth", "debrid-api", "external-return"])
+    assert.ok(compose.includes(`dockerfile: services/${service}-bridge/Dockerfile`));
+  assert.equal((compose.match(/ports:/g) || []).length, 1, "Only the frontend publishes a port");
+  assert.match(compose, /read_only: true/);
+  assert.match(compose, /NUVIO_ORIGIN:/);
+  assert.match(playback, /COPY services\/playback-bridge\/server\.mjs/);
+  assert.match(nginx, /location \^~ \/api\/playback\//);
+  assert.match(nginx, /proxy_read_timeout 65s/);
 });
 
 test("Environment configuration retains hosted defaults and server-only Trakt values", async () => {

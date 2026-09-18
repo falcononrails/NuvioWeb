@@ -1,9 +1,9 @@
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 
@@ -11,12 +11,12 @@ COPY . .
 # nuvio.env.js by the Nginx runtime entrypoint, never baked into image layers.
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:stable-alpine
 
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY docker/nginx-entrypoint.d/40-nuvio-env.sh /docker-entrypoint.d/40-nuvio-env.sh
-RUN chmod +x /docker-entrypoint.d/40-nuvio-env.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/40-nuvio-env.sh && chmod +x /docker-entrypoint.d/40-nuvio-env.sh
 
 EXPOSE 80
 
