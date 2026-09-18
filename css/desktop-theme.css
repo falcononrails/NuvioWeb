@@ -11,7 +11,8 @@ html.desktop-browser {
 
 /* TV focus classes also mark the last mouse selection. They are not persistent borders. */
 html.desktop-browser :is(button, [role="button"], .focusable),
-html.desktop-browser .settings-shell :is(.focusable.focused, .settings-dialog-option:focus-visible) {
+html.desktop-browser .settings-shell :is(.focusable.focused, .settings-dialog-option:focus-visible),
+html.desktop-browser .settings-shell .settings-dialog .settings-dialog-option.focused {
   border-color: transparent !important;
   box-shadow: none !important;
 }
@@ -52,7 +53,7 @@ html.desktop-browser :is(button, [role="button"]):disabled {
 html.desktop-browser :is(.home-poster-frame, .home-continue-media, .library-grid-poster,
   .search-result-poster-wrap, .seeall-card-poster-wrap, .detail-morelike-poster-wrap,
   .movie-cast-avatar, .series-episode-card, .home-collection-card) {
-  border-color: transparent !important;
+  border: 0 !important;
   box-shadow: none !important;
   border-radius: 12px;
 }
@@ -62,7 +63,9 @@ html.desktop-browser :is(.home-poster-card, .library-grid-card, .search-result-c
   color: var(--text-color);
 }
 
-.desktop-browser :is(.home-row-title, .library-status-heading, .search-results-title) {
+.desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-row-title,
+.desktop-browser .library-shell.desktop-navigation-enabled .library-status-heading,
+.desktop-browser .search-screen-shell.desktop-navigation-enabled .search-results-title {
   font-size: 22px;
   line-height: 26px;
   font-weight: 600;
@@ -280,6 +283,20 @@ html.desktop-browser .nuvio-dialog-button.focused {
   background: var(--desktop-surface);
 }
 
+html.desktop-browser .settings-shell .settings-dialog .settings-dialog-option {
+  background: transparent;
+  color: var(--text-color);
+}
+
+html.desktop-browser .settings-shell .settings-dialog .settings-dialog-option.is-selected {
+  background: var(--desktop-selected);
+  color: var(--text-color);
+}
+
+html.desktop-browser .settings-shell .settings-dialog .settings-hero-catalog-meta {
+  color: var(--text-secondary);
+}
+
 .desktop-browser .nuvio-dialog-button {
   min-height: 44px;
   padding: 12px 16px;
@@ -307,7 +324,8 @@ html.desktop-browser .nuvio-dialog-button.focused {
     min-height: 44px;
   }
 
-  .desktop-browser :is(.settings-title, .library-page-title) {
+  .desktop-browser .settings-shell .settings-title,
+  .desktop-browser .library-shell.desktop-navigation-enabled .library-page-title {
     font-size: 32px;
     line-height: 36px;
   }
@@ -320,4 +338,15 @@ html.desktop-browser .nuvio-dialog-button.focused {
 
 @media (prefers-reduced-motion: reduce) {
   html.desktop-browser { --desktop-motion: 0ms; }
+}
+
+@media (max-width: 600px) {
+  .desktop-browser .library-shell.desktop-navigation-enabled .library-picker-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .desktop-browser .library-shell.desktop-navigation-enabled .library-presentation-toggle {
+    grid-column: 1 / -1;
+  }
 }
