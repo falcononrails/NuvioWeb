@@ -6,6 +6,7 @@ import { hlsJsEngine } from "./engines/hlsJsEngine.js";
 import { dashJsEngine } from "./engines/dashJsEngine.js";
 import { isTerminalHlsHttpStatus } from "./hlsNetworkErrorPolicy.js";
 import { loadStreamingLibs } from "../../runtime/loadStreamingLibs.js";
+import { requestCompatibilityPlayback, closeCompatibilityPlayback } from "./compatibilityPlayback.js";
 
 const MIN_PROGRESS_SYNC_DURATION_MS = 1000;
 const HLS_TRANSIENT_LEVEL_404_RETRY_LIMIT = 2;
@@ -44,6 +45,88 @@ export const PlayerController = {
   videoElementListeners: [],
   markPlaybackWatched,
   externalProgressHandoff: null,
+  compatibility: null,
+  compatibilityTimer: null,
+  compatibilitySeeking: false,
+  compatibilityPendingPosition: null,
+
+  async enableCompatibilityPlayback() {
+    if (this.compatibility) return;
+    const playToken = this.playRequestToken;
+    this.video?.pause();
+    const session = await requestCompatibilityPlayback("", {
+      url: this.currentPlaybackUrl,
+      headers: this.currentPlaybackHeaders,
+      position: this.getCurrentTimeSeconds(),
+      hevc: Boolean(this.video?.canPlayType?.('video/mp4; codecs="hvc1.1.6.L93.B0"'))
+    });
+    if (playToken !== this.playRequestToken) { closeCompatibilityPlayback(session.id); return; }
+    try { await this.loadCompatibilityPlayback(session); }
+    catch (error) { this.stopCompatibilityPlayback(); throw error; }
+    this.compatibilityTimer = setInterval(async () => {
+      try { await requestCompatibilityPlayback(`/${session.id}/heartbeat`); }
+      catch (error) {
+        if (this.compatibility?.id !== session.id) return;
+        clearInterval(this.compatibilityTimer);
+        this.emitVideoEvent("compatibilityerror", { message: error.message });
+      }
+    }, 30000);
+  },
+
+  async loadCompatibilityPlayback(session) {
+    session.sourceUrl = this.compatibility?.sourceUrl || this.currentPlaybackUrl;
+    session.sourceHeaders = this.compatibility?.sourceHeaders || this.currentPlaybackHeaders;
+    this.compatibility = session;
+    this.compatibilityPendingPosition = session.offset;
+    this.currentPlaybackUrl = session.url;
+    this.currentPlaybackHeaders = {};
+    this.currentPlaybackMediaSourceType = "application/vnd.apple.mpegurl";
+    const playToken = this.playRequestToken;
+    this.teardownAdaptiveInstances();
+    const engine = this.choosePlaybackEngine(session.url, this.currentPlaybackMediaSourceType);
+    await this.ensureAdaptiveLibrariesForSource(this.currentPlaybackMediaSourceType, engine);
+    if (this.compatibility !== session || playToken !== this.playRequestToken) return;
+    this.video.pause();
+    this.video.removeAttribute("src");
+    Array.from(this.video.querySelectorAll("source")).forEach(node => node.remove());
+    this.video.load();
+    this.video.addEventListener("loadedmetadata", () => { if (this.compatibility === session) this.compatibilityPendingPosition = null; }, { once: true });
+    if (engine !== "hls.js" || !this.playWithHlsJs(session.url, {}, playToken)) {
+      this.applyNativeSource(session.url, this.currentPlaybackMediaSourceType, "native-hls");
+      void this.attemptBrowserVideoPlay({ playToken });
+    }
+    this.emitVideoEvent("audiotrackschanged");
+  },
+
+  async seekCompatibilityPlayback(position, track = this.compatibility?.track) {
+    const session = this.compatibility;
+    if (!session || this.compatibilitySeeking) return false;
+    this.compatibilitySeeking = true;
+    this.compatibilityPendingPosition = position;
+    this.video?.pause();
+    this.emitVideoEvent("waiting");
+    try {
+      const result = await requestCompatibilityPlayback(`/${session.id}/seek`, { position, track });
+      if (this.compatibility !== session) return false;
+      await this.loadCompatibilityPlayback(result);
+      return true;
+    } catch (error) {
+      if (this.compatibility === session) this.emitVideoEvent("compatibilityerror", { message: error.message });
+      return false;
+    } finally { this.compatibilitySeeking = false; }
+  },
+
+  stopCompatibilityPlayback() {
+    clearInterval(this.compatibilityTimer);
+    closeCompatibilityPlayback(this.compatibility?.id);
+    if (this.compatibility) {
+      this.currentPlaybackUrl = this.compatibility.sourceUrl;
+      this.currentPlaybackHeaders = this.compatibility.sourceHeaders;
+    }
+    this.compatibility = null;
+    this.compatibilityPendingPosition = null;
+    this.compatibilitySeeking = false;
+  },
 
   isExpectedPlayInterruption(error) {
     const message = String(error?.message || "").toLowerCase();
@@ -277,6 +360,11 @@ export const PlayerController = {
   },
 
   getBrowserAudioTracks() {
+    if (this.compatibility) return this.compatibility.tracks.map((track, index) => ({
+      id: String(track.index), index, label: track.title || track.language || `Audio ${index + 1}`,
+      language: track.language, codec: "aac", selected: track.index === this.compatibility.track,
+      engine: "compatibility", raw: { codec: "aac" }
+    }));
     if (this.playbackEngine === "hls.js") {
       const selectedIndex = this.getSelectedHlsAudioTrackIndex();
       return this.getHlsAudioTracks().map((track, index) => ({
@@ -312,6 +400,10 @@ export const PlayerController = {
       return false;
     }
     const engine = tracks[targetIndex]?.engine;
+    if (engine === "compatibility") {
+      void this.seekCompatibilityPlayback(this.getCurrentTimeSeconds(), this.compatibility.tracks[targetIndex].index);
+      return true;
+    }
     if (engine === "hls.js") {
       return this.setHlsAudioTrack(targetIndex);
     }
@@ -362,25 +454,9 @@ export const PlayerController = {
   },
 
   resumePlaybackAfterStartupGate() {
-    if (!this.video) {
-      return;
-    }
-    try {
-      const playPromise = this.video.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch((error) => {
-          if (this.isExpectedPlayInterruption(error)) {
-            return;
-          }
-          console.warn("Playback start after startup gate rejected", error);
-        });
-      }
-      this.isPlaying = true;
-    } catch (error) {
-      if (!this.isExpectedPlayInterruption(error)) {
-        console.warn("Playback start after startup gate rejected", error);
-      }
-    }
+    if (!this.video) return;
+    this.isPlaying = true;
+    void this.attemptBrowserVideoPlay({ warningLabel: "Playback start after startup gate rejected" });
   },
 
   handlePlaybackStartedUnderStartupGate(playPromise = null) {
@@ -473,10 +549,13 @@ export const PlayerController = {
   },
 
   getCurrentTimeSeconds() {
+    if (Number.isFinite(this.compatibilityPendingPosition)) return this.compatibilityPendingPosition;
+    if (this.compatibility) return this.compatibility.offset + Math.max(0, Number(this.video?.currentTime || 0));
     return Math.max(0, Number(this.video?.currentTime || 0));
   },
 
   getDurationSeconds() {
+    if (this.compatibility) return this.compatibility.duration;
     const durationSeconds = Number(this.video?.duration || 0);
     if (
       Number.isFinite(durationSeconds) &&
@@ -490,7 +569,7 @@ export const PlayerController = {
   getBufferedTimeSeconds() {
     try {
       const video = this.video;
-      const durationSeconds = Number(video?.duration || 0);
+      const durationSeconds = this.compatibility ? this.compatibility.duration - this.compatibility.offset : Number(video?.duration || 0);
       const currentSeconds = Number(video?.currentTime || 0);
       const ranges = video?.buffered;
       if (
@@ -518,7 +597,7 @@ export const PlayerController = {
           startSeconds <= currentSeconds &&
           endSeconds >= currentSeconds
         ) {
-          return Math.max(0, Math.min(endSeconds, durationSeconds));
+          return (this.compatibility?.offset || 0) + Math.max(0, Math.min(endSeconds, durationSeconds));
         }
       }
     } catch (_) {
@@ -536,6 +615,10 @@ export const PlayerController = {
 
     if (!this.video) {
       return false;
+    }
+    if (this.compatibility) {
+      void this.seekCompatibilityPlayback(Math.min(seconds, this.compatibility.duration - 0.1));
+      return true;
     }
     try {
       this.video.currentTime = seconds;
@@ -873,6 +956,7 @@ export const PlayerController = {
     const forwardedHeaders = this.normalizePlaybackHeaders(requestHeaders);
     return {
       autoStartLoad: false,
+      ...(this.compatibility ? { startPosition: 0, liveSyncDurationCount: 10000 } : {}),
       enableWorker: true,
       lowLatencyMode: false,
       backBufferLength: 90,
@@ -1113,21 +1197,11 @@ export const PlayerController = {
       }
       this.primeHlsInitialLevel(hls);
       try {
-        hls.startLoad();
+        hls.startLoad(this.compatibility ? 0 : -1);
       } catch (_) {
         // hls.js may already be loading on older builds.
       }
-      this.applyStartupAudioGateToVideo();
-      const playPromise = this.video.play();
-      this.handlePlaybackStartedUnderStartupGate(playPromise);
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch((error) => {
-          if (this.isExpectedPlayInterruption(error)) {
-            return;
-          }
-          console.warn("HLS playback start rejected", error);
-        });
-      }
+      void this.attemptBrowserVideoPlay({ warningLabel: "HLS playback start rejected", playToken });
     });
 
     [
@@ -1697,6 +1771,8 @@ export const PlayerController = {
       return;
     }
 
+    this.stopCompatibilityPlayback();
+
     // Starting a new built-in playback session is an intentional local-player
     // action. Any stale protection left by an earlier external handoff must
     // not permanently suppress this session's normal progress writes.
@@ -1839,16 +1915,12 @@ export const PlayerController = {
       return;
     }
 
-    const playPromise = this.video.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch((error) => {
-        if (this.isExpectedPlayInterruption(error)) {
-          return;
-        }
-        console.warn("Playback resume rejected", error);
-      });
+    if (this.compatibility && this.video.seekable?.length && this.video.currentTime < this.video.seekable.start(0)) {
+      void this.seekCompatibilityPlayback(this.getCurrentTimeSeconds());
+      return;
     }
     this.isPlaying = true;
+    void this.attemptBrowserVideoPlay({ warningLabel: "Playback resume rejected" });
   },
 
   stop({ forceCloudSync = true, allowCloudSync = true, flushProgress = true } = {}) {
@@ -1859,6 +1931,7 @@ export const PlayerController = {
     const flushPromise = flushProgress
       ? this.flushCurrentProgress({ forceCloudSync, allowCloudSync })
       : Promise.resolve(false);
+    this.stopCompatibilityPlayback();
     if (!this.playbackSessionActive) {
       if (this.progressSaveTimer) {
         clearInterval(this.progressSaveTimer);

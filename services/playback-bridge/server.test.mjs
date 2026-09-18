@@ -1,0 +1,99 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { isPublicAddress, validateSource, mediaHeaders } from "./source.mjs";
+import { compatibleProbe, createPlaybackBridge } from "./server.mjs";
+
+test("media requests reject private addresses, rebinding, unsafe protocols and headers", async () => {
+  for (const ip of [
+    "127.0.0.1",
+    "10.2.3.4",
+    "169.254.169.254",
+    "100.64.0.1",
+    "::1",
+    "::ffff:127.0.0.1",
+    "fc00::1",
+    "fe80::1",
+    "2001:db8::1",
+    "2002:7f00:1::"
+  ])
+    assert.equal(isPublicAddress(ip), false, ip);
+  for (const ip of ["1.1.1.1", "8.8.8.8", "2606:4700:4700::1111"])
+    assert.equal(isPublicAddress(ip), true, ip);
+  for (const url of [
+    "file:///etc/passwd",
+    "http://127.0.0.1/a",
+    "http://2130706433/a",
+    "https://user:secret@example.org/a",
+    "https://example.org:8080/a"
+  ])
+    await assert.rejects(validateSource(url));
+  await assert.rejects(
+    validateSource("https://example.org/a", async () => [
+      { address: "1.1.1.1", family: 4 },
+      { address: "192.168.1.1", family: 4 }
+    ])
+  );
+  assert.deepEqual(
+    mediaHeaders({ Cookie: "secret", Host: "localhost", Referer: "https://example.org" }),
+    { referer: "https://example.org" }
+  );
+  assert.throws(() => mediaHeaders({ Authorization: "a\r\nHost:localhost" }));
+});
+
+test("probes distinguish unsupported video, missing audio and convertible audio", () => {
+  const data = {
+    format: { duration: "60", bit_rate: "1000000" },
+    streams: [
+      { codec_type: "video", codec_name: "h264" },
+      { index: 1, codec_type: "audio", codec_name: "eac3", tags: { language: "eng" } }
+    ]
+  };
+  assert.equal(compatibleProbe(data).tracks[0].codec, "eac3");
+  assert.throws(() => compatibleProbe({ ...data, streams: [data.streams[0]] }), /no audio track/);
+  assert.throws(() => compatibleProbe({ ...data, format: { duration: "Infinity" } }), /four hours/);
+  assert.throws(
+    () =>
+      compatibleProbe({
+        ...data,
+        streams: [{ codec_type: "video", codec_name: "av1" }, data.streams[1]]
+      }),
+    /video conversion/
+  );
+});
+
+test("the bridge requires account authentication and same-origin writes before reading a source", async () => {
+  const root = await mkdtemp(join(tmpdir(), "nuvio-bridge-test-"));
+  const bridge = await createPlaybackBridge({
+    root,
+    origin: "https://nuvioweb.space",
+    authenticate: async () => ({ id: "test-user", role: "authenticated" })
+  });
+  await new Promise((resolve) => bridge.server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${bridge.server.address().port}/api/playback/sessions`;
+  try {
+    const post = (headers) =>
+      fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: "http://127.0.0.1/private" })
+      });
+    assert.equal((await post({ origin: "https://evil.example" })).status, 403);
+    assert.equal((await post({ origin: "https://nuvioweb.space" })).status, 401);
+    assert.equal(
+      (
+        await post({
+          origin: "https://nuvioweb.space",
+          Authorization: "Bearer test-token-that-is-long-enough"
+        })
+      ).status,
+      400
+    );
+    assert.equal((await fetch(url + "/" + "a".repeat(48) + "/1/index.m3u8")).status, 404);
+  } finally {
+    await bridge.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -6011,6 +6011,32 @@ export const PlayerScreen = {
     void PlayerController.attemptBrowserVideoPlay();
   },
 
+  renderCompatibilityAction() {
+    if (!this.compatibilityAvailable || PlayerController.compatibility) return "";
+    return `<button type="button" class="player-startup-error-button" data-player-pointer-action="compatibility" ${this.compatibilityPending ? "disabled" : ""}>${this.compatibilityPending ? "Preparing playback…" : "Try compatibility playback"}</button>`;
+  },
+
+  async startCompatibilityPlayback() {
+    if (this.compatibilityPending) return;
+    const mountToken = this.playerMountToken;
+    this.compatibilityPending = true;
+    this.awaitingPlaybackGesture = false;
+    this.showStartupError("Preparing compatible audio. This can take a few seconds.", { details: [] });
+    try {
+      await PlayerController.enableCompatibilityPlayback();
+      if (!this.isActiveMountToken(mountToken)) return;
+      this.clearStartupError();
+      this.loadingVisible = true;
+      this.updateLoadingVisibility();
+      this.refreshTrackDialogs();
+    } catch (error) {
+      if (this.isActiveMountToken(mountToken)) this.showStartupError(error.message, { details: [] });
+    } finally {
+      this.compatibilityPending = false;
+      if (this.isActiveMountToken(mountToken)) this.renderStartupErrorOverlay();
+    }
+  },
+
   renderStartupErrorOverlay() {
     const overlay = this.uiRefs?.startupErrorOverlay;
     if (!overlay) {
@@ -6031,7 +6057,7 @@ export const PlayerScreen = {
       : [];
     overlay.innerHTML = `
       <div class="player-startup-error-shell">
-        <div class="player-startup-error-title">${this.awaitingPlaybackGesture ? "Ready to play" : escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
+        <div class="player-startup-error-title">${this.compatibilityPending ? "Preparing playback" : this.awaitingPlaybackGesture ? "Ready to play" : escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
         <div class="player-startup-error-message">${escapeHtml(message)}</div>
         ${
           detailLines.length
@@ -6043,6 +6069,7 @@ export const PlayerScreen = {
             : ""
         }
         ${this.awaitingPlaybackGesture ? '<button class="player-startup-error-button focusable focused" type="button" data-player-error-action="play">Play</button>' : ""}
+        ${this.awaitingPlaybackGesture ? "" : this.renderCompatibilityAction()}
         <button class="player-startup-error-button focusable" type="button" tabindex="0" data-player-error-action="back">
           ${escapeHtml(t("player_go_back", {}, "Go Back"))}
         </button>
@@ -8161,7 +8188,7 @@ export const PlayerScreen = {
       }
       seen.add(cue);
       const snapshot = this.getSubtitleCueSnapshot(cue);
-      this.applySubtitleCueDelay(cue, snapshot, this.subtitleDelayMs);
+      this.applySubtitleCueDelay(cue, snapshot, this.subtitleDelayMs - (PlayerController.compatibility?.offset || 0) * 1000);
       this.applySubtitleCueVerticalOffset(cue, snapshot, verticalOffset);
     });
     return subtitleTextChanged;
@@ -8239,6 +8266,13 @@ export const PlayerScreen = {
   },
 
   bindVideoEvents() {
+    const mountToken = this.playerMountToken;
+    void fetch("/api/playback/health").then(response => response.ok ? response.json() : null).then(health => {
+      if (!this.isActiveMountToken(mountToken)) return;
+      this.compatibilityAvailable = health?.available === true;
+      this.renderAudioDialog();
+      this.renderStartupErrorOverlay();
+    }).catch(() => {});
     const video = PlayerController.video;
     if (!video) {
       return;
@@ -8523,6 +8557,7 @@ export const PlayerScreen = {
     };
 
     const bindings = [
+      ["compatibilityerror", event => this.showStartupError(event.detail?.message || "Compatibility playback stopped.", { details: [] })],
       ["playbackgesture", () => {
         this.awaitingPlaybackGesture = true;
         this.showStartupError("Tap Play to start this video.", { details: [] });
@@ -13835,6 +13870,7 @@ export const PlayerScreen = {
           <span>${escapeHtml(emptyMessage)}</span>
         </div>
         <div class="player-audio-controls-list">
+          ${this.renderCompatibilityAction()}
           ${audioControls.map((control, index) => this.renderAudioControlItem(control, index)).join("")}
         </div>
       `;
@@ -13875,6 +13911,7 @@ export const PlayerScreen = {
             .join("")}
         </div>
         <div class="player-audio-controls-list">
+          ${this.renderCompatibilityAction()}
           ${audioControls.map((control, index) => this.renderAudioControlItem(control, index)).join("")}
         </div>
       </div>
@@ -16168,6 +16205,10 @@ export const PlayerScreen = {
     }
 
     const errorAction = target.closest?.("[data-player-error-action]");
+    if (target.closest?.('[data-player-pointer-action="compatibility"]')) {
+      await this.startCompatibilityPlayback();
+      return true;
+    }
     if (errorAction && this.isStartupErrorVisible()) {
       if (errorAction.dataset.playerErrorAction === "play" && this.awaitingPlaybackGesture) {
         this.resumePlaybackFromGesture();
@@ -16476,11 +16517,15 @@ export const PlayerScreen = {
     if (this.isStartupErrorVisible()) {
       event?.preventDefault?.();
       event?.stopPropagation?.();
-      if (this.awaitingPlaybackGesture && isSelectKeyCode(keyCode)) {
-        this.resumePlaybackFromGesture();
-        return;
+      if (keyCode === 9) return false;
+      if (isSelectKeyCode(keyCode)) {
+        const active = document.activeElement;
+        if (active?.matches?.('[data-player-pointer-action="compatibility"], [data-player-error-action]')) active.click();
+        else if (this.awaitingPlaybackGesture) this.resumePlaybackFromGesture();
+        else this.navigateBackToStreamScreen();
+        return true;
       }
-      if (isBackKey || isSelectKeyCode(keyCode) || keyCode === 66) {
+      if (isBackKey || keyCode === 66) {
         if (!this.navigateBackToStreamScreen()) {
           Router.back();
         }

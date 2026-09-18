@@ -321,3 +321,22 @@ test("autoplay denial requests a gesture without treating the stream as broken",
     PlayerController.startupAudioGateActive = previous.gate;
   }
 });
+
+test("compatibility playback reports the original timeline and actual selectable audio tracks", () => {
+  const saved = { video: PlayerController.video, compatibility: PlayerController.compatibility, pending: PlayerController.compatibilityPendingPosition };
+  try {
+    PlayerController.video = { currentTime: 8, duration: Infinity, buffered: { length: 1, start: () => 0, end: () => 20 } };
+    PlayerController.compatibility = { offset: 120, duration: 1800, track: 2, tracks: [{ index: 1, language: "eng" }, { index: 2, language: "fra" }] };
+    assert.equal(PlayerController.getCurrentTimeSeconds(),128);
+    assert.equal(PlayerController.getDurationSeconds(),1800);
+    assert.equal(PlayerController.getBufferedTimeSeconds(),140);
+    assert.equal(PlayerController.getSelectedBrowserAudioTrackIndex(),1);
+    assert.equal(PlayerController.getBrowserAudioTracks()[1].codec,"aac");
+    PlayerController.compatibilityPendingPosition=900;
+    assert.equal(PlayerController.getCurrentTimeSeconds(),900);
+  } finally {
+    PlayerController.video=saved.video;
+    PlayerController.compatibility=saved.compatibility;
+    PlayerController.compatibilityPendingPosition=saved.pending;
+  }
+});
