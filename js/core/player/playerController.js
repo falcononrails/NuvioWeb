@@ -1733,8 +1733,12 @@ export const PlayerController = {
 
     if (!this.lifecycleBound) {
       this.lifecycleBound = true;
-      this.lifecycleFlushHandler = () => {
+      this.lifecycleFlushHandler = (event) => {
         this.flushCurrentProgress({ forceCloudSync: true });
+        if (event?.type === "pagehide" || event?.type === "beforeunload") {
+          this.playRequestToken += 1;
+          this.stopCompatibilityPlayback();
+        }
       };
       this.visibilityFlushHandler = () => {
         if (document.visibilityState === "hidden") {

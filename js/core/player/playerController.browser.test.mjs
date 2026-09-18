@@ -365,3 +365,30 @@ test("compatibility playback stays at the server's real-time conversion rate", a
   assert.equal(await player.setPlaybackRate(1), true);
   assert.equal(player.video.playbackRate, 1);
 });
+
+test("leaving the page releases conversion while merely backgrounding it keeps playback", () => {
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  try {
+    Object.defineProperty(globalThis, "document", { configurable: true, value: {
+      visibilityState: "hidden", getElementById: () => ({}), addEventListener() {}
+    } });
+    Object.defineProperty(globalThis, "window", { configurable: true, value: { addEventListener() {} } });
+    const player = Object.create(PlayerController);
+    player.lifecycleBound = false;
+    player.bindVideoElement = video => { player.video = video; };
+    player.flushCurrentProgress = () => {};
+    let stopped = 0;
+    player.stopCompatibilityPlayback = () => { stopped++; };
+    player.init();
+    player.visibilityFlushHandler();
+    assert.equal(stopped, 0);
+    const token = player.playRequestToken;
+    player.lifecycleFlushHandler({ type: "pagehide" });
+    assert.equal(stopped, 1);
+    assert.equal(player.playRequestToken, token + 1);
+  } finally {
+    if (previousDocument) Object.defineProperty(globalThis, "document", previousDocument); else delete globalThis.document;
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow); else delete globalThis.window;
+  }
+});

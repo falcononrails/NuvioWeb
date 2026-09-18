@@ -372,21 +372,24 @@ export async function createPlaybackBridge({
       if (!id && req.method === "POST") {
         const user = await verify(req);
         const data = await body(req);
-        if ([...sessions.values()].some((session) => session.user === user))
-          throw failure(409, "You already have a compatibility stream playing. Close it first.");
+        if (typeof data.url !== "string") throw failure(400, "Missing media source.");
+        const headers = mediaHeaders(data.headers);
+        // A new stream replaces this account's old one, even if its tab never sent DELETE.
+        // stop() removes the old reservation synchronously; reserve the new one before awaiting.
+        const previous = [...sessions.values()].find((session) => session.user === user);
+        const stopped = stop(previous);
         if (sessions.size >= MAX_SESSIONS)
           throw failure(
             429,
             "Both compatibility playback slots are busy. Try again shortly or choose an AAC source."
           );
-        if (typeof data.url !== "string") throw failure(400, "Missing media source.");
         // Reserve before awaiting DNS/probe, so concurrent requests cannot exceed the cap.
         const session = {
           id: token(),
           readerToken: token(),
           user,
           url: data.url,
-          headers: mediaHeaders(data.headers),
+          headers,
           processes: new Set(),
           readers: new Set(),
           generation: 0,
@@ -395,6 +398,7 @@ export async function createPlaybackBridge({
         };
         sessions.set(session.id, session);
         try {
+          await stopped;
           await validateSource(session.url);
           if (session.stopped) throw failure(409, "Playback was cancelled.");
           session.directory = await mkdtemp(join(root, "session-"));

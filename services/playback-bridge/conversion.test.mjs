@@ -42,13 +42,15 @@ test(
         url: process.env.NUVIO_BRIDGE_FIXTURE_URL
       });
       assert.equal(created.status, 201, JSON.stringify(created.body));
-      const session = created.body;
+      let session = created.body;
       assert.equal(session.tracks.length, 2);
       assert.equal(session.videoCodec, "h264");
       const duplicate = await post("/api/playback/sessions", {
         url: process.env.NUVIO_BRIDGE_FIXTURE_URL
       });
-      assert.equal(duplicate.status, 409);
+      assert.equal(duplicate.status, 201, JSON.stringify(duplicate.body));
+      assert.equal((await fetch(base + session.url, { headers: { cookie } })).status, 404);
+      session = duplicate.body;
       const ownerCookie = cookie;
       const second = await post("/api/playback/sessions", {
         url: process.env.NUVIO_BRIDGE_FIXTURE_URL
