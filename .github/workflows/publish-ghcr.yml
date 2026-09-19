@@ -107,6 +107,17 @@ jobs:
           sed -i "s/^NUVIO_IMAGE_TAG=.*/NUVIO_IMAGE_TAG=${TAG#v}/" release/.env.example
           tar -czf "nuvioweb-$TAG-compose.tar.gz" -C release .
           sha256sum "nuvioweb-$TAG-compose.tar.gz" > SHA256SUMS
+      - name: Verify the published Compose bundle without a registry login
+        run: |
+          docker compose --env-file release/.env.example -f release/docker-compose.yml up -d --no-build --pull always --wait --wait-timeout 120
+          curl --fail --silent http://localhost:4173/ > /dev/null
+          for service in playback trakt debrid external-return; do
+            curl --fail --silent "http://localhost:4173/api/$service/health"
+          done
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            -H 'Origin: http://localhost:4173' -H 'Content-Type: application/json' \
+            --data '{}' http://localhost:4173/api/playback/sessions)
+          test "$status" = 401
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -124,3 +135,9 @@ jobs:
           else
             gh release create "$TAG" "nuvioweb-$TAG-compose.tar.gz" SHA256SUMS "${args[@]}"
           fi
+      - name: Show failed release-container logs
+        if: failure()
+        run: docker compose --env-file release/.env.example -f release/docker-compose.yml logs --tail=100
+      - name: Stop the release test stack
+        if: always()
+        run: docker compose --env-file release/.env.example -f release/docker-compose.yml down
