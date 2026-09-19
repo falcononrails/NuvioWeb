@@ -1552,9 +1552,9 @@ export const LibraryScreen = {
             <header class="library-page-header">
               <div class="library-page-heading">
                 <h1 class="library-page-title">${escapeHtml(t("library_title", {}, "Library"))}</h1>
-                ${useDesktopNavigation ? `<button type="button" class="calendar-button library-calendar-button focusable" data-action="openCalendar" title="Release calendar">
+                ${useDesktopNavigation ? `<button type="button" class="calendar-button library-calendar-button focusable" data-action="openCalendar" aria-label="Calendar" title="Release calendar">
                   <span class="desktop-navigation-icon" style="mask-image:url('assets/icons/sidebar_calendar.svg');-webkit-mask-image:url('assets/icons/sidebar_calendar.svg')" aria-hidden="true"></span>
-                  Calendar
+                  <span class="library-calendar-label">Calendar</span>
                 </button>` : ""}
               </div>
               <div class="library-page-source" id="libraryPageSource">${escapeHtml(this.isDownloadedView() ? "Downloaded" : this.controller.getSourceLabel())}</div>
