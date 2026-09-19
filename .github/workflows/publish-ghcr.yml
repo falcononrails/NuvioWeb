@@ -2,142 +2,125 @@ name: Publish NuvioWeb Docker Images
 
 on:
   push:
-    branches:
-      - web
-    tags:
-      - "v*"
+    branches: [nightly]
+    tags: ["v*"]
   workflow_dispatch:
 
 concurrency:
   group: publish-ghcr-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
+  checks:
+    if: github.repository == 'falcononrails/NuvioWeb' && (github.ref == 'refs/heads/nightly' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Check tag matches the application version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node --input-type=module -e 'import {readFileSync} from "node:fs"; const {version}=JSON.parse(readFileSync("package.json")); if(process.env.GITHUB_REF_NAME !== `v${version}`) throw Error("Release tag must match package.json version");'
+      - run: npm test
+      - run: npm run lint
+
+  compose:
+    needs: checks
+    uses: ./.github/workflows/docker-compose.yml
+
   publish:
-    if: github.ref == 'refs/heads/web' || startsWith(github.ref, 'refs/tags/v')
+    needs: [checks, compose]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: nuvioweb
+            dockerfile: Dockerfile
+          - image: nuvioweb-playback-bridge
+            dockerfile: services/playback-bridge/Dockerfile
+          - image: nuvioweb-trakt-auth-bridge
+            dockerfile: services/trakt-auth-bridge/Dockerfile
+          - image: nuvioweb-debrid-api-bridge
+            dockerfile: services/debrid-api-bridge/Dockerfile
+          - image: nuvioweb-external-return-bridge
+            dockerfile: services/external-return-bridge/Dockerfile
     steps:
-      - name: Check out source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract frontend image metadata
-        id: frontend-meta
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96
         with:
-          images: ghcr.io/alphasquare404/nuvioweb
-          flavor: |
-            latest=false
+          images: ghcr.io/falcononrails/${{ matrix.image }}
+          flavor: latest=false
           tags: |
-            type=raw,value=nightly,enable=${{ github.ref == 'refs/heads/web' }}
-            type=raw,value=latest
-            type=raw,value=desktop
-            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=nightly,enable=${{ github.ref == 'refs/heads/nightly' }}
             type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha,format=short,prefix=sha-
-
-      - name: Extract Trakt bridge image metadata
-        id: trakt-meta
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
-        with:
-          images: ghcr.io/alphasquare404/nuvioweb-trakt-auth-bridge
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,value=nightly,enable=${{ github.ref == 'refs/heads/web' }}
-            type=raw,value=latest
-            type=raw,value=desktop
-            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha,format=short,prefix=sha-
-
-      - name: Extract debrid bridge image metadata
-        id: debrid-meta
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
-        with:
-          images: ghcr.io/alphasquare404/nuvioweb-debrid-api-bridge
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,value=nightly,enable=${{ github.ref == 'refs/heads/web' }}
-            type=raw,value=latest
-            type=raw,value=desktop
-            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha,format=short,prefix=sha-
-
-      - name: Extract external return bridge image metadata
-        id: external-return-meta
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
-        with:
-          images: ghcr.io/alphasquare404/nuvioweb-external-return-bridge
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,value=nightly,enable=${{ github.ref == 'refs/heads/web' }}
-            type=raw,value=latest
-            type=raw,value=desktop
-            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha,format=short,prefix=sha-
-
-      - name: Build and publish image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=sha,format=long,prefix=sha-
+      - name: Build and publish
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
         with:
           context: .
-          file: ./Dockerfile
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.frontend-meta.outputs.tags }}
-          labels: ${{ steps.frontend-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NUVIO_RELEASE_CHANNEL=${{ github.ref == 'refs/heads/nightly' && 'nightly' || contains(github.ref_name, '-') && 'beta' || 'stable' }}
+            NUVIO_BUILD_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
-      - name: Build and publish Trakt auth bridge image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: .
-          file: ./services/trakt-auth-bridge/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.trakt-meta.outputs.tags }}
-          labels: ${{ steps.trakt-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and publish debrid API bridge image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: .
-          file: ./services/debrid-api-bridge/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.debrid-meta.outputs.tags }}
-          labels: ${{ steps.debrid-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and publish external return bridge image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: .
-          file: ./services/external-return-bridge/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.external-return-meta.outputs.tags }}
-          labels: ${{ steps.external-return-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Package version-pinned Compose installation
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release/docs
+          cp docker-compose.yml .env.example LICENSE release/
+          cp docs/docker.md release/docs/
+          sed -i "s/^NUVIO_IMAGE_TAG=.*/NUVIO_IMAGE_TAG=${TAG#v}/" release/.env.example
+          tar -czf "nuvioweb-$TAG-compose.tar.gz" -C release .
+          sha256sum "nuvioweb-$TAG-compose.tar.gz" > SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          args=(--verify-tag --title "NuvioWeb $TAG")
+          if [[ "$TAG" == *-* ]]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
+          if [[ -f "docs/releases/$TAG.md" ]]; then
+            args+=(--notes-file "docs/releases/$TAG.md")
+          else
+            args+=(--generate-notes --notes "Version-pinned Docker Compose bundle attached. See docs/docker.md for installation and playback limits.")
+          fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release already exists; leaving its notes and assets unchanged."
+          else
+            gh release create "$TAG" "nuvioweb-$TAG-compose.tar.gz" SHA256SUMS "${args[@]}"
+          fi

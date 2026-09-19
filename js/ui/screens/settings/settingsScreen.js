@@ -8230,7 +8230,8 @@ export const SettingsScreen = {
     this.actionMap.set("about:upstream", () => openExternalUrl(APP_IDENTITY.upstreamRepositoryUrl));
     this.actionMap.set("about:license", () => openExternalUrl(APP_IDENTITY.licenseUrl));
     this.actionMap.set("about:website", () => openExternalUrl("https://nuvioweb.space/"));
-    this.actionMap.set("about:changes", () => openExternalUrl(`${APP_IDENTITY.sourceRepositoryUrl}/commits/nightly/`));
+    this.actionMap.set("about:changes", () => openExternalUrl(`${APP_IDENTITY.sourceRepositoryUrl}/commits/${APP_IDENTITY.revision || "nightly"}/`));
+    this.actionMap.set("about:releases", () => openExternalUrl(`${APP_IDENTITY.sourceRepositoryUrl}/releases`));
     this.actionMap.set("about:credits", () => openExternalUrl(`${APP_IDENTITY.sourceRepositoryUrl}#credits-and-license`));
     this.actionMap.set("about:privacy", () => {
       window.open?.(PRIVACY_URL, "_blank");
@@ -8273,7 +8274,7 @@ export const SettingsScreen = {
         <div class="settings-about-brand">
           <img class="settings-about-logo" src="assets/brand/app_logo_wordmark.png" alt="${escapeHtml(APP_IDENTITY.name)}" />
           <h2 class="settings-about-name">${escapeHtml(APP_IDENTITY.name)}</h2>
-          <p class="settings-about-copy">Nightly · Version ${escapeHtml(APP_IDENTITY.version)}</p>
+          <p class="settings-about-copy">${escapeHtml({ nightly: "Nightly", beta: "Beta", stable: "Stable", development: "Development" }[APP_IDENTITY.channel])} · Version ${escapeHtml(APP_IDENTITY.version)}${APP_IDENTITY.revision ? ` · ${escapeHtml(APP_IDENTITY.revision.slice(0, 7))}` : ""}</p>
           <p class="settings-about-copy">Maintained by ${escapeHtml(APP_IDENTITY.maintainer)}.</p>
           <p class="settings-about-copy">Based on alphasquare404's NuvioWeb, with selected mobile improvements from NurvX and original work by NuvioMedia, Tapframe, WhiteGiso, edoedac0 and their contributors.</p>
           <p class="settings-about-copy">Independent community fork with browser playback improvements and an optional playback server. Native Trakt requires the host's own app credentials.</p>
@@ -8281,11 +8282,12 @@ export const SettingsScreen = {
         <div class="settings-stack">
           ${this.renderActionRow({ focusKey: "about:website", title: "nuvioweb.space", subtitle: "Open the hosted nightly version.", external: true })}
           ${this.renderActionRow({ focusKey: "about:source", title: "Source Code", subtitle: "View this community fork on GitHub.", external: true })}
+          ${this.renderActionRow({ focusKey: "about:releases", title: "Releases & release notes", subtitle: "Versioned downloads, changes and known limitations.", external: true })}
           ${this.renderActionRow({ focusKey: "about:issues", title: "Report an Issue", subtitle: "Open an issue for this community fork.", external: true })}
           ${this.renderActionRow({ focusKey: "about:upstream", title: "Upstream Project", subtitle: "alphasquare404/NuvioWeb", external: true })}
           ${this.renderActionRow({ focusKey: "about:credits", title: "Credits", subtitle: "The original projects, contributors and playback libraries.", external: true })}
           ${this.renderActionRow({ focusKey: "about:license", title: "View License", subtitle: "NuvioWeb is licensed under the GNU General Public License v3.0.", external: true })}
-          ${isDesktopBrowser ? this.renderActionRow({ focusKey: "about:changes", title: "Latest changes", subtitle: "Passing nightly builds deploy automatically. Reload the app to use a new build.", external: true }) : this.renderActionRow({
+          ${isDesktopBrowser ? this.renderActionRow({ focusKey: "about:changes", title: "Build history", subtitle: APP_IDENTITY.channel === "nightly" ? "Passing nightly builds deploy automatically. Reload the app to use a new build." : "View the commits included in this build.", external: true }) : this.renderActionRow({
             focusKey: "about:checkUpdates",
             title: t("about_check_updates", {}, "Check for updates"),
             subtitle:

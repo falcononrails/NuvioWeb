@@ -8,40 +8,23 @@ async function readRepositoryFile(path) {
   return readFile(new URL(path, root), "utf8");
 }
 
-function metadataTagBlocks(workflow) {
-  return [...workflow.matchAll(/id: (?:frontend|trakt|debrid|external-return)-meta[\s\S]*?tags: \|\r?\n((?:\s+type=.*\r?\n)+)/g)].map((match) =>
-    match[1]
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean),
-  );
-}
-
-test("GHCR publishing separates web development and release channels consistently", async () => {
+test("publishing includes all fork services and keeps beta and nightly out of stable", async () => {
   const workflow = await readRepositoryFile(".github/workflows/publish-ghcr.yml");
-
-  assert.match(workflow, /branches:\s*\n\s*- web/);
-  assert.match(workflow, /tags:\s*\n\s*- "v\*"/);
-  assert.doesNotMatch(workflow, /branches:\s*\n\s*- main/);
-  assert.doesNotMatch(workflow, /branches:\s*\n\s*- desktop/);
-  assert.doesNotMatch(workflow, /type=raw,value=web/);
-  assert.match(workflow, /github\.ref == 'refs\/heads\/web'/);
-  const tagBlocks = metadataTagBlocks(workflow);
-  const expectedTags = [
-    "type=raw,value=nightly,enable=${{ github.ref == 'refs/heads/web' }}",
-    "type=raw,value=latest",
-    "type=raw,value=desktop",
-    "type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}",
-    "type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}",
-    "type=sha,format=short,prefix=sha-",
-  ];
-
-  assert.equal(tagBlocks.length, 4);
-  assert.deepEqual(tagBlocks, [expectedTags, expectedTags, expectedTags, expectedTags]);
-  assert.match(workflow, /steps\.frontend-meta\.outputs\.tags/);
-  assert.match(workflow, /steps\.trakt-meta\.outputs\.tags/);
-  assert.match(workflow, /steps\.debrid-meta\.outputs\.tags/);
-  assert.match(workflow, /steps\.external-return-meta\.outputs\.tags/);
+  assert.match(workflow, /branches: \[nightly\]/);
+  assert.doesNotMatch(workflow, /ghcr\.io\/alphasquare404|refs\/heads\/web|value=desktop/);
+  assert.match(workflow, /images: ghcr\.io\/falcononrails\/\$\{\{ matrix.image \}\}/);
+  for (const suffix of ["", "-playback-bridge", "-trakt-auth-bridge", "-debrid-api-bridge", "-external-return-bridge"]) {
+    assert.ok(workflow.split(/\r?\n/).some(line => line.trim() === `- image: nuvioweb${suffix}`));
+  }
+  for (const tag of ["stable", "latest"]) {
+    const rule = workflow.split("\n").find(line => line.includes(`type=raw,value=${tag},`));
+    assert.ok(rule.includes("startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')"));
+  }
+  assert.match(workflow, /flavor: latest=false/);
+  assert.match(workflow, /needs: \[checks, compose\]/);
+  assert.match(workflow, /needs: publish/);
+  assert.match(workflow, /--prerelease --latest=false/);
+  assert.match(workflow, /Release tag must match package.json version/);
 });
 
 test("Compose builds this fork and keeps conversion behind the same-origin proxy", async () => {

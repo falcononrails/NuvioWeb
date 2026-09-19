@@ -29,6 +29,7 @@ jobs:
         env:
           NUVIO_PROPERTIES: ${{ secrets.NUVIO_PROPERTIES }}
           NUVIO_REQUIRE_LOCAL_PROPERTIES: '1'
+          NUVIO_RELEASE_CHANNEL: nightly
         run: |
           printf '%s' "$NUVIO_PROPERTIES" > local.properties
           npm run build

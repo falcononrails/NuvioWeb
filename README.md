@@ -6,6 +6,8 @@ My browser fork of [alphasquare404/NuvioWeb](https://github.com/alphasquare404/N
 
 The site runs the `nightly` branch. Passing builds deploy automatically, so fixes can reach the site before upstream PRs are merged. Updates from alphasquare's `web` branch are merged and checked regularly; conflicts or failed checks stop the update.
 
+[Numbered releases](https://github.com/falcononrails/NuvioWeb/releases) provide tested checkpoints for self-hosting. Beta releases remain marked as pre-releases; nightly keeps moving independently. About shows the package version, build channel and commit automatically. See [releasing](docs/releases.md) for the maintainer workflow.
+
 ## What's different here
 
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
@@ -37,11 +39,20 @@ Trakt catalogs supplied by addons such as AIOMetadata can still work through tho
 
 Docker with the Compose plugin is all you need; Node.js and FFmpeg are built into the images.
 
+For prebuilt **Linux x86-64** images, download and extract the Compose bundle from a [release](https://github.com/falcononrails/NuvioWeb/releases), then run:
+
+```sh
+cp .env.example .env
+docker compose up -d --no-build --pull always --wait
+```
+
+The bundle pins all five services to the same version. For a source build, including ARM64:
+
 ```sh
 git clone --branch nightly https://github.com/falcononrails/NuvioWeb.git
 cd NuvioWeb
 cp .env.example .env
-docker compose up -d --build --wait
+docker compose up -d --build --pull never --wait
 ```
 
 Open `http://localhost:4173`. Compose builds **this fork** and starts the web app, playback server and the existing integration bridges. The default configuration connects to Nuvio's hosted account backend, so you can use your existing account. Trakt remains unavailable unless you supply your own application credentials.

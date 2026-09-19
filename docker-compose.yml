@@ -1,5 +1,6 @@
 services:
   nuvioweb:
+    image: ghcr.io/falcononrails/nuvioweb:${NUVIO_IMAGE_TAG:-nightly}
     build: .
     environment:
       NUVIO_SUPABASE_URL: ${NUVIO_SUPABASE_URL:?Copy .env.example to .env first}
@@ -28,6 +29,7 @@ services:
     restart: unless-stopped
 
   playback-bridge:
+    image: ghcr.io/falcononrails/nuvioweb-playback-bridge:${NUVIO_IMAGE_TAG:-nightly}
     build:
       context: .
       dockerfile: services/playback-bridge/Dockerfile
@@ -47,6 +49,7 @@ services:
     restart: unless-stopped
 
   trakt-auth-bridge:
+    image: ghcr.io/falcononrails/nuvioweb-trakt-auth-bridge:${NUVIO_IMAGE_TAG:-nightly}
     build:
       context: .
       dockerfile: services/trakt-auth-bridge/Dockerfile
@@ -57,12 +60,14 @@ services:
     restart: unless-stopped
 
   debrid-api-bridge:
+    image: ghcr.io/falcononrails/nuvioweb-debrid-api-bridge:${NUVIO_IMAGE_TAG:-nightly}
     build:
       context: .
       dockerfile: services/debrid-api-bridge/Dockerfile
     restart: unless-stopped
 
   external-return-bridge:
+    image: ghcr.io/falcononrails/nuvioweb-external-return-bridge:${NUVIO_IMAGE_TAG:-nightly}
     build:
       context: .
       dockerfile: services/external-return-bridge/Dockerfile

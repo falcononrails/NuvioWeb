@@ -3,6 +3,8 @@
 const FALLBACK_IDENTITY = {
   name: "NuvioWeb",
   version: "0.0.0",
+  channel: "development",
+  revision: "",
   upstreamVersion: "0.3.35",
   maintainer: "falcononrails",
   sourceRepositoryUrl: "https://github.com/falcononrails/NuvioWeb",
@@ -31,6 +33,8 @@ export function createAppIdentity(raw = {}) {
   return Object.freeze({
     name: text(raw.name, FALLBACK_IDENTITY.name),
     version: text(raw.version, FALLBACK_IDENTITY.version),
+    channel: ["nightly", "beta", "stable"].includes(raw.channel) ? raw.channel : "development",
+    revision: /^[a-f0-9]{40}$/i.test(String(raw.revision || "")) ? String(raw.revision) : "",
     upstreamVersion: text(raw.upstreamVersion, FALLBACK_IDENTITY.upstreamVersion),
     maintainer: text(raw.maintainer, FALLBACK_IDENTITY.maintainer),
     sourceRepositoryUrl: httpsUrl(raw.sourceRepositoryUrl, FALLBACK_IDENTITY.sourceRepositoryUrl),

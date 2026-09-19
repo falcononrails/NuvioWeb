@@ -1,14 +1,27 @@
 # Docker Compose
 
-This setup builds the checked-out NuvioWeb fork. It does not pull alphasquare's images. Supported targets are Linux x86-64 and ARM64, including Docker Desktop's Linux containers.
+Images are published under `ghcr.io/falcononrails`. Prebuilt images currently support Linux x86-64, including Docker Desktop's Linux containers. Source builds also support ARM64.
 
-## Start
+## Install a numbered release
+
+Download `nuvioweb-v<VERSION>-compose.tar.gz` and `SHA256SUMS` from [Releases](https://github.com/falcononrails/NuvioWeb/releases). Verify the archive with `sha256sum -c SHA256SUMS`, extract it into a directory, then run:
+
+```sh
+cp .env.example .env
+docker compose up -d --no-build --pull always --wait
+```
+
+The supplied `.env.example` pins `NUVIO_IMAGE_TAG` to that release for every service. Use `--no-build` with release bundles: they contain the configuration, not the source tree. No GitHub login is required to pull public images. On PowerShell, use `Copy-Item .env.example .env`.
+
+To change versions, update `NUVIO_IMAGE_TAG` in `.env`, then repeat the command above. Review the target release's notes and Compose configuration before upgrading or rolling back. Keep your private `.env` values. `nightly` follows current development; `stable` and `latest` are only published for non-beta releases and will not exist until the first stable release.
+
+## Build from source
 
 ```sh
 git clone --branch nightly https://github.com/falcononrails/NuvioWeb.git
 cd NuvioWeb
 cp .env.example .env
-docker compose up -d --build --wait
+docker compose up -d --build --pull never --wait
 ```
 
 Open `http://localhost:4173`. On PowerShell, use `Copy-Item .env.example .env` for the copy step. The first build downloads the base images and dependencies; later builds reuse Docker's cache.
@@ -51,9 +64,11 @@ Temporary HLS segments live in memory-backed storage and are discarded when the 
 
 ## Update and troubleshoot
 
+For source builds:
+
 ```sh
 git pull --ff-only
-docker compose up -d --build --wait
+docker compose up -d --build --pull never --wait
 docker compose ps
 docker compose logs --tail=100 playback-bridge
 ```

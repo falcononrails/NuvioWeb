@@ -9,7 +9,9 @@ COPY . .
 
 # Build generic browser assets only. Public deployment values are written to
 # nuvio.env.js by the Nginx runtime entrypoint, never baked into image layers.
-RUN npm run build
+ARG NUVIO_RELEASE_CHANNEL=development
+ARG NUVIO_BUILD_REVISION
+RUN NUVIO_RELEASE_CHANNEL="$NUVIO_RELEASE_CHANNEL" NUVIO_BUILD_REVISION="$NUVIO_BUILD_REVISION" npm run build
 
 FROM nginx:stable-alpine
 

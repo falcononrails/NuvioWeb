@@ -28,3 +28,13 @@ test("app identity rejects non-HTTPS runtime links", () => {
   const identity = createAppIdentity({ sourceRepositoryUrl: "javascript:alert(1)" });
   assert.equal(identity.sourceRepositoryUrl, "https://github.com/falcononrails/NuvioWeb");
 });
+
+
+test("About preserves validated build identity", () => {
+  const identity = createAppIdentity({version: "0.2.0-beta.1", channel: "beta", revision: "b".repeat(40)});
+  assert.equal(identity.version, "0.2.0-beta.1");
+  assert.equal(identity.channel, "beta");
+  assert.equal(identity.revision, "b".repeat(40));
+  assert.equal(createAppIdentity({channel: "unknown", revision: "oops"}).channel, "development");
+  assert.equal(createAppIdentity({revision: "oops"}).revision, "");
+});
