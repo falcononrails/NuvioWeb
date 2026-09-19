@@ -160,7 +160,25 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(request).catch(() => caches.match("./index.html")));
     return;
   }
-  if (!APP_SHELL.some((entry) => url.pathname.endsWith(entry.replace(/^\.\//, "")))) return;
+  if (!APP_SHELL.some((entry) => new URL(entry, self.registration.scope).pathname === url.pathname)) return;
+  // Shell code uses stable URLs. Revalidate on reload so a new deployment
+  // cannot combine fresh HTML with last release's styles or player bundle.
+  if (/\.(css|js)$/.test(url.pathname)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const response = await fetch(request, { cache: "no-cache" });
+        if (!response.ok) throw new Error(`App asset unavailable: ${response.status}`);
+        event.waitUntil(cache.put(url.origin + url.pathname, response.clone()));
+        return response;
+      } catch (error) {
+        const cached = await cache.match(request, { ignoreSearch: true });
+        if (cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
   event.respondWith(
     caches.match(request, { ignoreSearch: true }).then((cached) => {
       if (cached) return cached;
