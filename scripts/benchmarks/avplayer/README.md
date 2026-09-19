@@ -6,6 +6,33 @@ This is a standalone experiment. It does not change Nuvio's normal player, depen
 
 ## Results
 
+### Software video follow-up
+
+The manual page now includes **Software only (WASM test)** and a 4K HEVC clip with B-frames. It reports frame rate and dropped frames. Try both automatic and software modes on an actual phone, including seeking and switching audio. This experiment does not enable software video in the main app.
+
+Three additional runs per path on the same Windows desktop:
+
+| Clip | Video decoder | First frame | Seek | CPU, one-core equivalent |
+| --- | --- | ---: | ---: | ---: |
+| 1080p H.264 | WebCodecs preferred | 268 ms | 63 ms | 43% |
+| 1080p H.264 | WASM | 279 ms | 51 ms | 61% |
+| 4K HEVC 10-bit, B-frames | WebCodecs preferred | 206 ms | 182 ms | 81% |
+| 4K HEVC 10-bit, B-frames | WASM | 428 ms | 1,660 ms | 197% |
+
+All twelve runs decoded audio, switched language and reported zero dropped frames or decoder errors. CPU here sums the benchmark browser's surviving processes, including workers and GPU-process CPU time; it includes measurement overhead and excludes GPU hardware utilization. A few runs overlapped other development checks. The 4K pattern is upscaled synthetic content, not a demanding film. These short desktop runs do not measure phone performance, battery drain or thermal throttling. Audio is sampled before the final video-element output, so zero drops does not establish physical lip sync.
+
+The software-video binaries were actually requested in software mode; the WebCodecs runs requested only audio binaries. A single additional run per clip with Chrome's 4x CPU throttle also completed, but that is not a phone benchmark. Software video is viable on this desktop. Real Android and iPhone results remain necessary before enabling it broadly.
+
+To reproduce software-only runs (POSIX shell):
+
+```sh
+SOFTWARE=true HYBRID=false RUN_LABEL=software- node run.mjs avstream:h264-eac3.mkv avstream:hevc-eac3-4k-bframes.mkv
+```
+
+The B-frame fixture uses the existing EAC3 clip, scaled to 3840×2160 at 24000/1001 fps, HEVC main10, three B-frames and a 48-frame GOP. The source beep/flash timing is retained. Use the same source in both modes.
+
+### Initial audio-decoding comparison
+
 Measured September 19, 2026: Windows 11, Ryzen 7 7700X, Chrome 153.0.8010.48, Playwright 1.63.0, headless. Each row is the median of three runs. Files were served over loopback; these are not TorBox or internet buffering measurements.
 
 | Playback path                                   | First video / ready |   Seek | Switch audio | Audio verified |

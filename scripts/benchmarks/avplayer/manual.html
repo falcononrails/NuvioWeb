@@ -48,12 +48,15 @@
     }
     label {
       display: grid;
+      max-width: 100%;
+      min-width: 0;
       gap: 8px;
       font-size: 14px;
       color: #aaa;
     }
     button,
     select {
+      max-width: 100%;
       border: 0;
       border-radius: 12px;
       padding: 12px 18px;
@@ -109,6 +112,10 @@
           <option value="native">Browser's built-in player</option>
         </select></label
       >
+      <label>Video decoding<select id="decoding">
+        <option value="auto">Automatic (prefer WebCodecs)</option>
+        <option value="software">Software only (WASM test)</option>
+      </select></label>
       <label
         >Test clip<select id="source">
           <option value="h264-eac3.mkv">1080p · EAC3 audio</option>
@@ -116,6 +123,7 @@
           <option value="h264-dca.mkv">1080p · DTS audio</option>
           <option value="h264-aac.mp4">1080p · AAC audio</option>
           <option value="hevc-eac3-4k.mkv">4K HEVC · EAC3 audio</option>
+          <option value="hevc-eac3-4k-bframes.mkv">4K HEVC · B-frames · EAC3 audio</option>
         </select></label
       >
       <button id="start">Start test</button>
@@ -129,6 +137,7 @@
     <output id="status" aria-live="polite"
       >Choose a clip, then start. English uses a lower beep; Spanish uses a higher beep.</output
     >
+    <output id="metrics"></output>
     <p class="note">
       The sample files are generated test patterns. This page doesn't use your account or the
       playback server.

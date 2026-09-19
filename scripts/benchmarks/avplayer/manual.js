@@ -4,7 +4,8 @@ let player,
   outputStream,
   busy = false,
   paused = false,
-  language = 0;
+  language = 0,
+  metricsTimer;
 const report = (message) => {
   $("status").textContent = message;
 };
@@ -16,6 +17,8 @@ const controls = () => {
   $("language").textContent = language ? "Switch to English" : "Switch to Spanish";
 };
 async function stop() {
+  clearInterval(metricsTimer);
+  $("metrics").textContent = "";
   if (player) {
     const old = player;
     player = null;
@@ -56,6 +59,8 @@ $("start").onclick = () => {
     await audioReady;
     const url = new URL(`./media/${$("source").value}`, location.href).href;
     const started = performance.now();
+    const software = $("decoding").value === "software";
+    let softwareVideo = software;
     report("Loading the test clip…");
     if ($("engine").value === "native") {
       video = document.createElement("video");
@@ -76,18 +81,18 @@ $("start").onclick = () => {
       player = new AVPlayer({
         container: outputStream || $("surface"),
         enableWorker: true,
-        enableHardware: true,
-        enableWebCodecs: true,
+        enableHardware: !software,
+        enableWebCodecs: !software,
         getWasm(type, codec, mediaType) {
-          if (type === "decoder" && mediaType === 0) return "";
-          const name = { 86018: "aac", 86019: "ac3", 86020: "dca", 86056: "eac3" }[codec];
+          if (type === "decoder" && mediaType === 0) softwareVideo = true;
+          const name = { 27: "h264", 173: "hevc", 86018: "aac", 86019: "ac3", 86020: "dca", 86056: "eac3" }[codec];
           const path =
             type === "decoder"
               ? `decode/${name}-simd.wasm`
               : type === "resampler"
                 ? "resample/resample-simd.wasm"
                 : "stretchpitch/stretchpitch-simd.wasm";
-          if (type === "decoder" && !name) throw Error("This audio format isn't part of the test.");
+          if (type === "decoder" && !name) throw Error("This codec isn't part of the test.");
           return new URL(`./wasm/${path}`, location.href).href;
         }
       });
@@ -104,6 +109,11 @@ $("start").onclick = () => {
         video.srcObject = outputStream;
         await video.play();
       }
+      metricsTimer = setInterval(() => {
+        if (!player) return;
+        const stats = player.getStats();
+        $("metrics").textContent = `${softwareVideo ? "Software video (WASM)" : "WebCodecs video"} · ${Number(stats.videoRenderFramerate)} fps · ${Number(stats.videoFrameDropCount)} dropped frames. Check that the flash and beep stay together after seeking.`;
+      }, 1000);
     }
     report(
       `Started in ${((performance.now() - started) / 1000).toFixed(2)}s. Listen for a beep every two seconds.`
@@ -126,8 +136,10 @@ $("pause").onclick = () =>
   });
 $("seek").onclick = () =>
   void perform(async () => {
-    if (player) await player.seek(20000n);
+    const started = performance.now();
+    if (player) await player.seek(20700n);
     else video.currentTime = 20;
+    report(`Seek completed in ${((performance.now() - started) / 1000).toFixed(2)}s. Check the flash and beep.`);
   });
 $("language").onclick = () =>
   void perform(async () => {

@@ -114,8 +114,8 @@ try {
     }
     player = window.player = new AVPlayer({
       container: outputStream || surface,
-      enableHardware: true,
-      enableWebCodecs: true,
+      enableHardware: q.get("software") !== "true",
+      enableWebCodecs: q.get("software") !== "true",
       enableWorker: q.get("worker") !== "false",
       getWasm(type, codec, mediaType) {
         if (q.get("hybrid") === "true" && type === "decoder" && mediaType === 0) return "";
@@ -160,6 +160,7 @@ try {
     if (outputStream) {
       video.srcObject = outputStream;
       await timeout(video.play());
+
       result.outputTracks = outputStream
         .getTracks()
         .map((t) => ({ kind: t.kind, settings: t.getSettings() }));
@@ -169,7 +170,10 @@ try {
     const node = player.getAudioOutputNode();
     if (outputStream) {
       context = new AudioContext();
-      const output = context.createMediaStreamSource(outputStream);
+      const output = q.get("meter") === "element"
+        ? context.createMediaElementSource(video)
+        : context.createMediaStreamSource(outputStream);
+      if (q.get("meter") === "element") output.connect(context.destination);
       attachMeter(output, context);
       await context.resume();
     } else if (node) attachMeter(node, node.context);
@@ -295,6 +299,7 @@ try {
   result.errors.push(String(error));
   result.ok = false;
 } finally {
+
   observer.disconnect();
   result.elapsedMs = Math.round(performance.now() - start);
   result.resources = performance.getEntriesByType("resource").map((e) => ({

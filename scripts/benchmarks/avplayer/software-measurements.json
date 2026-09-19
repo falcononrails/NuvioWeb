@@ -1,0 +1,320 @@
+[
+  {
+    "file": "h264-eac3.mkv",
+    "software": false,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14521,
+    "cpuCorePercent": 49.709588384255916,
+    "firstVideoMs": 305,
+    "seekMs": 63,
+    "trackSwitchMs": 83,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "h264-eac3.mkv",
+    "software": false,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14413,
+    "cpuCorePercent": 36.17715475731498,
+    "firstVideoMs": 189,
+    "seekMs": 63,
+    "trackSwitchMs": 80,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "h264-eac3.mkv",
+    "software": false,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14471,
+    "cpuCorePercent": 42.67923772510485,
+    "firstVideoMs": 268,
+    "seekMs": 54,
+    "trackSwitchMs": 89,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "hevc-eac3-4k-bframes.mkv",
+    "software": false,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14579,
+    "cpuCorePercent": 74.37731457597123,
+    "firstVideoMs": 186,
+    "seekMs": 164,
+    "trackSwitchMs": 144,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "hevc-eac3-4k-bframes.mkv",
+    "software": false,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14704,
+    "cpuCorePercent": 85.32681509607572,
+    "firstVideoMs": 206,
+    "seekMs": 246,
+    "trackSwitchMs": 145,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "hevc-eac3-4k-bframes.mkv",
+    "software": false,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14741,
+    "cpuCorePercent": 80.54995279443719,
+    "firstVideoMs": 222,
+    "seekMs": 182,
+    "trackSwitchMs": 245,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "h264-eac3.mkv",
+    "software": true,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14727,
+    "cpuCorePercent": 69.18614209705105,
+    "firstVideoMs": 362,
+    "seekMs": 51,
+    "trackSwitchMs": 239,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/h264-simd.wasm",
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "h264-eac3.mkv",
+    "software": true,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14645,
+    "cpuCorePercent": 60.60178313253077,
+    "firstVideoMs": 279,
+    "seekMs": 52,
+    "trackSwitchMs": 244,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/h264-simd.wasm",
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "h264-eac3.mkv",
+    "software": true,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 14630,
+    "cpuCorePercent": 54.59337422660013,
+    "firstVideoMs": 269,
+    "seekMs": 45,
+    "trackSwitchMs": 239,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/h264-simd.wasm",
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "hevc-eac3-4k-bframes.mkv",
+    "software": true,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 17664,
+    "cpuCorePercent": 197.20873650844686,
+    "firstVideoMs": 428,
+    "seekMs": 1600,
+    "trackSwitchMs": 1460,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/hevc-simd.wasm",
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "hevc-eac3-4k-bframes.mkv",
+    "software": true,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 18755,
+    "cpuCorePercent": 201.4835199269681,
+    "firstVideoMs": 511,
+    "seekMs": 2151,
+    "trackSwitchMs": 1920,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/hevc-simd.wasm",
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  },
+  {
+    "file": "hevc-eac3-4k-bframes.mkv",
+    "software": true,
+    "browser": "153.0.8010.48",
+    "environment": {
+      "platform": "win32",
+      "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+      "playwright": "1.63.0",
+      "cpuSlowdown": 1,
+      "headless": true
+    },
+    "elapsedMs": 17498,
+    "cpuCorePercent": 179.03737199523707,
+    "firstVideoMs": 411,
+    "seekMs": 1660,
+    "trackSwitchMs": 1300,
+    "audio": true,
+    "trackSwitch": true,
+    "errors": [],
+    "droppedFrames": 0,
+    "wasm": [
+      "decode/hevc-simd.wasm",
+      "decode/eac3-simd.wasm",
+      "resample/resample-simd.wasm",
+      "stretchpitch/stretchpitch-simd.wasm"
+    ]
+  }
+]

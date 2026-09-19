@@ -11,14 +11,17 @@ try {
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.goto(url);
-  for (const [engine, file] of [
+  for (const [engine, file, decoding = "auto"] of [
     ["avstream", "h264-eac3.mkv"],
     ["avplayer", "h264-dca.mkv"],
     ["avstream", "hevc-eac3-4k.mkv"],
-    ["native", "h264-aac.mp4"]
+    ["native", "h264-aac.mp4"],
+    ["avstream", "h264-eac3.mkv", "software"],
+    ["avstream", "hevc-eac3-4k-bframes.mkv", "software"]
   ]) {
     await page.locator("#engine").selectOption(engine);
     await page.locator("#source").selectOption(file);
+    await page.locator("#decoding").selectOption(decoding);
     await page.locator("#start").click();
     await page.waitForFunction(
       () => document.querySelector("#status").textContent.startsWith("Started in"),
@@ -26,6 +29,8 @@ try {
       { timeout: 30000 }
     );
     if (engine !== "native") {
+      if (decoding === "software") await page.waitForFunction(() =>
+        document.querySelector("#metrics").textContent.startsWith("Software video (WASM)"));
       await page.waitForFunction(() =>
         AVPlayer.Instances.some(
           (p) =>
@@ -55,7 +60,7 @@ try {
     await page.locator("#stop").click();
     await page.waitForFunction(() => document.querySelector("#status").textContent === "Stopped.");
     assert.equal(await page.locator("#surface").evaluate((node) => node.childElementCount), 0);
-    console.log(`PASS ${engine} ${file}: start, tracks, pause, resume, seek, cleanup`);
+    console.log(`PASS ${engine} ${file} ${decoding}: start, tracks, pause, resume, seek, cleanup`);
   }
   assert.deepEqual(errors, []);
   await page.setViewportSize({ width: 390, height: 844 });

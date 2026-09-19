@@ -61,6 +61,7 @@ const browser = await chromium.launch({
   headless: true,
   args: ["--autoplay-policy=no-user-gesture-required"]
 });
+const browserSession = await browser.newBrowserCDPSession();
 const cases = process.argv.slice(2).length
   ? process.argv.slice(2)
   : [
@@ -88,6 +89,8 @@ try {
         log.push(`worker: ${worker.url()}`);
       });
       const cdp = await page.context().newCDPSession(page);
+      const cpuBefore = (await browserSession.send("SystemInfo.getProcessInfo")).processInfo;
+      const cpuStarted = performance.now();
       await cdp.send("Performance.enable");
       if (process.env.CPU_SLOWDOWN)
         await cdp.send("Emulation.setCPUThrottlingRate", {
@@ -98,7 +101,7 @@ try {
         log.push(`runtime: ${JSON.stringify(data.exceptionDetails)}`)
       );
       await page.goto(
-        `${base}/?mode=${mode}&file=${encodeURIComponent(file)}&worker=${process.env.WORKER || "true"}&switchSeek=${process.env.SWITCH_SEEK || "true"}&hybrid=${process.env.HYBRID || "true"}&audioMaster=${process.env.AUDIO_MASTER || "true"}`
+        `${base}/?mode=${mode}&file=${encodeURIComponent(file)}&worker=${process.env.WORKER || "true"}&switchSeek=${process.env.SWITCH_SEEK || "true"}&hybrid=${process.env.HYBRID || "true"}&software=${process.env.SOFTWARE || "false"}&audioMaster=${process.env.AUDIO_MASTER || "true"}&meter=${process.env.AUDIO_METER || "stream"}`
       );
       try {
         await page.waitForFunction(() => window.result?.done, {}, { timeout: 60000 });
@@ -113,6 +116,8 @@ try {
         )
       );
       result.browser = await browser.version();
+      const cpuAfter = (await browserSession.send("SystemInfo.getProcessInfo")).processInfo;
+      result.cpuCorePercent = 100000 * cpuAfter.reduce((sum, p) => sum + Math.max(0, p.cpuTime - (cpuBefore.find(b => b.id === p.id)?.cpuTime || 0)), 0) / (performance.now() - cpuStarted);
       result.metrics = (await cdp.send("Performance.getMetrics")).metrics;
       result.log = log;
       result.trial = trial;
@@ -129,6 +134,7 @@ try {
         JSON.stringify({
           file: filename,
           ok: result.ok,
+          cpuCorePercent: Math.round(result.cpuCorePercent),
           audio: result.audioDetected,
           flash: result.videoFlashDetected,
           errors: result.errors,
