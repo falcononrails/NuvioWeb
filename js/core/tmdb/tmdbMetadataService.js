@@ -270,6 +270,9 @@ export const TmdbMetadataService = {
     const trailers = mapTrailerCandidates(trailerCandidates);
 
     return {
+      seasonPosters: Object.fromEntries((Array.isArray(data.seasons) ? data.seasons : [])
+        .filter(season => season.poster_path && Number.isInteger(season.season_number))
+        .map(season => [season.season_number, toImageUrl(season.poster_path, "poster")])),
       localizedTitle: data.title || data.name || null,
       description: data.overview || null,
       backdrop: toImageUrl(data.backdrop_path, "backdrop"),

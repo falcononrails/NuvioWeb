@@ -7,6 +7,7 @@ const DEFAULTS = {
   hasChosenLayout: false,
   homeLayout: "modern",
   continueWatchingCardStyle: "card",
+  seasonViewMode: "posters",
   heroSectionEnabled: true,
   discoverLocation: "in_search",
   heroCatalogKeys: [],
@@ -86,6 +87,7 @@ function normalizeLayoutPreferences(value = {}) {
     continueWatchingCardStyle: ["card", "wide", "poster"].includes(continueWatchingCardStyle)
       ? continueWatchingCardStyle
       : "card",
+    seasonViewMode: merged.seasonViewMode === "text" ? "text" : "posters",
     discoverLocation: ["in_search", "in_sidebar", "off"].includes(discoverLocation)
       ? discoverLocation
       : "in_search",

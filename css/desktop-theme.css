@@ -878,3 +878,22 @@ html.desktop-browser .settings-shell .settings-dialog .settings-hero-catalog-opt
   .desktop-browser .settings-shell .settings-account-sync-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; }
   .desktop-browser .settings-shell .settings-account-stat small { white-space: nowrap; overflow-wrap: normal; }
 }
+
+/* Season artwork shares the detail page's existing horizontal rail. */
+.desktop-browser #detail .series-seasons-header { display: flex; align-items: center; gap: 12px; padding: 0 clamp(20px, 3.4vw, 64px) 8px; }
+.desktop-browser #detail .series-seasons-header .series-seasons-heading { padding: 0; }
+.desktop-browser #detail .series-season-view-toggle { min-height: 32px; padding: 4px 12px; border: 0; border-radius: 8px; color: var(--text-secondary); background: var(--desktop-surface); font-size: 14px; }
+.desktop-browser #detail .series-season-view-toggle:hover { color: var(--text-color); background: var(--desktop-hover); }
+.desktop-browser #detail .series-season-poster-btn { flex: 0 0 140px; width: 140px; height: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 0 4px; background: transparent; border-radius: 12px; line-height: 20px; }
+.desktop-browser #detail .series-season-poster-btn.selected { background: transparent; }
+.desktop-browser #detail .series-season-artwork { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 2 / 3; overflow: hidden; border-radius: 12px; background: var(--desktop-surface); color: var(--text-secondary); font-size: 24px; }
+.desktop-browser #detail .series-season-artwork img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.desktop-browser #detail .series-season-poster-btn .series-season-artwork::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%); pointer-events: none; }
+.desktop-browser #detail .series-season-poster-btn.selected .series-season-artwork::after { box-shadow: inset 0 0 0 2px var(--text-color); }
+.desktop-browser #detail .series-season-poster-btn:hover { background: transparent; color: var(--text-color); }
+.desktop-browser #detail .series-season-poster-btn:hover .series-season-artwork::after { box-shadow: inset 0 0 0 2px rgb(255 255 255 / 55%); }
+.desktop-browser #detail .series-season-label { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+@media (max-width: 600px) {
+  .desktop-browser #detail .series-seasons-header { padding-inline: 16px; }
+  .desktop-browser #detail .series-season-poster-btn { flex-basis: 104px; width: 104px; font-size: 14px; }
+}

@@ -1,4 +1,5 @@
-﻿import { Router } from "../../navigation/router.js";
+﻿import { getSeasonPosters } from "./seasonPosters.js";
+import { Router } from "../../navigation/router.js";
 import { ScreenUtils } from "../../navigation/screen.js";
 import { setBrowserMediaTitle } from "../../navigation/browserDocumentTitle.js";
 import { metaRepository } from "../../../data/repository/metaRepository.js";
@@ -249,6 +250,7 @@ function toEpisodeEntry(video = {}) {
     season,
     episode,
     thumbnail: video.thumbnail || null,
+    seasonPoster: video.seasonPoster || video.season_poster_path || null,
     overview: video.overview || video.description || "",
     runtimeMinutes,
     released:
@@ -3120,6 +3122,7 @@ export const MetaDetailsScreen = {
           : meta.description,
         background: settings.useArtwork ? enrichment.backdrop || meta.background : meta.background,
         poster: settings.useArtwork ? enrichment.poster || meta.poster : meta.poster,
+        seasonPosters: settings.useArtwork ? { ...enrichment.seasonPosters, ...meta.seasonPosters } : meta.seasonPosters,
         // TMDB enrichment deliberately returns no logo when only unrelated
         // languages are available; show the localized text title in that case.
         logo: settings.useArtwork ? enrichment.logo : meta.logo,
@@ -4397,17 +4400,21 @@ export const MetaDetailsScreen = {
       return `<p>${escapeHtml(message)}</p>`;
     }
     const seasons = this.getAvailableSeasons();
+    const posters = getSeasonPosters(this.meta, this.episodes);
+    const showPosters = Platform.isBrowser() && LayoutPreferences.get().seasonViewMode === "posters" && posters.size > 0;
     return seasons
       .map(
         (season) => `
-      <button class="series-season-btn focusable${season === this.selectedSeason ? " selected" : ""}"
+      <button type="button" class="series-season-btn focusable${showPosters ? " series-season-poster-btn" : ""}${season === this.selectedSeason ? " selected" : ""}"
+              aria-pressed="${season === this.selectedSeason}"
               data-action="selectSeason"
               data-season="${season}">
-        ${escapeHtml(
+        ${showPosters ? `<span class="series-season-artwork" aria-hidden="true"><span>${season === 0 ? escapeHtml(t("episodes_specials", {}, "Specials")) : season}</span>${posters.has(season) ? `<img src="${escapeAttribute(posters.get(season))}" alt="" loading="lazy" decoding="async" />` : ""}</span>` : ""}
+        <span class="series-season-label">${escapeHtml(
           season === 0
             ? t("episodes_specials", {}, "Specials")
             : t("detail.seasonLabel", { season }, "Season {{season}}")
-        )}
+        )}</span>
       </button>
       `
       )
@@ -4415,11 +4422,26 @@ export const MetaDetailsScreen = {
   },
 
   renderSeasonControls() {
+    const hasPosters = getSeasonPosters(this.meta, this.episodes).size > 0;
+    const showText = LayoutPreferences.get().seasonViewMode === "text";
     return `
-      ${Platform.isBrowser() ? `<h2 class="series-seasons-heading">${escapeHtml(t("detail.seasons", {}, "Seasons"))}</h2>` : ""}
+      ${Platform.isBrowser() ? `
+        <div class="series-seasons-header">
+          <h2 class="series-seasons-heading">${escapeHtml(t("detail.seasons", {}, "Seasons"))}</h2>
+          ${hasPosters ? `<button type="button" class="series-season-view-toggle focusable" data-action="toggleSeasonView"
+            aria-label="${showText ? "Show season posters" : "Show seasons as text"}">${showText ? "Text" : "Posters"}</button>` : ""}
+        </div>` : ""}
       <div class="series-season-row" data-scroll-key="season-tabs">${this.renderSeasonButtons()}</div>
       ${this.renderSeasonDownloadAction()}
     `;
+  },
+
+  toggleSeasonView() {
+    const seasonViewMode = LayoutPreferences.get().seasonViewMode === "text" ? "posters" : "text";
+    LayoutPreferences.set({ seasonViewMode }, { silentSync: true });
+    this.container.querySelector("#detailSeasonRowMount").innerHTML = this.renderSeasonControls();
+    this.bindDetailChrome();
+    this.focusDetailDescriptor({ selector: "[data-action='toggleSeasonView']", preserveVerticalScroll: true });
   },
 
   renderSeasonDownloadAction() {
@@ -7777,6 +7799,14 @@ export const MetaDetailsScreen = {
   },
 
   bindDetailChrome() {
+    this.container?.querySelectorAll(".series-season-artwork img").forEach(image => {
+      image.onerror = () => image.remove();
+    });
+    const seasonViewToggle = this.container?.querySelector("[data-action='toggleSeasonView']");
+    if (seasonViewToggle) seasonViewToggle.onclick = event => {
+      event.stopPropagation();
+      this.toggleSeasonView();
+    };
     this.observeEpisodeThumbnails();
     const content = this.container?.querySelector(".series-detail-content");
     if (!content) {
@@ -11093,6 +11123,12 @@ export const MetaDetailsScreen = {
       } else {
         this.playTrailer({ muted: false, restart: true, initiatedByUser: true });
       }
+      return;
+    }
+
+    if (action === "toggleSeasonView") {
+      event.preventDefault();
+      this.toggleSeasonView();
       return;
     }
 
