@@ -897,3 +897,60 @@ html.desktop-browser .settings-shell .settings-dialog .settings-hero-catalog-opt
   .desktop-browser #detail .series-seasons-header { padding-inline: 16px; }
   .desktop-browser #detail .series-season-poster-btn { flex-basis: 104px; width: 104px; font-size: 14px; }
 }
+
+/* Calendar uses the existing browser surfaces, typography and navigation. */
+.desktop-browser .calendar-main { padding: 112px clamp(20px, 3.4vw, 64px) 48px; min-height: 100dvh; }
+.desktop-browser .calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 32px; }
+.desktop-browser .calendar-heading h1 { margin: 0 0 8px; font-size: 32px; line-height: 40px; font-weight: 600; }
+.desktop-browser .calendar-heading p { margin: 0; font-size: 14px; line-height: 20px; color: var(--text-secondary); }
+.desktop-browser .calendar-toolbar, .desktop-browser .calendar-month-controls { display: flex; align-items: center; gap: 12px; }
+.desktop-browser .calendar-toolbar { justify-content: space-between; margin-bottom: 12px; }
+.desktop-browser .calendar-month-controls h2 { min-width: 200px; margin: 0; text-align: center; font-size: 24px; line-height: 32px; font-weight: 600; }
+.desktop-browser .calendar-button { display: inline-flex; justify-content: center; align-items: center; min-width: 44px; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 12px; color: var(--text-color); background: var(--desktop-surface); font-size: 14px; }
+.desktop-browser .calendar-button .material-icons { font-size: 24px; }
+.desktop-browser .calendar-button:hover:not(:disabled) { background: var(--desktop-hover); }
+.desktop-browser .calendar-status { min-height: 20px; margin: 0 0 16px; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
+.desktop-browser .calendar-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; gap: 24px; }
+.desktop-browser .calendar-board, .desktop-browser .calendar-agenda { padding: 16px; border-radius: var(--desktop-radius); background: var(--desktop-surface); min-width: 0; }
+.desktop-browser .calendar-weekdays, .desktop-browser .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.desktop-browser .calendar-weekdays { padding: 4px 0 12px; }
+.desktop-browser .calendar-weekdays abbr { text-align: center; color: var(--text-secondary); font-size: 12px; line-height: 16px; text-decoration: none; }
+.desktop-browser .calendar-day { display: flex; flex-direction: column; position: relative; min-width: 0; height: clamp(88px, 9vw, 144px); padding: 8px; border: 0; border-radius: 12px; text-align: left; background: transparent; color: var(--text-color); }
+.desktop-browser .calendar-day:hover { background: var(--desktop-hover); }
+.desktop-browser .calendar-day.is-selected { background: var(--desktop-selected); }
+.desktop-browser .calendar-day-number { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.desktop-browser .calendar-day.is-today .calendar-day-number { color: var(--on-secondary); background: var(--secondary-color); }
+.desktop-browser .calendar-count { position: absolute; top: 12px; right: 8px; font-size: 12px; color: var(--text-secondary); }
+.desktop-browser .calendar-thumbnails { display: flex; flex: 1; min-height: 0; gap: 4px; margin-top: 4px; overflow: hidden; }
+.desktop-browser .calendar-thumbnails img { width: auto; max-width: 100%; height: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 4px; }
+.desktop-browser .calendar-agenda h2 { margin: 0 0 16px; font-size: 20px; line-height: 28px; font-weight: 600; }
+.desktop-browser .calendar-releases { display: grid; gap: 8px; }
+.desktop-browser .calendar-release { display: flex; align-items: center; min-width: 0; gap: 12px; padding: 12px; border: 0; border-radius: 12px; text-align: left; color: var(--text-color); background: transparent; }
+.desktop-browser .calendar-release:hover { background: var(--desktop-hover); }
+.desktop-browser .calendar-release-artwork { display: grid; place-items: center; flex: 0 0 56px; height: 84px; border-radius: 8px; overflow: hidden; background: var(--card-bg); }
+.desktop-browser .calendar-release-artwork img { width: 100%; height: 100%; object-fit: cover; }
+.desktop-browser .calendar-release-copy { flex: 1; min-width: 0; display: grid; gap: 4px; font-size: 13px; line-height: 20px; color: var(--text-secondary); }
+.desktop-browser .calendar-release-copy strong { font-size: 16px; line-height: 20px; color: var(--text-color); font-weight: 600; }
+.desktop-browser .calendar-release-copy span { font-weight: 400; }
+.desktop-browser .calendar-release > .material-icons { font-size: 20px; color: var(--text-secondary); }
+.desktop-browser .calendar-empty { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
+@media (max-width: 1000px) {
+  .desktop-browser .calendar-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .desktop-browser .desktop-navigation { width: min(440px, calc(100vw - 16px)); }
+  .desktop-browser .desktop-navigation-item { padding-inline: 0; }
+  .desktop-browser .calendar-main { padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 104px); }
+  .desktop-browser .calendar-heading { margin-bottom: 24px; }
+  .desktop-browser .calendar-heading h1 { font-size: 24px; line-height: 32px; }
+  .desktop-browser .calendar-month-controls { gap: 4px; }
+  .desktop-browser .calendar-month-controls h2 { min-width: 0; font-size: 18px; line-height: 24px; }
+  .desktop-browser .calendar-toolbar { gap: 8px; }
+  .desktop-browser .calendar-board { padding: 8px; }
+  .desktop-browser .calendar-grid { gap: 2px; }
+  .desktop-browser .calendar-day { height: 64px; padding: 4px; border-radius: 8px; }
+  .desktop-browser .calendar-count { top: auto; bottom: 8px; left: 4px; right: 4px; text-align: center; line-height: 12px; }
+  .desktop-browser .calendar-thumbnails { display: none; }
+  .desktop-browser .calendar-day-number { width: 100%; max-width: 28px; margin-inline: auto; }
+  .desktop-browser .calendar-status { font-size: 12px; }
+}

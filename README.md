@@ -9,6 +9,7 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 ## What's different here
 
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
+- Posters/Text season picker and a Calendar for Library releases. Artwork and release dates depend on the metadata your addons provide.
 - Fixes for animated collection backdrops, browser playback and audio controls.
 - Local AC3, EAC3 and DTS audio decoding with AVPlayer when native playback cannot handle the source. It loads on demand and keeps the existing player controls.
 - Embedded text subtitles through the playback service, with language selection, delay controls and seek-aware timing. Image subtitle formats still need an external player or a subtitle addon.
@@ -68,6 +69,7 @@ Checks: `npm test`, `npm run lint`, `npm run build`.
 - [NuvioMedia](https://github.com/NuvioMedia), [tapframe/NuvioTV](https://github.com/tapframe/NuvioTV), and the official [NuvioTVSmart](https://github.com/NuvioMedia/NuvioTVSmart) and [NuvioDesktop](https://github.com/NuvioMedia/NuvioDesktop) teams for the original apps, code and design.
 - [alphasquare404/NuvioWeb](https://github.com/alphasquare404/NuvioWeb) for the browser/PWA fork this repository builds on.
 - [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb) for the mobile navigation and hero behavior adapted here. This is a selective port, not a full merge of that fork.
+- [lucaboox/nuvio-web](https://github.com/lucaboox/nuvio-web) for the Library release-calendar logic used as a reference.
 - [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile) for the grouped mobile settings and account navigation used as the design reference.
 - [WhiteGiso/NuvioTV-WebOS](https://github.com/WhiteGiso/NuvioTV-WebOS), [edoedac0](https://github.com/edoedac0), and [all upstream contributors](https://github.com/alphasquare404/NuvioWeb/graphs/contributors) for the earlier web work and ongoing fixes.
 - [Gaoxing Zhao / libmedia](https://github.com/zhaohappy/libmedia) for AVPlayer and its WASM audio decoders (LGPL-3.0-or-later).

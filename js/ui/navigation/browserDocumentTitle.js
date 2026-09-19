@@ -7,6 +7,7 @@ const ROUTE_TITLES = {
   search: "Search",
   discover: "Discover",
   library: "Library",
+  calendar: "Calendar",
   settings: "Settings",
   profileSelection: "Profiles",
   authSignIn: "Sign In",

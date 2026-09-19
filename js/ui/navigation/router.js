@@ -1,3 +1,4 @@
+import { CalendarScreen } from "../screens/calendar/calendarScreen.js";
 import { HomeScreen } from "../screens/home/homeScreen.js";
 import { PlayerScreen } from "../screens/player/playerScreen.js";
 import { AccountScreen } from "../screens/account/accountScreen.js";
@@ -60,6 +61,8 @@ function getBrowserPullRefreshHandler(routeName, screen) {
       return () => screen.reloadItems?.({ preserveExistingItems: true });
     case "library":
       return () => screen.controller?.refreshNow?.();
+    case "calendar":
+      return () => screen.loadLibrary?.(true);
     case "detail":
       return () => screen.reloadDetailContent?.({ reason: "pull-to-refresh" }) || screen.loadDetail?.();
     case "castDetail":
@@ -184,6 +187,7 @@ export const Router = {
     essentialAddonSetup: EssentialAddonSetupScreen,
     detail: MetaDetailsScreen,
     library: LibraryScreen,
+    calendar: CalendarScreen,
     search: SearchScreen,
     discover: DiscoverScreen,
     settings: SettingsScreen,

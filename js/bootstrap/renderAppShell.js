@@ -13,6 +13,7 @@ const APP_SHELL = `
     <div id="collectionEdit" class="screen"></div>
     <div id="collectionFolderEdit" class="screen"></div>
     <div id="library" class="screen"></div>
+    <div id="calendar" class="screen"></div>
     <div id="search" class="screen"></div>
     <div id="discover" class="screen"></div>
     <div id="settings" class="screen"></div>
