@@ -42,6 +42,11 @@ window.mountCollections=()=>{
 };
 document.addEventListener('keydown',e=>void settings.onKeyDown(e));
 await settings.mount();
+// Match the router's scrolling layer when Settings opens over another route.
+Object.assign(settings.container.style,{position:'fixed',inset:'0',overflowY:'auto'});
+settings.container.addEventListener('click',event=>{
+  if(event.target.closest('[data-section]')) window.indexScroll=settings.container.scrollTop;
+},true);
 window.ready=true;
 `;
 const bundle = (await build({stdin:{contents:script,resolveDir:root},bundle:true,write:false,format:"esm",plugins:[{
@@ -84,10 +89,18 @@ else {
     await page.screenshot({path:path.join(output,'settings-index.png'),fullPage:true});
     for(const section of ['account','profiles','layout','playback','about']) {
       await page.locator('[data-section="'+section+'"]').tap();
+      const indexScroll=await page.evaluate(()=>window.indexScroll);
+      if(section==='about') assert.ok(indexScroll>0,'exercise a section below the fold');
       assert.equal(await page.locator('.settings-sidebar-frame').isVisible(),false);
       assert.equal(await page.locator('[data-settings-back]').isVisible(),true);
+      assert.equal(await page.locator('#settings').evaluate(node=>node.scrollTop),0,section+' opens at the top');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,section+' should not overflow horizontally');
-      await page.locator('[data-settings-back]').tap();
+      if(section==='about') {
+        await page.evaluate(()=>settings.consumeBackRequest());
+      } else {
+        await page.locator('[data-settings-back]').tap();
+      }
+      assert.equal(await page.locator('#settings').evaluate(node=>node.scrollTop),indexScroll,section+' restores the settings list position');
     }
     await page.locator('[data-section="layout"]').tap();
     await page.locator('[data-focus-key="layout:toggle:homeContent"]').tap();

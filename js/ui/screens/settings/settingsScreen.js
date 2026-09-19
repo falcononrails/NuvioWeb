@@ -2,6 +2,7 @@
 import { Router } from "../../navigation/router.js";
 import { APP_IDENTITY } from "../../../core/app/appIdentity.js";
 import { ensureSpatialFocusVisible, ScreenUtils } from "../../navigation/screen.js";
+import { getBrowserVerticalScrollTop, setBrowserVerticalScrollTop } from "../../navigation/browserScrollPosition.js";
 import { addonRepository } from "../../../data/repository/addonRepository.js";
 import { LocalStore } from "../../../core/storage/localStore.js";
 import { SessionStore } from "../../../core/storage/sessionStore.js";
@@ -8470,8 +8471,14 @@ export const SettingsScreen = {
     this.ensureShell();
 
     const shell = this.container.querySelector(".settings-shell");
+    const mobilePage = this.mobileSectionOpen ? "section" : "index";
+    const mobilePageChanged = isMobileSettingsBrowser() && shell?.dataset.mobilePage
+      && shell.dataset.mobilePage !== mobilePage;
+    if (mobilePageChanged && this.mobileSectionOpen) {
+      this.mobileIndexScrollTop = getBrowserVerticalScrollTop(this.container);
+    }
     if (shell) {
-      shell.dataset.mobilePage = this.mobileSectionOpen ? "section" : "index";
+      shell.dataset.mobilePage = mobilePage;
       shell.dataset.settingsStyle = String(
         this.model.theme.settingsUiStyle || "CLASSIC"
       ).toLowerCase();
@@ -8590,6 +8597,9 @@ export const SettingsScreen = {
     bindSettingsScrollIndicators(this.container);
     this.settingsRouteEnterPending = false;
     this.applyFocus();
+    if (mobilePageChanged) {
+      setBrowserVerticalScrollTop(this.mobileSectionOpen ? 0 : this.mobileIndexScrollTop, this.container);
+    }
     syncLayoutPreviewMetricsSoon(this.container);
     updateSettingsRailIndicatorsSoon(navSlot);
     updateSettingsScrollIndicatorsSoon(contentSlot);
