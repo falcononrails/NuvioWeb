@@ -1,3 +1,4 @@
+import { episodeNotificationPreference, enableEpisodeNotifications, disableEpisodeNotifications } from "../../components/browserEpisodeNotifications.js";
 /* global __NUVIO_APP_VERSION__ */
 import { Router } from "../../navigation/router.js";
 import { APP_IDENTITY } from "../../../core/app/appIdentity.js";
@@ -109,6 +110,7 @@ import { renderLoadingIndicator } from "../../components/loadingIndicator.js";
 import { getLatestAppUpdate } from "../../../core/update/appUpdateService.js";
 import { showAppUpdatePrompt } from "../../components/appUpdatePrompt.js";
 import {
+  SUPABASE_URL,
   DONATIONS_BASE_URL,
   UNIQUE_CONTRIBUTIONS_BASE_URL
 } from "../../../config.js";
@@ -2270,6 +2272,7 @@ export const SettingsScreen = {
       this.pushReturnStateLoading = true;
       void getBrowserPushReturnState().then((result) => {
         this.pushReturnState = result.state;
+        this.episodePushAvailable = Boolean(result.episodes);
         this.pushReturnStateLoading = false;
         void this.render();
       }).catch(() => { this.pushReturnState = "unavailable"; this.pushReturnStateLoading = false; void this.render(); });
@@ -2590,7 +2593,7 @@ export const SettingsScreen = {
       <button class="settings-action-row settings-toggle-row settings-content-focusable focusable${inert ? " is-disabled" : ""}${planned ? " is-planned" : ""}"
               data-zone="content"
               ${this.registerAction(focusKey, inert ? () => {} : this.actionMap.get(focusKey))}
-              data-role="toggle">
+              data-role="toggle" role="switch" aria-checked="${checked}" ${inert ? "disabled" : ""}>
         <span class="settings-row-copy">
           <span class="settings-row-title">${escapeHtml(title)}</span>
           ${subtitle ? `<span class="settings-row-subtitle">${escapeHtml(subtitle)}</span>` : ""}
@@ -3417,6 +3420,7 @@ export const SettingsScreen = {
                     "Sync is not real-time across active devices. Restart this device after signing in or to pick up changes made elsewhere."
                   )
             )}</p>
+            ${isDesktopBrowser ? this.renderAccountBackendInfo() : ""}
             ${
               model.accountSyncOverview
                 ? this.renderAccountSyncOverview(model.accountSyncOverview)
@@ -3430,7 +3434,51 @@ export const SettingsScreen = {
           }
         </div>
       </div>
+      ${isDesktopBrowser ? this.renderEpisodeNotifications(signedIn) : ""}
     `;
+  },
+
+  renderEpisodeNotifications(signedIn) {
+    const saved = episodeNotificationPreference();
+    const enabled = Boolean(saved?.enabled);
+    const busy = Boolean(this.episodeNotificationsBusy);
+    const unavailable = !enabled && (!signedIn || !this.episodePushAvailable || this.pushReturnState === "blocked");
+    this.actionMap.set("account:episodeNotifications", async () => {
+      if (busy || unavailable) return;
+      this.episodeNotificationsBusy = true;
+      this.episodeNotificationError = "";
+      void this.render();
+      try {
+        if (enabled) await disableEpisodeNotifications();
+        else await enableEpisodeNotifications();
+      } catch (error) { this.episodeNotificationError = String(error.message || "Couldn't update notifications."); }
+      finally { this.episodeNotificationsBusy = false; void this.render(); }
+    });
+    const note = !signedIn ? "Sign in to enable episode alerts."
+      : this.pushReturnState === "blocked" ? "Notifications are blocked in your browser's site settings."
+      : !this.episodePushAvailable ? "Notifications aren't available here. On iPhone or iPad, install NuvioWeb on your Home Screen first. Self-hosted servers need Web Push configured."
+      : "Get a daily summary at 9 AM local time on episode release days, even when NuvioWeb is closed. Uses the Library of the profile last opened on this device.";
+    return `<div class="settings-group-card settings-episode-notifications">
+      <h3>Notifications</h3>
+      ${this.renderToggleRow({ focusKey: "account:episodeNotifications", title: busy ? "Updating notifications…" : "Episode release alerts", checked: enabled, disabled: busy || unavailable })}
+      <p class="settings-account-inline-note">${escapeHtml(note)}</p>
+      ${this.episodePushAvailable && signedIn ? `<p class="settings-account-inline-note">Upcoming dates refresh while you use the app, for up to 30 days ahead. Dates come from your addons and may change. Show titles can appear on your lock screen. Turning this off only affects this device.</p>` : ""}
+      ${this.episodeNotificationError || (enabled && saved?.error) ? `<p class="settings-account-inline-note" role="status">${escapeHtml(this.episodeNotificationError || saved.error)}</p>` : ""}
+    </div>`;
+  },
+
+  renderAccountBackendInfo() {
+    let origin = "";
+    try {
+      const url = new URL(SUPABASE_URL);
+      if (["https:", "http:"].includes(url.protocol)) origin = url.origin;
+    } catch (_) { /* An unconfigured build has no backend to label. */ }
+    if (!origin) return "";
+    return `<div class="settings-account-inline-note settings-account-backend">
+      <strong>${origin === "https://api.nuvio.tv" ? "Official Nuvio account backend" : "Account backend"}</strong>
+      <span>${escapeHtml(origin)}</span>
+      <span>Used for sign-in and synced profiles. This community web app and its playback service are maintained independently.</span>
+    </div>`;
   },
 
   renderAccountStatusCard(value) {

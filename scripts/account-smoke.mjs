@@ -53,7 +53,7 @@ window.ready=true;
 `;
 const {identity}=await readAppMetadata();
 const bundle=(await build({define:{__NUVIO_APP_IDENTITY__:JSON.stringify(identity)},stdin:{contents:script,resolveDir:root},bundle:true,write:false,format:'esm'})).outputFiles[0].text;
-const html=`<!doctype html><html class="desktop-browser"><head><meta name="viewport" content="width=device-width, initial-scale=1">${['base','layout','components','themes','desktop','desktop-theme'].map(n=>`<link rel="stylesheet" href="/css/${n}.css">`).join('')}</head><body class="desktop-browser"><div id="app"><div class="screen" id="home">Home</div><div class="screen" id="settings"></div><div class="screen" id="account"></div></div><script type="module" src="/harness.js"></script></body></html>`;
+const html=`<!doctype html><html class="desktop-browser"><head><meta name="viewport" content="width=device-width, initial-scale=1">${['base','layout','components','themes','desktop','desktop-theme'].map(n=>`<link rel="stylesheet" href="/css/${n}.css">`).join('')}</head><body class="desktop-browser"><div id="app"><div class="screen" id="home">Home</div><div class="screen" id="settings"></div><div class="screen" id="account"></div></div><script>globalThis.__NUVIO_ENV__={NUVIO_SUPABASE_URL:"https://api.nuvio.tv"}</script><script type="module" src="/harness.js"></script></body></html>`;
 const server=createServer(async(req,res)=>{
  try {
   const pathname=new URL(req.url,'http://localhost').pathname;
@@ -78,8 +78,16 @@ try {
  await page.waitForFunction(()=>window.ready);
  await page.evaluate(()=>document.fonts.ready);
  assert.equal(await page.evaluate(()=>Router.suspendedRouteStack.length),1);
+ assert.match(await page.locator('.settings-account-backend').innerText(),/Official Nuvio account backend/);
+ assert.equal(await page.getByRole('switch',{name:'Episode release alerts'}).isDisabled(),true);
  await page.screenshot({animations:'disabled',path:path.join(output,'account-desktop.png')});
  assert.equal(await page.locator('.settings-account-status-value').evaluate(el=>getComputedStyle(el).fontSize),'16px');
+ await page.evaluate(async()=>{ settings.pushReturnState='not-enabled'; settings.episodePushAvailable=true; await settings.render(); });
+ assert.equal(await page.getByRole('switch',{name:'Episode release alerts'}).isDisabled(),false);
+ await page.screenshot({animations:'disabled',path:path.join(output,'notifications-desktop.png')});
+ await page.evaluate(()=>{Notification.requestPermission=async()=>"denied";});
+ await page.getByRole('switch',{name:'Episode release alerts'}).click();
+ await page.getByRole('status').filter({hasText:'Notifications are blocked'}).waitFor();
  await page.evaluate(()=>openSection('about'));
  assert.match(await page.locator('.settings-about-brand').innerText(),/falcononrails/);
  await page.screenshot({animations:'disabled',path:path.join(output,'about-desktop.png')});
@@ -88,6 +96,8 @@ try {
   await page.evaluate(()=>openSection('account'));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.screenshot({animations:'disabled',path:path.join(output,'account-'+width+'.png')});
+  await page.locator('.settings-episode-notifications').scrollIntoViewIfNeeded();
+  await page.screenshot({animations:'disabled',path:path.join(output,'notifications-'+width+'.png')});
  }
  // First visit to Sign In from a layered Home > Settings route.
  await page.evaluate(()=>localStorage.setItem('skipAuthQrGate','true'));

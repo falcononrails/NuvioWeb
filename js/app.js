@@ -1,3 +1,4 @@
+import { initializeEpisodeNotifications } from "./ui/components/browserEpisodeNotifications.js";
 import "./core/diagnostics/consoleDebugBuffer.js";
 import { detailWatchedEnrichmentService } from "./data/repository/detailWatchedEnrichmentService.js";
 import { Router } from "./ui/navigation/router.js";
@@ -281,6 +282,7 @@ async function bootstrapApp() {
   PlayerController.init();
   if (isDesktopBrowser) {
     void initializeBrowserOfflineDownloadQueue().catch(() => {});
+    initializeEpisodeNotifications();
   }
 
   FocusEngine.init();

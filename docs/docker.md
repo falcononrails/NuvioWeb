@@ -76,3 +76,18 @@ docker compose logs --tail=100 playback-bridge
 `/api/playback/health` should return JSON containing `"available":true`. If it returns HTML, the reverse proxy is not routing `/api/` to this stack. A playback sign-in error can also mean that the frontend and playback bridge point at different Nuvio backends, or that `NUVIO_ORIGIN` does not match the browser address.
 
 Stop the stack with `docker compose down`. Source access restrictions and browser codec limitations still apply; Docker packages the app and playback service, it does not remove those limitations.
+
+
+### Episode release notifications
+
+The external-return bridge also delivers episode release alerts. Set `NUVIO_ORIGIN` to the HTTPS origin of your site, then generate a VAPID key pair locally:
+
+```sh
+docker compose run --rm --no-deps external-return-bridge node -e 'console.log(JSON.stringify(require("web-push").generateVAPIDKeys()))'
+```
+
+Put the values in `.env` as `NUVIO_WEB_PUSH_PUBLIC_KEY` and `NUVIO_WEB_PUSH_PRIVATE_KEY`. Set `NUVIO_WEB_PUSH_SUBJECT` to a contact URI such as `mailto:you@example.com` or your HTTPS site URL, then recreate the bridge. Keep the private key secret and stable; rotating it requires devices to subscribe again.
+
+The `notifications` volume contains push subscriptions, account IDs and upcoming titles/dates. Preserve it on updates. The service verifies Nuvio sessions using the same account backend as playback, but never saves login tokens. It accepts at most 8 devices per account, 500 devices overall and 300 scheduled episodes per device. Schedules expire after 32 days without a refresh. Run one bridge instance with this volume; its JSON store is not designed for multiple replicas.
+
+Clients refresh upcoming dates every six hours while open, retrying failed checks later. Turning off alerts or signing out revokes the schedule; if the server is unreachable, the client also attempts to unsubscribe and retries the deletion on its next visit. Push delivery is best effort, with at-most-once submission to avoid repeated alerts after a restart. iOS/iPadOS requires a Home Screen installation. No Apple developer account is required.

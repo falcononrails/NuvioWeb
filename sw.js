@@ -120,6 +120,15 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("push", (event) => {
   let payload;
   try { payload = event.data?.json?.(); } catch (_) { return; }
+  if (payload?.type === "episode-release") {
+    event.waitUntil(self.registration.showNotification("Episode releases today", {
+      body: String(payload.body || "New episodes are scheduled for titles in your Library.").slice(0, 240),
+      tag: "nuvio-episode-releases",
+      icon: "./assets/brand/pwa-icon-192.png",
+      data: { type: "episode-release" }
+    }));
+    return;
+  }
   if (payload?.type !== "external-playback-return") return;
   const finished = payload.kind === "finished";
   event.waitUntil(self.registration.showNotification("NuvioWeb", {
@@ -130,7 +139,7 @@ self.addEventListener("push", (event) => {
 });
 
 self.addEventListener("notificationclick", (event) => {
-  if (event.notification?.data?.type !== "external-playback-return") return;
+  if (!["external-playback-return", "episode-release"].includes(event.notification?.data?.type)) return;
   event.notification.close();
   event.waitUntil((async () => {
     const scope = self.registration.scope;

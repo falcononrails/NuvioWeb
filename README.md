@@ -29,6 +29,14 @@ Server-assisted playback requires a signed-in Nuvio account. The hosted service 
 
 Converted playback uses temporary segments on the server. Sessions expire and are cleaned up; deployments interrupt active conversions. This isn't an unlimited transcoding service or a promise that every source will play. See [deployment notes](docs/nightly.md) for the limits and checks.
 
+## Episode notifications
+
+Enable **Episode release alerts** in Settings → Account to receive a daily Web Push summary at 9 AM local time, even with the app closed. It follows the profile last used on that device. iPhone/iPad users must install the site on the Home Screen first. Delivery depends on browser permission, OS notification settings and network availability.
+
+The web app checks Library series using the same addon dates as Calendar. It schedules up to 300 upcoming episodes for the next 30 days and refreshes while the app is open. These are release-date reminders, not confirmation that a stream is available. The notification service stores your account ID, push subscription and scheduled titles/dates; it does not retain your login token or addon/debrid credentials. Turning alerts off or signing out removes the schedule. Nuvio's native-app notification preference is unchanged.
+
+Self-hosters must configure Web Push keys and preserve the notifications volume; see [Docker setup](docs/docker.md).
+
 ## Trakt
 
 **Native Trakt integration is not configured on nuvioweb.space.** The Trakt bridge code is included, but a host must supply its own Trakt application credentials to enable it. Signing in with a Nuvio account doesn't authorize this fork to reuse the official apps' Trakt integration.
@@ -80,7 +88,7 @@ Checks: `npm test`, `npm run lint`, `npm run build`.
 - [NuvioMedia](https://github.com/NuvioMedia), [tapframe/NuvioTV](https://github.com/tapframe/NuvioTV), and the official [NuvioTVSmart](https://github.com/NuvioMedia/NuvioTVSmart) and [NuvioDesktop](https://github.com/NuvioMedia/NuvioDesktop) teams for the original apps, code and design.
 - [alphasquare404/NuvioWeb](https://github.com/alphasquare404/NuvioWeb) for the browser/PWA fork this repository builds on.
 - [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb) for the mobile navigation and hero behavior adapted here. This is a selective port, not a full merge of that fork.
-- [lucaboox/nuvio-web](https://github.com/lucaboox/nuvio-web) for the Library release-calendar logic used as a reference.
+- [lucaboox/nuvio-web](https://github.com/lucaboox/nuvio-web) for the Library release-calendar reference and the notification/backend settings idea.
 - [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile) for the grouped mobile settings and account navigation used as the design reference.
 - [WhiteGiso/NuvioTV-WebOS](https://github.com/WhiteGiso/NuvioTV-WebOS), [edoedac0](https://github.com/edoedac0), and [all upstream contributors](https://github.com/alphasquare404/NuvioWeb/graphs/contributors) for the earlier web work and ongoing fixes.
 - [Gaoxing Zhao / libmedia](https://github.com/zhaohappy/libmedia) for AVPlayer and its WASM audio decoders (LGPL-3.0-or-later).

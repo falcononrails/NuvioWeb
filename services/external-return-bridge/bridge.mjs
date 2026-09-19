@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import webpush from "web-push";
+import { createEpisodeHandler, validPushSubscription } from "./episodes.mjs";
 
 const TOKEN_PATTERN = /^[a-f0-9]{32}$/i;
 const REPORT_TTL_MS = 10 * 60 * 1000;
@@ -96,7 +97,7 @@ export function createExternalReturnStore({ now = () => Date.now(), ttlMs = REPO
       return records.size;
     }
     ,bind(token, subscription) {
-      cleanup(); if (!isValidToken(token) || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) return false;
+      cleanup(); if (!isValidToken(token) || !validPushSubscription(subscription)) return false;
       while (bindings.size >= maxRecords) bindings.delete(bindings.keys().next().value);
       bindings.set(token, { subscription, expiresAt: now() + ttlMs }); return true;
     },
@@ -120,16 +121,18 @@ async function sendReturnPush(subscription, finished, config = pushConfig(), sen
   } catch (_) { return false; }
 }
 
-export function createExternalReturnHandler({ store = createExternalReturnStore(), env = process.env, sender = webpush } = {}) {
+export function createExternalReturnHandler({ store = createExternalReturnStore(), env = process.env, sender = webpush, episodeStore, authenticate } = {}) {
+  const episodes = episodeStore && createEpisodeHandler({ store: episodeStore, env, authenticate });
   return function handleExternalReturn(request, response) {
     const url = new URL(request.url || "/", "http://external-return.local");
+    if (url.pathname === "/api/external-return/episodes" && episodes) { void episodes(request, response); return; }
     const match = /^\/api\/external-return\/(report|collect)\/([a-f0-9]{32})$/i.exec(url.pathname);
     if (url.pathname === "/api/external-return/health" && request.method === "GET") {
       json(response, 200, { ok: true });
       return;
     }
     if (url.pathname === "/api/external-return/push/public-key" && request.method === "GET") {
-      const config = pushConfig(env); json(response, 200, config ? { enabled: true, publicKey: config.publicKey } : { enabled: false }); return;
+      const config = pushConfig(env); json(response, 200, config ? { enabled: true, publicKey: config.publicKey, episodes: Boolean(episodes && env.NUVIO_SUPABASE_URL && env.NUVIO_SUPABASE_ANON_KEY) } : { enabled: false }); return;
     }
     if (url.pathname === "/api/external-return/push/bind") {
       if (request.method !== "POST") { json(response, 405, { bound: false, error: "method_not_allowed" }); return; }

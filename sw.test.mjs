@@ -76,3 +76,25 @@ test("stable shell URLs revalidate online and preserve the newest copy for offli
   assert.equal(await (await load("/assets/fonts/jetbrains_sans_regular.ttf")).text(), "font");
   assert.equal(requests.length, before, "Fonts keep cache-first loading");
 });
+
+
+test("episode push displays plain release text and clicks only open this app", async () => {
+  const { runInNewContext } = await import("node:vm");
+  const handlers = {};
+  const notifications = [];
+  const opened = [];
+  const source = (await readFile(new URL("./sw.js", import.meta.url), "utf8")).replace("__NUVIO_LOCALE_ASSETS__", "[]");
+  runInNewContext(source, { URL, self: {
+    location: { origin: "https://nuvio.test" },
+    addEventListener: (name, handler) => handlers[name] = handler,
+    registration: { scope: "https://nuvio.test/", showNotification: async (title, options) => notifications.push({ title, options }) },
+    clients: { matchAll: async () => [{ url: "https://other.test/", focus: () => { throw Error("Wrong app"); } }], openWindow: async url => opened.push(url) }
+  }});
+  let promise;
+  handlers.push({ data: { json: () => ({ type: "episode-release", body: "Series E1", url: "https://evil.test" }) }, waitUntil: value => promise = value });
+  await promise;
+  assert.equal(notifications[0].options.body, "Series E1");
+  handlers.notificationclick({ notification: { data: notifications[0].options.data, close() {} }, waitUntil: value => promise = value });
+  await promise;
+  assert.deepEqual(opened, ["https://nuvio.test/"]);
+});
