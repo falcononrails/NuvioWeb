@@ -32,6 +32,7 @@ import {
 import { renderLoadingIndicator } from "../../components/loadingIndicator.js";
 import { bindDesktopNavigationEvents, renderDesktopNavigation } from "../../components/desktopNavigation.js";
 import { bindBrowserCardTouchIntent } from "../../components/browserCardTouchIntent.js";
+import { PosterOptionsDialogController, posterItemFromNode } from "../../components/posterOptionsMenu.js";
 import { bindBrowserHorizontalTabScroll } from "../../components/browserHorizontalTabScroll.js";
 import { getSidebarProfileState } from "../../components/sidebarNavigation.js";
 
@@ -1247,7 +1248,8 @@ export const FolderDetailScreen = {
     if (Platform.isBrowser()) {
       this.browserCardTouchIntentCleanup?.();
       this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-        cardSelector: ".seeall-card[data-action='openDetail']"
+        cardSelector: ".seeall-card[data-action='openDetail']",
+        onContextMenu: (node) => this.openFolderPosterOptions(node)
       });
       this.browserHorizontalTabScrollCleanup?.();
       this.browserHorizontalTabScrollCleanup = bindBrowserHorizontalTabScroll(this.container, [
@@ -1255,6 +1257,27 @@ export const FolderDetailScreen = {
       ]);
     }
     this.boundDesktopCollectionClickContainer = this.container;
+  },
+
+  openFolderPosterOptions(node) {
+    this.folderPosterOptionsController?.destroy({ restoreFocus: false });
+    this.lastFocusedKey = node.dataset.focusKey || this.lastFocusedKey;
+    this.folderPosterOptionsController = new PosterOptionsDialogController({
+      onDetails: () => this.openDetailFromNode(node),
+      onDismiss: () => {
+        const target = Array.from(this.container?.querySelectorAll(".seeall-card") || [])
+          .find(card => card.dataset.focusKey === node.dataset.focusKey);
+        if (target) this.focusNode(target);
+      },
+      onChanged: (state) => {
+        const watched = new Set(this.watchedTitleIds || []);
+        if (state.isWatched) watched.add(state.item.id);
+        else watched.delete(state.item.id);
+        this.watchedTitleIds = watched;
+        this.render();
+      }
+    });
+    return this.folderPosterOptionsController.open(posterItemFromNode(node), { suppressEnterUntilKeyUp: false });
   },
 
   buildNavigationModel() {
@@ -2206,6 +2229,8 @@ export const FolderDetailScreen = {
   },
 
   cleanup() {
+    this.folderPosterOptionsController?.destroy({ restoreFocus: false });
+    this.folderPosterOptionsController = null;
     this.browserCardTouchIntentCleanup?.();
     this.browserCardTouchIntentCleanup = null;
     this.browserHorizontalTabScrollCleanup?.();

@@ -372,7 +372,8 @@ export const CastDetailScreen = {
     if (Platform.isBrowser()) {
       this.browserCardTouchIntentCleanup?.();
       this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-        cardSelector: ".cast-credit-card[data-action='openDetail']"
+        cardSelector: ".cast-credit-card[data-action='openDetail']",
+        onContextMenu: (node) => this.isPosterHoldTarget(node) && this.openPosterOptionsMenu(node, { suppressEnterUntilKeyUp: false })
       });
     }
     bindDesktopNavigationEvents(this.container);
@@ -497,7 +498,7 @@ export const CastDetailScreen = {
     return true;
   },
 
-  async openPosterOptionsMenu(node) {
+  async openPosterOptionsMenu(node, options = {}) {
     const item = posterItemFromNode(node);
     if (!item?.id) {
       return false;
@@ -538,7 +539,7 @@ export const CastDetailScreen = {
         }
       });
     }
-    return this.posterOptionsController.open(item);
+    return this.posterOptionsController.open(item, options);
   },
 
   closePosterOptionsMenu() {

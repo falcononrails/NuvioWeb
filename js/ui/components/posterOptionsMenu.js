@@ -243,6 +243,7 @@ export class PosterOptionsDialogController {
   }
 
   destroy({ restoreFocus = true, afterExit = null } = {}) {
+    this.openToken = (this.openToken || 0) + 1;
     const dialog = this.dialog;
     this.dialog = null;
     this.state = null;
@@ -260,11 +261,14 @@ export class PosterOptionsDialogController {
       return false;
     }
     this.destroy({ restoreFocus: false });
-    this.state = await createPosterOptionsState(item, options);
-    return this.mountOptionsDialog();
+    const openToken = this.openToken;
+    const state = await createPosterOptionsState(item, options);
+    if (openToken !== this.openToken) return false;
+    this.state = state;
+    return this.mountOptionsDialog(options);
   }
 
-  mountOptionsDialog() {
+  mountOptionsDialog({ suppressEnterUntilKeyUp = true } = {}) {
     if (!this.state?.item?.id) {
       return false;
     }
@@ -275,7 +279,7 @@ export class PosterOptionsDialogController {
       title: item.title || item.name || item.id || "Untitled",
       subtitle: t("home_poster_dialog_subtitle", {}, "Title actions"),
       widthVw: 37.5,
-      suppressEnterUntilKeyUp: true,
+      suppressEnterUntilKeyUp,
       buttons: options.map((option) => ({
         label: option.label,
         key: option.action,

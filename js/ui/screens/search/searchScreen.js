@@ -597,10 +597,6 @@ export const SearchScreen = {
     this.bindActionEvents();
     this.bindDesktopSearchShelfInteractions();
     this.bindDesktopMediaHoverPreview();
-    this.browserCardTouchIntentCleanup?.();
-    this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-      cardSelector: ".search-result-card[data-action='openDetail']"
-    });
     input.value = this.query || "";
     input.focus?.();
     this.focusNode(this.container?.querySelector(".focusable.focused") || null, input);
@@ -1216,7 +1212,7 @@ export const SearchScreen = {
     return true;
   },
 
-  async openPosterOptionsMenu(node) {
+  async openPosterOptionsMenu(node, options = {}) {
     const item = posterItemFromNode(node);
     if (!item?.id) {
       return false;
@@ -1257,8 +1253,8 @@ export const SearchScreen = {
         }
       });
     }
-    this.suppressHoldMenuEnterUntilKeyUp = true;
-    return this.posterOptionsController.open(item);
+    this.suppressHoldMenuEnterUntilKeyUp = options.suppressEnterUntilKeyUp !== false;
+    return this.posterOptionsController.open(item, options);
   },
 
   closePosterOptionsMenu() {
@@ -1973,6 +1969,13 @@ export const SearchScreen = {
   },
 
   bindActionEvents() {
+    if (Platform.isBrowser()) {
+      this.browserCardTouchIntentCleanup?.();
+      this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
+        cardSelector: ".search-result-card[data-action='openDetail']",
+        onContextMenu: (node) => this.isPosterHoldTarget(node) && this.openPosterOptionsMenu(node, { suppressEnterUntilKeyUp: false })
+      });
+    }
     this.container?.querySelectorAll("[data-action]").forEach((node) => {
       if (node.__boundActionListeners) return;
       node.__boundActionListeners = true;

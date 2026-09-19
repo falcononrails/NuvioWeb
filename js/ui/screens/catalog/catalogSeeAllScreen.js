@@ -541,7 +541,7 @@ export const CatalogSeeAllScreen = {
     return true;
   },
 
-  async openPosterOptionsMenu(node) {
+  async openPosterOptionsMenu(node, options = {}) {
     const item = posterItemFromNode(node, this.params?.type || "movie");
     if (!item?.id) {
       return false;
@@ -586,6 +586,7 @@ export const CatalogSeeAllScreen = {
       });
     }
     return this.posterOptionsController.open(item, {
+      ...options,
       focusKey: this.posterOptionsFocusKey,
       itemIndex: Number(node.dataset.itemIndex || -1)
     });
@@ -650,7 +651,8 @@ export const CatalogSeeAllScreen = {
     }
 
     this.browserCardTouchIntentCleanup ||= bindBrowserCardTouchIntent(this.container, {
-      cardSelector: ".seeall-card[data-action='openDetail']"
+      cardSelector: ".seeall-card[data-action='openDetail']",
+      onContextMenu: (node) => this.isPosterHoldTarget(node) && this.openPosterOptionsMenu(node, { suppressEnterUntilKeyUp: false })
     });
 
     this.desktopMediaHoverPreview ||= createDesktopMediaHoverPreview({

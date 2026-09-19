@@ -450,7 +450,8 @@ export const LibraryScreen = {
     if (Platform.isBrowser()) {
       this.browserCardTouchIntentCleanup?.();
       this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-        cardSelector: ".library-grid-card[data-action='openDetail']"
+        cardSelector: ".library-grid-card[data-action='openDetail']",
+        onContextMenu: (node) => this.isPosterHoldTarget(node) && this.openPosterOptionsMenu(node, { suppressEnterUntilKeyUp: false })
       });
       this.browserHorizontalTabScrollCleanup?.();
       this.browserHorizontalTabScrollCleanup = bindBrowserHorizontalTabScroll(this.container, [
@@ -1654,7 +1655,7 @@ export const LibraryScreen = {
     return true;
   },
 
-  async openPosterOptionsMenu(node) {
+  async openPosterOptionsMenu(node, options = {}) {
     const item = posterItemFromNode(node, node?.dataset?.itemType || "movie");
     if (!item?.id) {
       return false;
@@ -1690,8 +1691,9 @@ export const LibraryScreen = {
         }
       });
     }
-    this.suppressHoldMenuEnterUntilKeyUp = true;
+    this.suppressHoldMenuEnterUntilKeyUp = options.suppressEnterUntilKeyUp !== false;
     return this.posterOptionsController.open(item, {
+      ...options,
       focusKey: node.dataset.focusKey || ""
     });
   },

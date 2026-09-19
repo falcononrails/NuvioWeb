@@ -6448,7 +6448,7 @@ export const MetaDetailsScreen = {
     return true;
   },
 
-  async openPosterOptionsMenu(node) {
+  async openPosterOptionsMenu(node, options = {}) {
     const parsedItem = posterItemFromNode(node, this.params?.itemType || "movie");
     const item = parsedItem
       ? {
@@ -6494,7 +6494,7 @@ export const MetaDetailsScreen = {
         }
       });
     }
-    return this.posterOptionsController.open(item);
+    return this.posterOptionsController.open(item, options);
   },
 
   closePosterOptionsMenu() {
@@ -7797,7 +7797,8 @@ export const MetaDetailsScreen = {
       }
       this.browserCardTouchIntentCleanup?.();
       this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-        cardSelector: ".movie-cast-card[data-action='openCastPerson'], .series-episode-card[data-action='openEpisodeStreams'], .detail-trailer-card[data-action='openSharedTrailer'], .detail-morelike-card[data-action='openMoreLikeDetail']"
+        cardSelector: ".movie-cast-card[data-action='openCastPerson'], .series-episode-card[data-action='openEpisodeStreams'], .detail-trailer-card[data-action='openSharedTrailer'], .detail-morelike-card[data-action='openMoreLikeDetail']",
+        onContextMenu: (node) => this.isPosterHoldTarget(node) && this.openPosterOptionsMenu(node, { suppressEnterUntilKeyUp: false })
       });
       this.browserHorizontalTabScrollCleanup?.();
       this.browserHorizontalTabScrollCleanup = bindBrowserHorizontalTabScroll(this.container, [

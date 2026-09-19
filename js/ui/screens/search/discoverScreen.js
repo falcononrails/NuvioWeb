@@ -954,7 +954,7 @@ export const DiscoverScreen = {
     return true;
   },
 
-  async openPosterOptionsMenu(node) {
+  async openPosterOptionsMenu(node, options = {}) {
     const item = posterItemFromNode(node, this.selectedType || "movie");
     if (!item?.id) {
       return false;
@@ -990,8 +990,9 @@ export const DiscoverScreen = {
         }
       });
     }
-    this.suppressHoldMenuEnterUntilKeyUp = true;
+    this.suppressHoldMenuEnterUntilKeyUp = options.suppressEnterUntilKeyUp !== false;
     return this.posterOptionsController.open(item, {
+      ...options,
       focusKey: node.dataset.focusKey || "",
       itemIndex: Number(node.dataset.itemIndex || -1)
     });
@@ -1659,7 +1660,8 @@ export const DiscoverScreen = {
     if (Platform.isBrowser()) {
       this.browserCardTouchIntentCleanup?.();
       this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-        cardSelector: ".discover-card[data-action='openDetail']"
+        cardSelector: ".discover-card[data-action='openDetail']",
+        onContextMenu: (node) => this.isPosterHoldTarget(node) && this.openPosterOptionsMenu(node, { suppressEnterUntilKeyUp: false })
       });
     }
     this.container?.querySelectorAll(".seeall-card.focusable").forEach((node) => {

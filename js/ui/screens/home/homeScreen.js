@@ -4614,7 +4614,7 @@ export const HomeScreen = {
     }
   },
 
-  mountContinueWatchingDialog() {
+  mountContinueWatchingDialog({ suppressEnterUntilKeyUp = true } = {}) {
     const item = this.getContinueWatchingMenuItem();
     if (!item) {
       return false;
@@ -4626,7 +4626,7 @@ export const HomeScreen = {
       title: item.title || "Untitled",
       subtitle: t("cw_dialog_subtitle", {}, "Choose what you want to do with this item."),
       widthVw: 37.5,
-      suppressEnterUntilKeyUp: true,
+      suppressEnterUntilKeyUp,
       buttons: options.map((option, index) => ({
         label: option.label,
         key: option.action,
@@ -4640,12 +4640,12 @@ export const HomeScreen = {
       })),
       onDismiss: () => this.dismissContinueWatchingMenu()
     }).mount(document.body);
-    this.suppressHoldMenuEnterUntilKeyUp = true;
+    this.suppressHoldMenuEnterUntilKeyUp = suppressEnterUntilKeyUp;
     this.scheduleHoldMenuScrollRestore();
     return true;
   },
 
-  mountPosterHoldDialog() {
+  mountPosterHoldDialog({ suppressEnterUntilKeyUp = true } = {}) {
     const item = this.getPosterHoldMenuItem();
     if (!item?.id) {
       return false;
@@ -4657,7 +4657,7 @@ export const HomeScreen = {
       title: item.name || "Untitled",
       subtitle: t("home_poster_dialog_subtitle", {}, "Title actions"),
       widthVw: 37.5,
-      suppressEnterUntilKeyUp: true,
+      suppressEnterUntilKeyUp,
       buttons: options.map((option, index) => ({
         label: option.label,
         key: option.action,
@@ -4671,7 +4671,7 @@ export const HomeScreen = {
       })),
       onDismiss: () => this.dismissPosterHoldMenu()
     }).mount(document.body);
-    this.suppressHoldMenuEnterUntilKeyUp = true;
+    this.suppressHoldMenuEnterUntilKeyUp = suppressEnterUntilKeyUp;
     this.scheduleHoldMenuScrollRestore();
     return true;
   },
@@ -4858,7 +4858,7 @@ export const HomeScreen = {
     );
   },
 
-  async openPosterHoldMenu(node) {
+  async openPosterHoldMenu(node, options = {}) {
     const item = this.getPosterItemFromNode(node);
     if (!item?.id) {
       return false;
@@ -4884,7 +4884,7 @@ export const HomeScreen = {
       isWatched: Boolean(isWatched),
       librarySourceMode
     };
-    return this.mountPosterHoldDialog();
+    return this.mountPosterHoldDialog(options);
   },
 
   closePosterHoldMenu() {
@@ -4904,7 +4904,7 @@ export const HomeScreen = {
     return true;
   },
 
-  openContinueWatchingMenu(node) {
+  openContinueWatchingMenu(node, options = {}) {
     const item = this.getContinueWatchingItemFromNode(node);
     if (!item?.contentId) {
       return false;
@@ -4920,7 +4920,7 @@ export const HomeScreen = {
       optionIndex: 0,
       item
     };
-    return this.mountContinueWatchingDialog();
+    return this.mountContinueWatchingDialog(options);
   },
 
   closeContinueWatchingMenu() {
@@ -4953,12 +4953,12 @@ export const HomeScreen = {
     return this.isContinueWatchingHoldTarget(node) || this.isPosterHoldTarget(node);
   },
 
-  openHoldMenuForNode(node) {
+  openHoldMenuForNode(node, options = {}) {
     if (this.isContinueWatchingHoldTarget(node)) {
-      return this.openContinueWatchingMenu(node);
+      return this.openContinueWatchingMenu(node, options);
     }
     if (this.isPosterHoldTarget(node)) {
-      void this.openPosterHoldMenu(node);
+      void this.openPosterHoldMenu(node, options);
       return true;
     }
     return false;
@@ -10002,7 +10002,8 @@ export const HomeScreen = {
     if (Platform.isBrowser()) {
       this.browserCardTouchIntentCleanup?.();
       this.browserCardTouchIntentCleanup = bindBrowserCardTouchIntent(this.container, {
-        cardSelector: ".home-content-card[data-action='openDetail'], .home-content-card[data-action='openCollection'], .home-continue-title-link, .home-continue-episode-link"
+        cardSelector: ".home-content-card[data-action='openDetail'], .home-content-card[data-action='openCollection'], .home-continue-card, .home-continue-title-link, .home-continue-episode-link",
+        onContextMenu: (node) => this.openHoldMenuForNode(node.closest(".home-continue-card") || node, { suppressEnterUntilKeyUp: false })
       });
     }
     this.setupContinueWatchingProgressiveRendering();

@@ -36,7 +36,7 @@ export function createCardTouchClickSuppressor() {
 // Browser cards are usually activated through delegated click handlers. A
 // touch long-press can still synthesize that click on release, so suppress only
 // the matching card's next click. Mouse and keyboard activation remain normal.
-export function bindBrowserCardTouchIntent(container, { cardSelector } = {}) {
+export function bindBrowserCardTouchIntent(container, { cardSelector, onContextMenu } = {}) {
   if (!(container instanceof HTMLElement) || !cardSelector) return () => {};
 
   let active = null;
@@ -87,16 +87,26 @@ export function bindBrowserCardTouchIntent(container, { cardSelector } = {}) {
     event.stopImmediatePropagation?.();
   };
 
+  const onContext = (event) => {
+    const card = findCard(event.target);
+    if (!card || !onContextMenu?.(card)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (active?.card === card) suppressCard(card);
+  };
+
   container.addEventListener("pointerdown", onPointerDown, true);
   container.addEventListener("pointerup", finish, true);
   container.addEventListener("pointercancel", finish, true);
   container.addEventListener("click", onClick, true);
+  container.addEventListener("contextmenu", onContext);
 
   return () => {
     container.removeEventListener("pointerdown", onPointerDown, true);
     container.removeEventListener("pointerup", finish, true);
     container.removeEventListener("pointercancel", finish, true);
     container.removeEventListener("click", onClick, true);
+    container.removeEventListener("contextmenu", onContext);
     active = null;
     clearSuppression();
   };
