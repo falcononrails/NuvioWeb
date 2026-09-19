@@ -124,11 +124,11 @@ test(
         "Decoded audio must contain a non-silent signal"
       );
       const seek = await post(`/api/playback/sessions/${session.id}/seek`, {
-        position: 20,
+        position: 20.7,
         track: session.tracks[1].index
       });
       assert.equal(seek.status, 200, JSON.stringify(seek.body));
-      assert.equal(seek.body.offset, 20);
+      assert.equal(seek.body.offset, 20.7);
       assert.equal(seek.body.track, session.tracks[1].index);
       assert.equal(seek.body.duration, session.duration);
       const seekManifest = await (await fetch(base + seek.body.url, { headers: { cookie } })).text();
@@ -136,6 +136,26 @@ test(
         .reduce((total, match) => total + Number(match[1]), 0);
       assert.ok(bufferedSeconds >= 12 || seekManifest.includes("#EXT-X-ENDLIST"),
         "A seek must buffer twelve seconds, not just two possibly tiny segments");
+      const seekDirectory = seek.body.url.slice(0, seek.body.url.lastIndexOf("/") + 1);
+      const seekSegment = seekManifest.split("\n").find(line => line.endsWith(".m4s"));
+      const seekParts = await Promise.all(["init.mp4", seekSegment].map(async name =>
+        Buffer.from(await (await fetch(base + seekDirectory + name, { headers: { cookie } })).arrayBuffer())));
+      const probeTiming = (options = []) => new Promise((resolve, reject) => {
+        const child = spawn("ffprobe", ["-v", "error", ...options, "-show_entries", "stream=codec_type,start_time", "-of", "json", "pipe:0"]);
+        let output = "";
+        child.stdout.on("data", chunk => output += chunk);
+        child.stderr.resume();
+        child.on("error", reject);
+        child.on("close", code => code === 0 ? resolve(JSON.parse(output).streams) : reject(new Error("Converted timing did not decode")));
+        child.stdin.end(Buffer.concat(seekParts));
+      });
+      const streams = await probeTiming();
+      const withoutEdits = await probeTiming(["-ignore_editlist", "1"]);
+      assert.deepEqual(withoutEdits, streams,
+        "Browser playback must not need an MP4 edit list to align the audio and video");
+      const start = type => Number(streams.find(stream => stream.codec_type === type)?.start_time);
+      assert.ok(Math.abs(start("audio") - start("video")) < 0.15,
+        "A seek between keyframes must keep audio with the copied video's preroll for browser HLS");
       const removed = await fetch(base + `/api/playback/sessions/${session.id}`, {
         method: "DELETE",
         headers: { origin, cookie }

@@ -286,6 +286,9 @@ export async function createPlaybackBridge({
       "16",
       "-ss",
       String(position),
+      // Copied video retains the preceding keyframe. Keep the matching audio too;
+      // trimming only audio makes it run ahead in browser HLS after a seek.
+      "-noaccurate_seek",
       "-i",
       session.readerUrl,
       "-map",
@@ -318,6 +321,10 @@ export async function createPlaybackBridge({
       "delete_segments+independent_segments+temp_file",
       "-hls_segment_type",
       "fmp4",
+      // Browser MSE ignores empty edit-list offsets. Preserve that gap in the
+      // first sample duration instead of silently starting each track at zero.
+      "-hls_segment_options",
+      "use_editlist=0:avoid_negative_ts=make_zero",
       "-hls_segment_filename",
       join(directory, "segment-%05d.m4s"),
       join(directory, "index.m3u8")
