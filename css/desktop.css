@@ -5668,12 +5668,18 @@ html.desktop-browser {
 }
 
 .desktop-browser .profile-editor-field-shell {
-  padding: 12px 14px;
-  border-width: 1px;
-  border-radius: 12px;
+  /* The native input owns the field surface and keyboard focus ring. */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .desktop-browser .profile-editor-name-input {
+  display: block;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 14px;
   font-size: 16px;
 }
 
@@ -8872,12 +8878,6 @@ html.desktop-browser {
   box-sizing: border-box;
 }
 
-.desktop-browser .settings-shell .desktop-plugin-input:focus-visible {
-  border-color: rgba(255, 255, 255, 0.48);
-  outline: 2px solid rgb(var(--secondary-color-rgb) / 0.7);
-  outline-offset: 2px;
-}
-
 .desktop-browser .settings-shell .desktop-plugin-input-row {
   display: flex;
   gap: 10px;
@@ -9213,12 +9213,6 @@ html.desktop-browser {
 
 .desktop-browser .settings-shell .desktop-addon-input::placeholder {
   color: var(--text-tertiary);
-}
-
-.desktop-browser .settings-shell .desktop-addon-input:focus-visible {
-  border-color: rgba(255, 255, 255, 0.48);
-  outline: 2px solid rgb(var(--secondary-color-rgb) / 0.7);
-  outline-offset: 2px;
 }
 
 .desktop-browser .settings-shell .desktop-addon-primary-action,
