@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { AuthState } from "./authState.js";
 import { AuthManager } from "./authManager.js";
+import { registerAccountRuntimeResetHandler } from "./accountLocalDataReset.js";
 
 function storage(entries = {}) {
   const values = new Map(Object.entries(entries));
   return {
+    get length() { return values.size; },
+    key(index) { return [...values.keys()][index] ?? null; },
     getItem(key) {
       return values.has(key) ? values.get(key) : null;
     },
@@ -26,6 +29,39 @@ function resetAuthManager() {
   AuthManager.lastRefreshFailureKind = null;
   AuthManager.sessionGeneration = 0;
 }
+
+test("sign out clears guest bypass and account state before notifying the router", async () => {
+  const localStorage = storage({
+    access_token: "saved-session",
+    skipAuthQrGate: "true",
+    profiles: "saved-profiles"
+  });
+  await withAuthGlobals({ localStorage, navigator: { onLine: true } }, async () => {
+    AuthManager.state = AuthState.AUTHENTICATED;
+    let resetFinished = false;
+    let signedOut = false;
+    const unregister = registerAccountRuntimeResetHandler(async () => {
+      await Promise.resolve();
+      resetFinished = true;
+    });
+    const unsubscribe = AuthManager.subscribe((state) => {
+      if (state !== AuthState.SIGNED_OUT) return;
+      signedOut = true;
+      assert.equal(resetFinished, true);
+      assert.equal(localStorage.getItem("skipAuthQrGate"), null);
+      assert.equal(localStorage.getItem("access_token"), null);
+      assert.equal(localStorage.getItem("profiles"), null);
+    });
+    try {
+      await AuthManager.signOut();
+      assert.equal(signedOut, true);
+      assert.equal(AuthManager.isAuthenticated, false);
+    } finally {
+      unsubscribe();
+      unregister();
+    }
+  });
+});
 
 async function withAuthGlobals({ localStorage, fetch, navigator }, callback) {
   const originalLocalStorage = globalThis.localStorage;

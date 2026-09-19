@@ -4,13 +4,13 @@ const FALLBACK_IDENTITY = {
   name: "NuvioWeb",
   version: "0.0.0",
   upstreamVersion: "0.3.35",
-  maintainer: "alphasquare",
-  sourceRepositoryUrl: "https://github.com/alphasquare404/NuvioWeb",
-  issuesUrl: "https://github.com/alphasquare404/NuvioWeb/issues",
-  contributorsUrl: "https://github.com/alphasquare404/NuvioWeb/graphs/contributors",
-  licenseUrl: "https://github.com/alphasquare404/NuvioWeb/blob/main/LICENSE",
-  upstreamRepositoryUrl: "https://github.com/NuvioMedia/NuvioWeb",
-  latestReleaseUrl: "https://api.github.com/repos/alphasquare404/NuvioWeb/releases/latest"
+  maintainer: "falcononrails",
+  sourceRepositoryUrl: "https://github.com/falcononrails/NuvioWeb",
+  issuesUrl: "https://github.com/falcononrails/NuvioWeb/issues",
+  contributorsUrl: "https://github.com/falcononrails/NuvioWeb/graphs/contributors",
+  licenseUrl: "https://github.com/falcononrails/NuvioWeb/blob/nightly/LICENSE",
+  upstreamRepositoryUrl: "https://github.com/alphasquare404/NuvioWeb",
+  latestReleaseUrl: "https://api.github.com/repos/falcononrails/NuvioWeb/releases/latest"
 };
 
 function text(value, fallback = "") {

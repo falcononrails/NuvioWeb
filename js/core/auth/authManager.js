@@ -161,11 +161,13 @@ class AuthManagerClass {
   async signOut() {
     this.sessionGeneration += 1;
     SessionStore.clear();
+    // A previous guest choice must not turn an explicit sign-out into guest Home.
+    globalThis.localStorage?.removeItem?.("skipAuthQrGate");
     this.cachedEffectiveUserId = null;
     this.cachedEffectiveUserSourceUserId = null;
-    this.setState(AuthState.SIGNED_OUT);
     clearAccountLocalData();
     await resetAccountRuntimeState();
+    this.setState(AuthState.SIGNED_OUT);
   }
 
   getSessionGeneration() {

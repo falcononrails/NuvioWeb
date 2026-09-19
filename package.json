@@ -5,17 +5,17 @@
   "version": "0.1.2",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alphasquare404/NuvioWeb.git"
+    "url": "git+https://github.com/falcononrails/NuvioWeb.git"
   },
   "bugs": {
-    "url": "https://github.com/alphasquare404/NuvioWeb/issues"
+    "url": "https://github.com/falcononrails/NuvioWeb/issues"
   },
-  "homepage": "https://github.com/alphasquare404/NuvioWeb",
+  "homepage": "https://nuvioweb.space/",
   "nuvioFork": {
     "upstreamVersion": "0.3.35",
-    "upstreamRepository": "https://github.com/NuvioMedia/NuvioWeb",
-    "maintainer": "alphasquare",
-    "defaultBranch": "main"
+    "upstreamRepository": "https://github.com/alphasquare404/NuvioWeb",
+    "maintainer": "falcononrails",
+    "defaultBranch": "nightly"
   },
   "scripts": {
     "build": "node ./scripts/build.mjs",

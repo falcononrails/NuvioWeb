@@ -307,6 +307,10 @@ async function bootstrapApp() {
       if (isSignedOutRouteAllowed()) {
         return;
       }
+      // Account screens share #account. Discard the previous session's layers
+      // so a suspended Home cannot cover the first visit to Sign In.
+      Router.releaseAllSuspendedLayers({ cleanup: true });
+      Router.stack = [];
       if (shouldBypassQr) {
         // Honor "remember last profile" for guests too: skip the picker and go
         // straight in with the last profile (guests have no PIN).
@@ -342,7 +346,7 @@ async function bootstrapApp() {
       }
       // Browser sign-in uses the existing Supabase email/password screen.
       if (Platform.isBrowser()) {
-        Router.navigate("authSignIn");
+        Router.navigate("authSignIn", {}, { replaceHistory: true, skipStackPush: true });
         return;
       }
       const hasSeenQr = LocalStore.get("hasSeenAuthQrOnFirstLaunch");

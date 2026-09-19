@@ -35,7 +35,6 @@ export const AccountScreen = {
 
   async signOut() {
     await AuthManager.signOut();
-    Router.navigate("authQrSignIn");
   },
 
   render() {

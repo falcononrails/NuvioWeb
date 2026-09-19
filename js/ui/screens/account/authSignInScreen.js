@@ -84,37 +84,67 @@ export const AuthSignInScreen = {
 
     this.container.innerHTML = `
       <main class="desktop-auth-shell">
+        <aside class="desktop-auth-brand">
+          <img src="assets/brand/app_logo_wordmark.png" alt="Nuvio" />
+          <h2>Your Nuvio library,<br>in your browser.</h2>
+          <p>Use your existing Nuvio account to access your addons, collections and watch progress.</p>
+        </aside>
+        <div class="desktop-auth-pane">
         <section class="desktop-auth-card" aria-labelledby="desktop-auth-title">
-          <h1 id="desktop-auth-title" class="desktop-auth-title">${escapeHtml(
-            I18n.t("auth.signIn.title")
-          )}</h1>
-          <p class="desktop-auth-subtitle">Sign in with your Nuvio account to sync your library, progress, and settings.</p>
-          <form class="desktop-auth-form" novalidate>
+          <h1 id="desktop-auth-title" class="desktop-auth-title">Welcome back</h1>
+          <p class="desktop-auth-subtitle">Sign in with your existing Nuvio account.</p>
+          <form class="desktop-auth-form" aria-busy="${submitting}">
             <label class="desktop-auth-field" for="desktop-auth-email">
               <span>${escapeHtml(I18n.t("auth.signIn.emailPrompt"))}</span>
+              <span class="desktop-auth-input-wrap">
+              <span class="material-icons" aria-hidden="true">email</span>
               <input id="desktop-auth-email" class="desktop-auth-input" type="email" name="email"
-                autocomplete="email" inputmode="email" required ${submitting ? "disabled" : ""} />
+                autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"
+                placeholder="Email address" required ${submitting ? "disabled" : ""} />
+              </span>
             </label>
-            <label class="desktop-auth-field" for="desktop-auth-password">
-              <span>${escapeHtml(I18n.t("auth.signIn.passwordPrompt"))}</span>
-              <input id="desktop-auth-password" class="desktop-auth-input" type="password" name="password"
-                autocomplete="current-password" required ${submitting ? "disabled" : ""} />
-            </label>
+            <div class="desktop-auth-field">
+              <label for="desktop-auth-password">${escapeHtml(I18n.t("auth.signIn.passwordPrompt"))}</label>
+              <span class="desktop-auth-input-wrap">
+              <span class="material-icons" aria-hidden="true">lock</span>
+              <input id="desktop-auth-password" class="desktop-auth-input" type="${this.passwordVisible ? "text" : "password"}" name="password"
+                autocomplete="current-password" placeholder="Password" required ${submitting ? "disabled" : ""} />
+              <button class="desktop-auth-visibility" type="button" aria-label="${this.passwordVisible ? "Hide" : "Show"} password"
+                aria-pressed="${Boolean(this.passwordVisible)}" ${submitting ? "disabled" : ""}>
+                <span class="material-icons" aria-hidden="true">${this.passwordVisible ? "visibility_off" : "visibility"}</span>
+              </button>
+              </span>
+            </div>
             ${errorMessage}
             <button class="desktop-auth-submit" type="submit" ${submitting ? "disabled" : ""}>
               ${submitting ? "Signing in…" : "Sign In"}
             </button>
           </form>
-          <button class="desktop-auth-guest" type="button" data-action="continueGuest" ${
-            submitting ? "disabled" : ""
-          }>Continue without account</button>
+          <div class="desktop-auth-divider"><span>or</span></div>
           <button class="desktop-auth-qr" type="button" data-action="openQr" ${
             submitting ? "disabled" : ""
-          }>Sign in with QR</button>
+          }><span class="material-icons" aria-hidden="true">qr_code_2</span>Link with another device</button>
+          <button class="desktop-auth-guest" type="button" data-action="continueGuest" ${
+            submitting ? "disabled" : ""
+          }>Continue without an account</button>
         </section>
+        </div>
       </main>
     `;
 
+    const emailInput = this.container.querySelector("#desktop-auth-email");
+    const passwordInput = this.container.querySelector("#desktop-auth-password");
+    emailInput.value = this.desktopEmail || "";
+    passwordInput.value = this.desktopPassword || "";
+    emailInput.addEventListener("input", () => { this.desktopEmail = emailInput.value; });
+    passwordInput.addEventListener("input", () => { this.desktopPassword = passwordInput.value; });
+    this.container.querySelector(".desktop-auth-visibility")?.addEventListener("click", (event) => {
+      this.passwordVisible = !this.passwordVisible;
+      passwordInput.type = this.passwordVisible ? "text" : "password";
+      event.currentTarget.setAttribute("aria-label", `${this.passwordVisible ? "Hide" : "Show"} password`);
+      event.currentTarget.setAttribute("aria-pressed", String(this.passwordVisible));
+      event.currentTarget.firstElementChild.textContent = this.passwordVisible ? "visibility_off" : "visibility";
+    });
     this.container.querySelector(".desktop-auth-form")?.addEventListener("submit", (event) => {
       void this.submitDesktopBrowserSignIn(event);
     });
@@ -135,6 +165,8 @@ export const AuthSignInScreen = {
     const form = event.currentTarget;
     const email = String(form?.elements?.email?.value || "").trim();
     const password = String(form?.elements?.password?.value || "");
+    this.desktopEmail = email;
+    this.desktopPassword = password;
     if (!email || !password) {
       this.desktopError = "Enter your email address and password.";
       this.renderDesktopBrowser();
@@ -277,6 +309,9 @@ export const AuthSignInScreen = {
     this.textDialog = null;
     this.pendingEmail = "";
     this.desktopError = "";
+    this.desktopEmail = "";
+    this.desktopPassword = "";
+    this.passwordVisible = false;
     this.isDesktopSubmitting = false;
     ScreenUtils.hide(this.container);
   }

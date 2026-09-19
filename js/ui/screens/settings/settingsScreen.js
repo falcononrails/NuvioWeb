@@ -3340,11 +3340,10 @@ export const SettingsScreen = {
       this.actionMap.set("account:signinQr", () => Router.navigate("authQrSignIn"));
     }
     this.actionMap.set("account:signout", async () => {
-      await AuthManager.signOut();
       this.accountSyncOverview = null;
       this.accountSyncOverviewPromise = null;
       this.accountSyncOverviewLoaded = false;
-      await this.render();
+      await AuthManager.signOut();
     });
 
     return `
@@ -3364,10 +3363,10 @@ export const SettingsScreen = {
           ${
             !loading && !signedIn
               ? `
-            <p class="settings-account-description">${escapeHtml(t("account_sync_description", {}, "Sync your library, watch progress, addons, and plugins across devices."))}</p>
+            <p class="settings-account-description">${escapeHtml(isDesktopBrowser ? "Access your Nuvio profiles, addons, collections, library and watch progress." : t("account_sync_description", {}, "Sync your library, watch progress, addons, and plugins across devices."))}</p>
             <p class="settings-account-inline-note">${escapeHtml(
               isDesktopBrowser
-                ? "Reload or restart the app to pick up changes."
+                ? "Use your existing Nuvio account. Trakt authorization is separate."
                 : t(
                     "account_sync_restart_note",
                     {},
@@ -3411,7 +3410,7 @@ export const SettingsScreen = {
             ${this.renderAccountStatusCard(model.accountEmail || t("settings.status.linkedFallback", {}, "Linked account"))}
             <p class="settings-account-inline-note">${escapeHtml(
               isDesktopBrowser
-                ? "Reload or restart the app to pick up changes."
+                ? "Your Nuvio profile is connected. Some settings are specific to this app; Trakt authorization is separate."
                 : t(
                     "account_sync_restart_note",
                     {},
@@ -8230,6 +8229,9 @@ export const SettingsScreen = {
     this.actionMap.set("about:issues", () => openExternalUrl(APP_IDENTITY.issuesUrl));
     this.actionMap.set("about:upstream", () => openExternalUrl(APP_IDENTITY.upstreamRepositoryUrl));
     this.actionMap.set("about:license", () => openExternalUrl(APP_IDENTITY.licenseUrl));
+    this.actionMap.set("about:website", () => openExternalUrl("https://nuvioweb.space/"));
+    this.actionMap.set("about:changes", () => openExternalUrl(`${APP_IDENTITY.sourceRepositoryUrl}/commits/nightly/`));
+    this.actionMap.set("about:credits", () => openExternalUrl(`${APP_IDENTITY.sourceRepositoryUrl}#credits-and-license`));
     this.actionMap.set("about:privacy", () => {
       window.open?.(PRIVACY_URL, "_blank");
     });
@@ -8271,19 +8273,19 @@ export const SettingsScreen = {
         <div class="settings-about-brand">
           <img class="settings-about-logo" src="assets/brand/app_logo_wordmark.png" alt="${escapeHtml(APP_IDENTITY.name)}" />
           <h2 class="settings-about-name">${escapeHtml(APP_IDENTITY.name)}</h2>
-          <p class="settings-about-copy">Version ${escapeHtml(APP_IDENTITY.version)}</p>
-          <p class="settings-about-copy">Based on Nuvio ${escapeHtml(APP_IDENTITY.upstreamVersion)}</p>
-          <p class="settings-about-copy">Originally created by Tapframe and contributors.</p>
-          <p class="settings-about-copy">Built upon web/community work by WhiteGiso, edoedac0, and other contributors.</p>
+          <p class="settings-about-copy">Nightly · Version ${escapeHtml(APP_IDENTITY.version)}</p>
           <p class="settings-about-copy">Maintained by ${escapeHtml(APP_IDENTITY.maintainer)}.</p>
-          <p class="settings-about-copy">Independent community fork. Not affiliated with or endorsed by NuvioMedia.</p>
+          <p class="settings-about-copy">Based on alphasquare404's NuvioWeb, with selected mobile improvements from NurvX and original work by NuvioMedia, Tapframe, WhiteGiso, edoedac0 and their contributors.</p>
+          <p class="settings-about-copy">Independent community fork with browser playback improvements and an optional playback server. Native Trakt requires the host's own app credentials.</p>
         </div>
         <div class="settings-stack">
+          ${this.renderActionRow({ focusKey: "about:website", title: "nuvioweb.space", subtitle: "Open the hosted nightly version.", external: true })}
           ${this.renderActionRow({ focusKey: "about:source", title: "Source Code", subtitle: "View this community fork on GitHub.", external: true })}
           ${this.renderActionRow({ focusKey: "about:issues", title: "Report an Issue", subtitle: "Open an issue for this community fork.", external: true })}
-          ${this.renderActionRow({ focusKey: "about:upstream", title: "Upstream Project", subtitle: "View the original Nuvio project.", external: true })}
+          ${this.renderActionRow({ focusKey: "about:upstream", title: "Upstream Project", subtitle: "alphasquare404/NuvioWeb", external: true })}
+          ${this.renderActionRow({ focusKey: "about:credits", title: "Credits", subtitle: "The original projects, contributors and playback libraries.", external: true })}
           ${this.renderActionRow({ focusKey: "about:license", title: "View License", subtitle: "NuvioWeb is licensed under the GNU General Public License v3.0.", external: true })}
-          ${this.renderActionRow({
+          ${isDesktopBrowser ? this.renderActionRow({ focusKey: "about:changes", title: "Latest changes", subtitle: "Passing nightly builds deploy automatically. Reload the app to use a new build.", external: true }) : this.renderActionRow({
             focusKey: "about:checkUpdates",
             title: t("about_check_updates", {}, "Check for updates"),
             subtitle:

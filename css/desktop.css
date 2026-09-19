@@ -1358,151 +1358,177 @@ html.desktop-browser {
   }
 }
 
-/* Browser-only email/password sign-in. TV keeps the existing QR-first cards. */
+/* Browser sign-in follows the desktop app. TV keeps its QR-first flow. */
 .desktop-browser #account .desktop-auth-shell {
   box-sizing: border-box;
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
+  grid-template-columns: minmax(0, 1fr) minmax(460px, 38%);
+  background: radial-gradient(ellipse at 15% 80%, #151719, transparent 65%), #090909;
+}
+.desktop-browser #account .desktop-auth-brand {
+  align-self: center;
+  padding: 64px clamp(40px, 7vw, 128px);
+}
+.desktop-browser #account .desktop-auth-brand img { display: block; width: auto; height: 60px; }
+.desktop-browser #account .desktop-auth-brand h2 {
+  max-width: 520px;
+  margin: 40px 0 20px;
+  font-size: clamp(32px, 3vw, 44px);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+.desktop-browser #account .desktop-auth-brand p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.desktop-browser #account .desktop-auth-pane {
+  display: grid;
   place-items: center;
-  padding: clamp(24px, 5vw, 56px) 20px;
+  padding: 48px;
+  border-left: 1px solid rgb(255 255 255 / 7%);
+  background: rgb(255 255 255 / 2%);
 }
-
-.desktop-browser #account .desktop-auth-card {
-  width: min(100%, 460px);
-  padding: clamp(24px, 3vw, 36px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
-  background: rgba(18, 18, 22, 0.9);
-  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.34);
-}
-
+.desktop-browser #account .desktop-auth-card { width: min(100%, 390px); min-width: 0; }
 .desktop-browser #account .desktop-auth-title {
   margin: 0;
-  color: #fff;
-  font-size: clamp(28px, 3vw, 34px);
-  line-height: 1.15;
+  color: #f5f7f8;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
 }
-
 .desktop-browser #account .desktop-auth-subtitle {
-  margin: 10px 0 26px;
-  color: rgba(255, 255, 255, 0.67);
-  font-size: 15px;
-  line-height: 1.45;
+  margin: 10px 0 28px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
 }
-
-.desktop-browser #account .desktop-auth-form {
-  display: grid;
-  gap: 16px;
-}
-
+.desktop-browser #account .desktop-auth-form { display: grid; gap: 20px; }
 .desktop-browser #account .desktop-auth-field {
   display: grid;
-  gap: 7px;
-  color: rgba(255, 255, 255, 0.82);
+  gap: 8px;
+  color: var(--text-secondary);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
-
+.desktop-browser #account .desktop-auth-input-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 4%);
+  padding-left: 16px;
+}
+.desktop-browser #account .desktop-auth-input-wrap:focus-within {
+  outline: 2px solid rgb(255 255 255 / 60%);
+  outline-offset: 2px;
+}
+.desktop-browser #account .desktop-auth-input-wrap .material-icons { font-size: 20px; color: var(--text-secondary); }
+.desktop-browser #account .desktop-auth-visibility {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
 .desktop-browser #account .desktop-auth-input,
 .desktop-browser #account .desktop-auth-submit {
   box-sizing: border-box;
   width: 100%;
-  height: 46px;
+  height: 56px;
   border-radius: 12px;
   font: inherit;
+  font-size: 16px;
 }
-
 .desktop-browser #account .desktop-auth-input {
-  padding: 0 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  min-width: 0;
+  padding: 0 12px;
+  border: 0;
   outline: none;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.07);
+  color: #f5f7f8;
+  background: transparent;
 }
-
-.desktop-browser #account .desktop-auth-input::placeholder {
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.desktop-browser #account .desktop-auth-input:focus-visible {
-  border-color: rgba(255, 255, 255, 0.68);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
-}
-
+.desktop-browser #account .desktop-auth-input::placeholder { color: rgb(255 255 255 / 35%); }
+.desktop-browser #account .desktop-auth-input:focus-visible { outline: none !important; box-shadow: none; }
 .desktop-browser #account .desktop-auth-submit {
   border: 0;
   color: #111;
-  background: #fff;
+  background: #f5f7f8;
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 700;
-  transition: background-color 160ms ease, transform 160ms ease;
+  font-weight: 600;
+  transition: background-color 160ms ease;
 }
-
-.desktop-browser #account .desktop-auth-submit:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.86);
-  transform: translateY(-1px);
-}
-
-.desktop-browser #account .desktop-auth-submit:focus-visible,
-.desktop-browser #account .desktop-auth-qr:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 3px;
-}
-
-.desktop-browser #account .desktop-auth-submit:disabled,
-.desktop-browser #account .desktop-auth-qr:disabled {
-  cursor: default;
-  opacity: 0.58;
-}
-
+.desktop-browser #account .desktop-auth-submit:hover:not(:disabled) { background: #ddd; }
+.desktop-browser #account .desktop-auth-card button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.desktop-browser #account .desktop-auth-card button:disabled { cursor: default; opacity: 0.55; }
 .desktop-browser #account .desktop-auth-guest {
   width: 100%;
+  min-height: 44px;
   margin-top: 12px;
   padding: 8px 12px;
   border: 0;
+  border-radius: 10px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
-  font: 500 14px/1.35 inherit;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
   cursor: pointer;
 }
-
-.desktop-browser #account .desktop-auth-guest:hover:not(:disabled) {
-  color: #fff;
-}
-
-.desktop-browser #account .desktop-auth-guest:focus-visible {
-  outline: 2px solid var(--secondary-color);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-
-.desktop-browser #account .desktop-auth-guest:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.desktop-browser #account .desktop-auth-error {
-  margin: -2px 0 0;
-  color: #ffaaa6;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
+.desktop-browser #account .desktop-auth-guest:hover:not(:disabled) { color: #fff; }
+.desktop-browser #account .desktop-auth-error { margin: 0; color: #ffaaa6; font-size: 14px; line-height: 1.5; }
 .desktop-browser #account .desktop-auth-qr {
-  display: block;
-  margin: 18px auto 0;
-  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
   border: 0;
-  color: rgba(255, 255, 255, 0.72);
-  background: transparent;
+  border-radius: 12px;
+  color: var(--text-color);
+  background: rgb(255 255 255 / 5%);
   cursor: pointer;
   font: inherit;
   font-size: 14px;
 }
-
-.desktop-browser #account .desktop-auth-qr:hover:not(:disabled) {
-  color: #fff;
+.desktop-browser #account .desktop-auth-qr:hover:not(:disabled),
+.desktop-browser #account .desktop-auth-visibility:hover:not(:disabled) { background: var(--desktop-hover); }
+.desktop-browser #account .desktop-auth-qr .material-icons { font-size: 20px; }
+.desktop-browser #account .desktop-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.desktop-browser #account .desktop-auth-divider::before,
+.desktop-browser #account .desktop-auth-divider::after { content: ""; flex: 1; height: 1px; background: rgb(255 255 255 / 8%); }
+@media (max-width: 899px) {
+  .desktop-browser #account .desktop-auth-shell {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 32px;
+    padding: 40px 24px;
+  }
+  .desktop-browser #account .desktop-auth-brand { padding: 0; }
+  .desktop-browser #account .desktop-auth-brand img { height: 38px; margin: 0 auto; }
+  .desktop-browser #account .desktop-auth-brand h2,
+  .desktop-browser #account .desktop-auth-brand p { display: none; }
+  .desktop-browser #account .desktop-auth-pane { padding: 0; border: 0; background: none; }
+  .desktop-browser #account .desktop-auth-card { max-width: 360px; }
+  .desktop-browser #account .desktop-auth-title { font-size: 28px; }
 }
 
 /* Browser QR remains available as a secondary sign-in option. This control
@@ -1540,12 +1566,6 @@ html.desktop-browser {
 .desktop-browser #account .desktop-qr-back-button:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.9);
   outline-offset: 3px;
-}
-
-@media (max-width: 480px) {
-  .desktop-browser #account .desktop-auth-card {
-    border-radius: 16px;
-  }
 }
 
 /* Desktop Detail Step 1: preserve the existing immersive detail markup while
