@@ -13,6 +13,8 @@ const script = `
 import {Router} from './js/ui/navigation/router.js';
 import {FocusEngine} from './js/ui/navigation/focusEngine.js';
 import {CalendarScreen as calendar} from './js/ui/screens/calendar/calendarScreen.js';
+import {LibraryScreen as library} from './js/ui/screens/library/libraryScreen.js';
+import {LibraryController} from './js/ui/screens/library/libraryController.js';
 import {MetaDetailsScreen as detail} from './js/ui/screens/detail/metaDetailsScreen.js';
 import {LayoutPreferences} from './js/data/local/layoutPreferences.js';
 import {libraryRepository} from './js/data/repository/libraryRepository.js';
@@ -25,7 +27,7 @@ ProfileManager.getProfiles=async()=>[];
 const poster=n=>location.origin+'/poster/'+n+'.svg';
 const episodes=[0,1,2,3,4,5].flatMap(season=>[1,2].map(episode=>({id:'fixture:'+season+':'+episode,season,episode,title:'Episode '+episode,thumbnail:poster(season),overview:'Synthetic episode metadata.',released:'2026-09-19',seasonPoster:season===3?location.origin+'/missing.svg':season===4?null:poster(season)})));
 const meta={id:'fixture',type:'series',name:'Synthetic series',description:'A local fixture for season artwork, selection and release dates.',videos:episodes};
-Object.assign(window,{calendar,detail,Router,LayoutPreferences});
+Object.assign(window,{calendar,detail,library,Router,LayoutPreferences});
 window.showSeasons=async()=>{
   await Router.navigate('detail');
 };
@@ -40,6 +42,19 @@ const detailRoute={
  captureRouteState:()=>({}),cleanup:()=>detail.cleanup()
 };
 const seeds=Array.from({length:10},(_,index)=>({id:'item'+index,type:index===1?'movie':'series',name:index===0?'North Shore':index===1?'The Last Light':'Series '+index,poster:poster(index)}));
+const libraryRoute={
+ container:document.querySelector('#library'),
+ mount(){
+   library.container=this.container;
+   library.downloadManagerJobs=[];
+   library.downloadedLibrary={supported:false,loading:false,movies:[],series:[]};
+   library.controller=new LibraryController();
+   Object.assign(library.controller.state,{isLoading:false,visibleItems:seeds,allItems:seeds});
+   this.container.style.display='block';library.render();library.bindEvents();
+ },
+ onKeyDown:event=>library.onKeyDown(event),onKeyUp:event=>library.onKeyUp(event),
+ captureRouteState:()=>({}),cleanup:()=>library.cleanup()
+};
 window.calls=0;window.inflight=0;window.peak=0;window.waiters=[];
 libraryRepository.getItems=async()=>window.empty?[]:seeds;
 metaRepository.getMetaFromAllAddons=async(type,id)=>{
@@ -51,11 +66,11 @@ metaRepository.getMetaFromAllAddons=async(type,id)=>{
  const seed=seeds.find(item=>item.id===id);
  return {status:'success',data:{...seed,released:'2026-09-19',videos:[{id:id+':2:1',season:2,episode:1,title:'A new beginning',released:'2026-09-19'},{id:id+':2:2',season:2,episode:2,title:'The next chapter',released:'2026-09-26'}]}};
 };
-Router.routes={calendar,detail:detailRoute};Router.init();FocusEngine.init();
-await Router.navigate('calendar');window.ready=true;
+Router.routes={library:libraryRoute,calendar,detail:detailRoute};Router.init();FocusEngine.init();
+await Router.navigate(new URLSearchParams(location.search).has('detail')?'detail':'library');window.ready=true;
 `;
 const bundle=(await build({stdin:{contents:script,resolveDir:root},bundle:true,write:false,format:'esm'})).outputFiles[0].text;
-const html=`<!doctype html><html class="desktop-browser"><head><meta name="viewport" content="width=device-width,initial-scale=1">${['base','layout','components','themes','desktop','desktop-theme'].map(n=>`<link rel="stylesheet" href="/css/${n}.css">`).join('')}</head><body class="desktop-browser"><div id="app"><div class="screen" id="calendar"></div><div class="screen" id="detail"></div></div><script type="module" src="/harness.js"></script></body></html>`;
+const html=`<!doctype html><html class="desktop-browser"><head><meta name="viewport" content="width=device-width,initial-scale=1">${['base','layout','components','themes','desktop','desktop-theme'].map(n=>`<link rel="stylesheet" href="/css/${n}.css">`).join('')}</head><body class="desktop-browser"><div id="app"><div class="screen" id="library"></div><div class="screen" id="calendar"></div><div class="screen" id="detail"></div></div><script type="module" src="/harness.js"></script></body></html>`;
 const server=createServer(async(req,res)=>{
  try {
   const pathname=new URL(req.url,'http://localhost').pathname;
@@ -80,19 +95,28 @@ try{
  const errors=[];page.on('pageerror',error=>{errors.push(error.message);console.error(error.stack)});
  await page.clock.setFixedTime(new Date('2026-09-19T12:00:00'));
  await page.route('**/*',route=>/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(route.request().url())||route.request().url().startsWith(url)?route.continue():route.abort());
- await page.goto(url);await page.waitForFunction(()=>window.ready&&!calendar.loading);
+ await page.goto(url);await page.waitForFunction(()=>window.ready);
  await page.evaluate(()=>document.fonts.ready);
+ for(const width of [1440,390,320]){
+  await page.setViewportSize({width,height:1000});
+  assert.equal(await page.locator('#library [data-desktop-route="calendar"]').count(),0);
+  assert.equal(await page.getByRole('button',{name:'Calendar',exact:true}).evaluate(el=>getComputedStyle(el).cursor),'pointer');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.screenshot({animations:'disabled',path:path.join(output,'library-'+width+'.png')});
+ }
+ await page.getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.waitForFunction(()=>Router.getCurrent()==='calendar'&&!calendar.loading);
  assert.equal(await page.evaluate(()=>peak),4);
  assert.equal(await page.evaluate(()=>calls),10);
  assert.match(await page.locator('.calendar-status').innerText(),/1 title couldn't/);
  assert.equal(await page.locator('[data-calendar-date]').count(),30);
  assert.equal(await page.locator('.calendar-release').count(),9);
- assert.equal(await page.locator('[data-desktop-route="calendar"]').getAttribute('aria-current'),'page');
+ assert.equal(await page.locator('#calendar [data-desktop-route="library"]').getAttribute('aria-current'),'page');
  for(const width of [1440,768,390,320]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No calendar overflow at '+width);
-  const nav=await page.locator('.desktop-navigation-item').evaluateAll(nodes=>nodes.map(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,cursor:getComputedStyle(el).cursor}}));
-  assert.equal(nav.length,6);assert.ok(nav.every(r=>r.left>=0&&r.right<=width&&r.cursor==='pointer'));
+  const nav=await page.locator('#calendar .desktop-navigation-item').evaluateAll(nodes=>nodes.map(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,cursor:getComputedStyle(el).cursor}}));
+  assert.equal(nav.length,5);assert.ok(nav.every(r=>r.left>=0&&r.right<=width&&r.cursor==='pointer'));
   await page.screenshot({animations:'disabled',path:path.join(output,'calendar-'+width+'.png')});
  }
  await page.setViewportSize({width:1440,height:1000});
@@ -119,12 +143,23 @@ try{
   await toggle.scrollIntoViewIfNeeded();
   await page.screenshot({animations:'disabled',path:path.join(output,'seasons-'+width+'.png')});
  }
- await page.setViewportSize({width:1440,height:1000});
+ await page.setViewportSize({width:1440,height:700});
+ const scrollBefore=await page.evaluate(()=>{const owner=detail.getDetailVerticalScrollOwner();owner.scrollTop=400;return owner.scrollTop});
+ assert.ok(scrollBefore>0);
  await page.locator('.series-season-btn[data-season="2"]').click();
- assert.equal(await page.evaluate(()=>detail.selectedSeason),2);
+ await page.waitForFunction(()=>document.querySelector('.series-season-btn.selected')?.dataset.season==='2');
+ assert.ok(Math.abs(await page.evaluate(()=>detail.getDetailVerticalScrollOwner().scrollTop)-scrollBefore)<2,'Selecting a season must preserve vertical scroll');
  await toggle.click();assert.equal(await toggle.innerText(),'Text');
+ assert.ok(Math.abs(await page.evaluate(()=>detail.getDetailVerticalScrollOwner().scrollTop)-scrollBefore)<2,'Changing view must preserve vertical scroll');
  assert.equal(await page.locator('.series-season-poster-btn').count(),0);
  assert.equal(await page.locator('.series-season-btn.selected').getAttribute('data-season'),'2');
+ await page.locator('.series-season-btn[data-season="1"]').click();
+ await page.waitForFunction(()=>document.querySelector('.series-season-btn.selected')?.dataset.season==='1');
+ assert.ok(Math.abs(await page.evaluate(()=>detail.getDetailVerticalScrollOwner().scrollTop)-scrollBefore)<2,'Text season selection must preserve vertical scroll');
+ await page.locator('.series-season-btn[data-season="2"]').focus();
+ await page.keyboard.press('Enter');
+ await page.waitForFunction(()=>document.querySelector('.series-season-btn.selected')?.dataset.season==='2');
+ assert.ok(Math.abs(await page.evaluate(()=>detail.getDetailVerticalScrollOwner().scrollTop)-scrollBefore)<2,'Keyboard season selection must preserve vertical scroll');
  await toggle.focus();await page.keyboard.press('Enter');
  assert.equal(await toggle.innerText(),'Posters','Enter must toggle once');
  await toggle.click();
@@ -143,6 +178,21 @@ try{
  await page.evaluate(async()=>{window.empty=true;await calendar.mount()});
  await page.waitForFunction(()=>!calendar.loading);
  assert.match(await page.locator('.calendar-status').innerText(),/Add movies or series/);
+ // A directly opened detail scrolls the document, not a Router layer.
+ await page.goto(url+'?detail');await page.waitForFunction(()=>window.ready);
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:700});
+  if(await toggle.innerText()==='Text')await toggle.click();
+  for(const mode of ['Posters','Text']){
+   if(await toggle.innerText()!==mode)await toggle.click();
+   const start=await page.evaluate(()=>{const owner=detail.getDetailVerticalScrollOwner();owner.scrollTop=300;return owner.scrollTop});
+   assert.ok(start>0);
+   const season=await page.evaluate(()=>detail.selectedSeason===1?2:1);
+   await page.locator('.series-season-btn[data-season="'+season+'"]').click();
+   await page.waitForFunction(season=>document.querySelector('.series-season-btn.selected')?.dataset.season===String(season),season);
+   assert.ok(Math.abs(await page.evaluate(()=>detail.getDetailVerticalScrollOwner().scrollTop)-start)<2,mode+' keeps document scroll at '+width);
+  }
+ }
  assert.deepEqual(errors,[]);
- console.log('Calendar/season smoke passed: bounded loading, partial failures, dates, keyboard, responsive navigation, detail links, poster fallback, mode persistence and cleanup.');
+ console.log('Calendar/season smoke passed: Library entry, five-item navigation, bounded loading, date controls, poster fallback, mode persistence, pointer/keyboard selection without scroll jumps, layered/document scrolling and cleanup.');
 }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}

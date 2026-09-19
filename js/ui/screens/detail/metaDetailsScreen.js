@@ -4437,11 +4437,24 @@ export const MetaDetailsScreen = {
   },
 
   toggleSeasonView() {
+    this.captureRenderedChromeState();
     const seasonViewMode = LayoutPreferences.get().seasonViewMode === "text" ? "posters" : "text";
     LayoutPreferences.set({ seasonViewMode }, { silentSync: true });
     this.container.querySelector("#detailSeasonRowMount").innerHTML = this.renderSeasonControls();
     this.bindDetailChrome();
     this.focusDetailDescriptor({ selector: "[data-action='toggleSeasonView']", preserveVerticalScroll: true });
+  },
+
+  selectSeason(season) {
+    if (!Number.isInteger(season) || season < 0 || season === this.selectedSeason) return;
+    this.hasManualSeasonSelection = true;
+    this.selectedSeason = season;
+    const focusRestore = {
+      selector: `.series-season-btn[data-season="${season}"]`,
+      preserveVerticalScroll: Platform.isBrowser()
+    };
+    if (Platform.isBrowser()) this.updateRenderedDetailSections(this.meta, focusRestore);
+    else this.render(this.meta, focusRestore);
   },
 
   renderSeasonDownloadAction() {
@@ -6764,11 +6777,7 @@ export const MetaDetailsScreen = {
     if (!Number.isFinite(season) || season < 0) {
       return false;
     }
-    if (season !== this.selectedSeason) {
-      this.hasManualSeasonSelection = true;
-      this.selectedSeason = season;
-      this.render(this.meta);
-    }
+    this.selectSeason(season);
     return true;
   },
 
@@ -7399,12 +7408,7 @@ export const MetaDetailsScreen = {
       bindingKey: "desktopSeasonDragBound",
       cardSelector: ".series-season-btn[data-action='selectSeason']",
       onActivate: (button) => {
-        const season = Number(button.dataset.season || 0);
-        if (season >= 0 && season !== this.selectedSeason) {
-          this.hasManualSeasonSelection = true;
-          this.selectedSeason = season;
-          this.render(this.meta, { selector: `.series-season-btn[data-season="${season}"]` });
-        }
+        this.selectSeason(Number(button.dataset.season || 0));
       }
     });
   },
@@ -7890,19 +7894,16 @@ export const MetaDetailsScreen = {
           this.trailerAutoplayTimer = null;
         }
       }
-      if (target.matches(".series-season-btn.focusable")) {
+      if (target.matches(".series-season-btn.focusable, .series-season-view-toggle")) {
         // Desktop buttons activate through their native click path. Selecting
         // here on focus would replace the rail before a pointer gesture can
         // become a drag. TV keeps its existing focus-driven behavior.
         if (Platform.isBrowser()) {
+          this.container.querySelectorAll(".focusable.focused").forEach(node => node.classList.remove("focused"));
+          target.classList.add("focused");
           return;
         }
-        const season = Number(target.dataset.season || 0);
-        if (season >= 0 && season !== this.selectedSeason) {
-          this.hasManualSeasonSelection = true;
-          this.selectedSeason = season;
-          this.render(this.meta, { selector: `.series-season-btn[data-season="${season}"]` });
-        }
+        this.selectSeason(Number(target.dataset.season || 0));
         return;
       }
       if (target.matches(".series-insight-tab.focusable")) {
@@ -11133,12 +11134,7 @@ export const MetaDetailsScreen = {
     }
 
     if (action === "selectSeason") {
-      const season = Number(current.dataset.season || 1);
-      if (season !== this.selectedSeason) {
-        this.hasManualSeasonSelection = true;
-        this.selectedSeason = season;
-        this.render(this.meta);
-      }
+      this.selectSeason(Number(current.dataset.season || 0));
       return;
     }
 
