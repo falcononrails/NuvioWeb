@@ -121,7 +121,7 @@ function isEncodedPreferenceValue(value) {
   );
 }
 
-function normalizeFeaturePayload(value) {
+function normalizeFeaturePayload(value, featureName = "") {
   if (!isPlainObject(value)) {
     return {};
   }
@@ -135,6 +135,13 @@ function normalizeFeaturePayload(value) {
       accumulator[key] = entry.value;
     } else {
       accumulator[key] = entry;
+    }
+    // Layout lists use JSON strings in the shared Android/Desktop cloud format.
+    if (shouldSerializeLayoutStringArrayAsString(featureName, key) && typeof accumulator[key] === "string") {
+      try {
+        const parsed = JSON.parse(accumulator[key]);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === "string")) accumulator[key] = parsed;
+      } catch (_) { /* Ignore invalid values without clearing the local selection. */ }
     }
     return accumulator;
   }, {});
@@ -776,7 +783,7 @@ const FEATURE_ADAPTERS = {
       };
     },
     project(rawFeature = {}) {
-      const raw = normalizeFeaturePayload(rawFeature);
+      const raw = normalizeFeaturePayload(rawFeature, "layout_settings");
       const projected = {};
       if (stringOrNull(raw.selected_layout)) {
         projected.selected_layout = normalizeHomeLayoutForAndroid(raw.selected_layout);
@@ -875,7 +882,7 @@ const FEATURE_ADAPTERS = {
       return projected;
     },
     import(profileId, rawFeature = {}) {
-      const raw = normalizeFeaturePayload(rawFeature);
+      const raw = normalizeFeaturePayload(rawFeature, "layout_settings");
       const partial = {};
       if (stringOrNull(raw.selected_layout)) {
         partial.homeLayout = normalizeHomeLayoutForWeb(raw.selected_layout);
