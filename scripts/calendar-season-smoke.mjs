@@ -67,7 +67,8 @@ metaRepository.getMetaFromAllAddons=async(type,id)=>{
  return {status:'success',data:{...seed,released:'2026-09-19',videos:[{id:id+':2:1',season:2,episode:1,title:'A new beginning',released:'2026-09-19'},{id:id+':2:2',season:2,episode:2,title:'The next chapter',released:'2026-09-26'}]}};
 };
 Router.routes={library:libraryRoute,calendar,detail:detailRoute};Router.init();FocusEngine.init();
-await Router.navigate(new URLSearchParams(location.search).has('detail')?'detail':'library');window.ready=true;
+const query=new URLSearchParams(location.search);
+await Router.navigate(query.has('detail')?'detail':query.has('calendar')?'calendar':'library');window.ready=true;
 `;
 const bundle=(await build({stdin:{contents:script,resolveDir:root},bundle:true,write:false,format:'esm'})).outputFiles[0].text;
 const html=`<!doctype html><html class="desktop-browser"><head><meta name="viewport" content="width=device-width,initial-scale=1">${['base','layout','components','themes','desktop','desktop-theme'].map(n=>`<link rel="stylesheet" href="/css/${n}.css">`).join('')}</head><body class="desktop-browser"><div id="app"><div class="screen" id="library"></div><div class="screen" id="calendar"></div><div class="screen" id="detail"></div></div><script type="module" src="/harness.js"></script></body></html>`;
@@ -114,6 +115,7 @@ try{
  assert.equal(await page.locator('#calendar [data-desktop-route="library"]').getAttribute('aria-current'),'page');
  for(const width of [1440,768,390,320]){
   await page.setViewportSize({width,height:1000});
+  assert.equal(await page.locator('.calendar-back-button').isVisible(),width<=600);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No calendar overflow at '+width);
   const nav=await page.locator('#calendar .desktop-navigation-item').evaluateAll(nodes=>nodes.map(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,cursor:getComputedStyle(el).cursor}}));
   assert.equal(nav.length,5);assert.ok(nav.every(r=>r.left>=0&&r.right<=width&&r.cursor==='pointer'));
@@ -193,6 +195,23 @@ try{
    assert.ok(Math.abs(await page.evaluate(()=>detail.getDetailVerticalScrollOwner().scrollTop)-start)<2,mode+' keeps document scroll at '+width);
   }
  }
+ // Mobile Back restores the existing Library; direct Calendar entry also has a way out.
+ await page.setViewportSize({width:390,height:844});
+ await page.goto(url);await page.waitForFunction(()=>window.ready);
+ await page.evaluate(()=>{window.libraryNode=document.querySelector('#library .library-shell')});
+ await page.getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.waitForFunction(()=>Router.getCurrent()==='calendar'&&!calendar.loading);
+ const back=page.getByRole('button',{name:'Back to Library',exact:true});
+ assert.equal(await back.evaluate(el=>getComputedStyle(el).cursor),'pointer');
+ const target=await back.boundingBox();assert.ok(target.width>=44&&target.height>=44);
+ await back.click();await page.waitForFunction(()=>Router.getCurrent()==='library');
+ assert.equal(await page.evaluate(()=>libraryNode===document.querySelector('#library .library-shell')),true,'Reuse Library state');
+ await page.getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.waitForFunction(()=>Router.getCurrent()==='calendar'&&!calendar.loading);
+ await back.focus();await page.keyboard.press('Enter');
+ await page.waitForFunction(()=>Router.getCurrent()==='library');
+ await page.goto(url+'?calendar');await page.waitForFunction(()=>window.ready&&!calendar.loading);
+ await back.click();await page.waitForFunction(()=>Router.getCurrent()==='library');
  assert.deepEqual(errors,[]);
  console.log('Calendar/season smoke passed: Library entry, five-item navigation, bounded loading, date controls, poster fallback, mode persistence, pointer/keyboard selection without scroll jumps, layered/document scrolling and cleanup.');
 }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}

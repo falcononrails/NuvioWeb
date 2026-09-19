@@ -40,7 +40,12 @@ export const CalendarScreen = {
       <div class="calendar-screen">
         ${renderDesktopNavigation({ selectedRoute: "library", profile })}
         <main class="calendar-main">
-          <header class="calendar-heading"><div><h1>Calendar</h1><p>Release dates for titles in your Library.</p></div>
+          <header class="calendar-heading"><div>
+            <div class="calendar-title-row">
+              <button type="button" class="calendar-button calendar-back-button" data-calendar-action="back" aria-label="Back to Library" title="Back to Library"><span class="material-icons" aria-hidden="true">arrow_back</span></button>
+              <h1>Calendar</h1>
+            </div>
+            <p>Release dates for titles in your Library.</p></div>
             <button type="button" class="calendar-button" data-calendar-action="refresh" aria-label="Refresh calendar" title="Refresh calendar"><span class="material-icons" aria-hidden="true">refresh</span></button>
           </header>
           <div class="calendar-toolbar">
@@ -186,6 +191,9 @@ export const CalendarScreen = {
     if (!target) return;
     if (target.dataset.calendarDate) this.selectDay(dayDate(target.dataset.calendarDate));
     const action = target.dataset.calendarAction;
+    if (action === "back" && !Router.backToPreviousNuvioRoute("library").accepted) {
+      void Router.navigate("library", {}, { replaceHistory: true });
+    }
     if (action === "previous") this.changeMonth(-1);
     if (action === "next") this.changeMonth(1);
     if (action === "today") this.selectDay(new Date());
