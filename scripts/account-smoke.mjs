@@ -105,6 +105,11 @@ try {
  await page.screenshot({animations:'disabled',path:path.join(output,'signin-mobile.png')});
  await page.setViewportSize({width:1440,height:900});
  await page.screenshot({animations:'disabled',path:path.join(output,'signin-desktop.png')});
+ for(const width of [390,768,1440]) {
+  await page.setViewportSize({width,height:900});
+  const form=await page.locator('.desktop-auth-card').boundingBox();
+  assert.ok(Math.abs(form.x+form.width/2-width/2)<1,'Sign In stays centered at '+width);
+ }
  await page.locator('#desktop-auth-email').fill('viewer@example.org');
  await page.locator('#desktop-auth-password').fill('synthetic-password');
  await page.getByRole('button',{name:'Show password',exact:true}).click();

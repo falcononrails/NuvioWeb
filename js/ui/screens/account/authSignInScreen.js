@@ -86,8 +86,6 @@ export const AuthSignInScreen = {
       <main class="desktop-auth-shell">
         <aside class="desktop-auth-brand">
           <img src="assets/brand/app_logo_wordmark.png" alt="Nuvio" />
-          <h2>Your Nuvio library,<br>in your browser.</h2>
-          <p>Use your existing Nuvio account to access your addons, collections and watch progress.</p>
         </aside>
         <div class="desktop-auth-pane">
         <section class="desktop-auth-card" aria-labelledby="desktop-auth-title">
