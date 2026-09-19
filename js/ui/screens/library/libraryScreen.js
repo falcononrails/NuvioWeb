@@ -1550,7 +1550,13 @@ export const LibraryScreen = {
         <main class="home-main library-main">
           <section class="library-page">
             <header class="library-page-header">
-              <h1 class="library-page-title">${escapeHtml(t("library_title", {}, "Library"))}</h1>
+              <div class="library-page-heading">
+                <h1 class="library-page-title">${escapeHtml(t("library_title", {}, "Library"))}</h1>
+                ${useDesktopNavigation ? `<button type="button" class="calendar-button library-calendar-button focusable" data-action="openCalendar" title="Release calendar">
+                  <span class="desktop-navigation-icon" style="mask-image:url('assets/icons/sidebar_calendar.svg');-webkit-mask-image:url('assets/icons/sidebar_calendar.svg')" aria-hidden="true"></span>
+                  Calendar
+                </button>` : ""}
+              </div>
               <div class="library-page-source" id="libraryPageSource">${escapeHtml(this.isDownloadedView() ? "Downloaded" : this.controller.getSourceLabel())}</div>
             </header>
 
@@ -2691,6 +2697,10 @@ export const LibraryScreen = {
     }
     if (action === "refreshLibrary") {
       await this.controller.refreshNow();
+      return;
+    }
+    if (action === "openCalendar") {
+      await Router.navigate("calendar");
       return;
     }
     if (action === "selectManageList") {

@@ -899,6 +899,8 @@ html.desktop-browser .settings-shell .settings-dialog .settings-hero-catalog-opt
 }
 
 /* Calendar uses the existing browser surfaces, typography and navigation. */
+.desktop-browser .library-page-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.desktop-browser .library-calendar-button { gap: 8px; flex-shrink: 0; }
 .desktop-browser .calendar-main { padding: 112px clamp(20px, 3.4vw, 64px) 48px; min-height: 100dvh; }
 .desktop-browser .calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 32px; }
 .desktop-browser .calendar-heading h1 { margin: 0 0 8px; font-size: 32px; line-height: 40px; font-weight: 600; }
@@ -938,8 +940,6 @@ html.desktop-browser .settings-shell .settings-dialog .settings-hero-catalog-opt
   .desktop-browser .calendar-layout { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
-  .desktop-browser .desktop-navigation { width: min(440px, calc(100vw - 16px)); }
-  .desktop-browser .desktop-navigation-item { padding-inline: 0; }
   .desktop-browser .calendar-main { padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 104px); }
   .desktop-browser .calendar-heading { margin-bottom: 24px; }
   .desktop-browser .calendar-heading h1 { font-size: 24px; line-height: 32px; }

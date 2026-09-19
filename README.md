@@ -9,7 +9,7 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 ## What's different here
 
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
-- Posters/Text season picker and a Calendar for Library releases. Artwork and release dates depend on the metadata your addons provide.
+- Posters/Text season picker and a release Calendar in Library. Artwork and release dates depend on the metadata your addons provide.
 - Fixes for animated collection backdrops, browser playback and audio controls.
 - Local AC3, EAC3 and DTS audio decoding with AVPlayer when native playback cannot handle the source. It loads on demand and keeps the existing player controls.
 - Embedded text subtitles through the playback service, with language selection, delay controls and seek-aware timing. Image subtitle formats still need an external player or a subtitle addon.

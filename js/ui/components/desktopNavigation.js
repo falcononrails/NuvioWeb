@@ -21,12 +21,6 @@ const NAVIGATION_ITEMS = [
     icon: "assets/icons/sidebar_library.svg"
   },
   {
-    route: "calendar",
-    labelKey: "sidebar.calendar",
-    fallback: "Calendar",
-    icon: "assets/icons/sidebar_calendar.svg"
-  },
-  {
     route: "settings",
     labelKey: "sidebar.settings",
     fallback: "Settings",

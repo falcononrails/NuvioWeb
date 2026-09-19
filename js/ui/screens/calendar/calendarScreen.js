@@ -38,7 +38,7 @@ export const CalendarScreen = {
     if (generation !== this.loadGeneration) return;
     this.container.innerHTML = `
       <div class="calendar-screen">
-        ${renderDesktopNavigation({ selectedRoute: "calendar", profile })}
+        ${renderDesktopNavigation({ selectedRoute: "library", profile })}
         <main class="calendar-main">
           <header class="calendar-heading"><div><h1>Calendar</h1><p>Release dates for titles in your Library.</p></div>
             <button type="button" class="calendar-button" data-calendar-action="refresh" aria-label="Refresh calendar" title="Refresh calendar"><span class="material-icons" aria-hidden="true">refresh</span></button>
