@@ -1,5 +1,6 @@
 import { Router } from "./router.js";
 import { Platform } from "../../platform/index.js";
+import { handleBrowserControlKey, initBrowserAccessibility } from "./browserAccessibility.js";
 
 function buildNormalizedEvent(event) {
   const normalizedKey = Platform.normalizeKey(event);
@@ -47,8 +48,10 @@ const BACK_DEBOUNCE_MS = 250;
 export const FocusEngine = {
   lastBackHandledAt: 0,
   activeKeyDownStartedAt: new Map(),
+  browserHandledKeys: new Set(),
 
   init() {
+    initBrowserAccessibility();
     this.boundHandleKey = this.handleKey.bind(this);
     this.boundHandleKeyUp = this.handleKeyUp.bind(this);
     document.addEventListener("keydown", this.boundHandleKey, true);
@@ -98,6 +101,13 @@ export const FocusEngine = {
       return;
     }
 
+    const currentScreen = Router.getCurrentScreen();
+    if (handleBrowserControlKey(event, currentScreen)) {
+      this.browserHandledKeys.add(event.code || event.key);
+      return;
+    }
+    if (Platform.isBrowser() && event.key === "Escape" && document.fullscreenElement) return;
+
     const normalizedEvent = buildNormalizedEvent(event);
     const keyIdentity = this.getKeyIdentity(normalizedEvent);
     if (keyIdentity && (!normalizedEvent.repeat || !this.activeKeyDownStartedAt.has(keyIdentity))) {
@@ -118,8 +128,6 @@ export const FocusEngine = {
       return;
     }
 
-    const currentScreen = Router.getCurrentScreen();
-
     if (currentScreen?.onKeyDown) {
       Promise.resolve(currentScreen.onKeyDown(normalizedEvent)).catch((error) => {
         console.warn("Screen keydown handler failed", error);
@@ -128,6 +136,7 @@ export const FocusEngine = {
   },
 
   handleKeyUp(event) {
+    if (this.browserHandledKeys.delete(event.code || event.key)) return;
     if (event?.target && !document.contains(event.target)) return;
 
     const normalizedEvent = buildNormalizedEvent(event);

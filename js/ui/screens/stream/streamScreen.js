@@ -2151,9 +2151,8 @@ export const StreamScreen = {
         );
         return;
       }
-      // onKeyDown already activates the focused TV/D-pad target. Let its
-      // keyboard-generated click pass through without activating it twice.
-      if (event.defaultPrevented || Number(event.detail || 0) === 0) {
+      // Browser keyboard and assistive technology use the same click path.
+      if (event.defaultPrevented) {
         return;
       }
       if (clickAction?.kind !== "source" || !(clickAction.element instanceof HTMLElement)) {

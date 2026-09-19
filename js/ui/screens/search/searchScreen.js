@@ -941,6 +941,7 @@ export const SearchScreen = {
             }
             <input
               id="searchInput"
+              aria-label="${escapeHtml(t("search_placeholder", {}, "Search movies & series"))}"
               class="search-input-field focusable"
               type="text"
               data-action="searchInput"

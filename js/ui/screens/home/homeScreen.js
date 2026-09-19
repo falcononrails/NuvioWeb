@@ -3929,7 +3929,7 @@ export const HomeScreen = {
     ) {
       return;
     }
-    if (Platform.isBrowser() && document.hidden) {
+    if (Platform.isBrowser() && (document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)) {
       return;
     }
     if (!Array.isArray(this.heroCandidates) || this.heroCandidates.length <= 1) {
@@ -3938,11 +3938,11 @@ export const HomeScreen = {
     const firstDelay = Platform.isBrowser() ? 5000 : HERO_ROTATE_FIRST_DELAY_MS;
     const interval = Platform.isBrowser() ? 5000 : HERO_ROTATE_INTERVAL_MS;
     this.heroRotateTimeout = setTimeout(() => {
-      if (!this.container?.querySelector(".home-hero-card.focusable.focused")) {
+      if (!this.container?.querySelector(".home-hero-card.focusable.focused, .home-hero-card:focus-within")) {
         this.rotateHero(1);
       }
       this.heroRotateTimer = setInterval(() => {
-        if (!this.container?.querySelector(".home-hero-card.focusable.focused")) {
+        if (!this.container?.querySelector(".home-hero-card.focusable.focused, .home-hero-card:focus-within")) {
           this.rotateHero(1);
         }
       }, interval);

@@ -25,6 +25,9 @@
 }
 
 html.desktop-browser {
+  /* Small secondary text must remain readable on elevated surfaces. */
+  --text-tertiary: #a0a0a0 !important;
+  --player-text-tertiary: #a0a0a0 !important;
   --desktop-surface: var(--bg-elevated);
   --desktop-hover: rgb(255 255 255 / 0.08);
   --desktop-selected: rgb(var(--secondary-color-rgb) / 0.15);
@@ -60,12 +63,51 @@ html.desktop-browser.keyboard-navigation .nuvio-dialog-button.focused {
   outline-offset: 2px;
 }
 
+.desktop-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 16px;
+  z-index: 10000;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  color: #111;
+  transform: translateY(-160%);
+}
+.desktop-skip-link:focus { transform: none; }
+.desktop-browser .desktop-collection-switch input:focus-visible + span {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.desktop-browser *, html.desktop-browser *::before, html.desktop-browser *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  html.desktop-browser :is(button, [role="button"], .focusable):focus-visible {
+    outline: 3px solid Highlight !important;
+  }
+  html.desktop-browser :is(button, [role="button"], .focusable) { border: 1px solid ButtonText !important; }
+  .desktop-navigation-icon, .player-control-icon-mask { forced-color-adjust: none; background-color: ButtonText !important; }
+}
+
 html.desktop-browser :is(button, [role="button"]) {
   transition: background-color var(--desktop-motion), color var(--desktop-motion), opacity var(--desktop-motion);
 }
 
 html.desktop-browser :is(button, [role="button"]):disabled {
   opacity: 0.38;
+}
+
+.desktop-browser .settings-shell .settings-action-row.is-disabled {
+  opacity: 1;
+  color: var(--text-tertiary);
 }
 
 /* Shared by native controls and the TV-originated clickable cards. Text fields

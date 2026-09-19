@@ -2567,6 +2567,7 @@ export const SettingsScreen = {
       .join("");
     return `
       <button class="settings-action-row settings-content-focusable focusable${classes ? ` ${classes}` : ""}${inert ? " is-disabled" : ""}${planned ? " is-planned" : ""}"
+              ${inert ? "disabled" : ""}
               data-zone="content"
               ${this.registerAction(focusKey, inert ? () => {} : this.actionMap.get(focusKey))}
               data-role="action">
@@ -2649,6 +2650,7 @@ export const SettingsScreen = {
     const inert = disabled || planned;
     return `
       <button class="settings-plugin-icon-button settings-content-focusable focusable${inert ? " is-disabled" : ""}${destructive ? " is-destructive" : ""}${planned ? " is-planned" : ""}"
+              ${inert ? "disabled" : ""}
               data-zone="content"
               aria-label="${escapeHtml(label)}"
               title="${escapeHtml(label)}"
@@ -2861,7 +2863,7 @@ export const SettingsScreen = {
               <button class="settings-dialog-option settings-content-focusable focusable${useLanguageRenderer ? " settings-language-option" : ""}${useHeroCatalogRenderer ? " settings-hero-catalog-option" : ""}${useSingleChoiceRenderer ? " settings-single-choice-option" : ""}${isSelected ? " is-selected" : ""}"
                       data-zone="dialog"
                       data-dialog-index="${index}"
-                      ${useMultiRenderer ? `role="checkbox" aria-checked="${Boolean(isSelected)}"` : ""}
+                      ${useMultiRenderer ? `role="checkbox" aria-checked="${Boolean(isSelected)}"` : `aria-pressed="${Boolean(isSelected)}"`}
                       data-dialog-option-id="${escapeHtml(option.id)}">
                 ${
                   useHeroCatalogRenderer
@@ -2917,10 +2919,12 @@ export const SettingsScreen = {
         : 2;
     const field = this.textDialog.multiline
       ? `<textarea class="settings-text-dialog-field settings-text-dialog-textarea focusable"
+                   aria-labelledby="settings-text-dialog-title"
                    data-zone="dialog"
                    data-text-dialog-role="field"
                    placeholder="${escapeAttribute(this.textDialog.placeholder || "")}">${escapeHtml(this.textDialog.draft)}</textarea>`
       : `<input class="settings-text-dialog-field settings-text-dialog-input focusable"
+                aria-labelledby="settings-text-dialog-title"
                 data-zone="dialog"
                 data-text-dialog-role="field"
                 type="${isSensitive && !isSensitiveVisible ? "password" : "text"}"
@@ -2931,12 +2935,12 @@ export const SettingsScreen = {
                 value="${escapeAttribute(this.textDialog.draft)}" />`;
     return `
       <div class="settings-dialog-backdrop">
-        <div class="settings-dialog settings-text-dialog">
-          <div class="settings-dialog-title">${escapeHtml(this.textDialog.title || "")}</div>
+        <div class="settings-dialog settings-text-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-text-dialog-title">
+          <div class="settings-dialog-title" id="settings-text-dialog-title">${escapeHtml(this.textDialog.title || "")}</div>
           ${field}
           ${
             this.textDialog.statusMessage
-              ? `<p class="settings-text-dialog-message ${escapeHtml(this.textDialog.statusKind || "error")}">${escapeHtml(this.textDialog.statusMessage)}</p>`
+              ? `<p role="alert" class="settings-text-dialog-message ${escapeHtml(this.textDialog.statusKind || "error")}">${escapeHtml(this.textDialog.statusMessage)}</p>`
               : ""
           }
           <div class="settings-text-dialog-actions">

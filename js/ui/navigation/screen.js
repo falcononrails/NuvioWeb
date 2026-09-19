@@ -1,5 +1,6 @@
 export function isSpatialCardTarget(node) {
-  return Boolean(node?.matches?.("article.focusable"));
+  return Boolean(node?.matches?.("article.focusable")) &&
+    !globalThis.document?.documentElement?.classList?.contains("desktop-browser");
 }
 
 function isScrollable(node, axis) {
@@ -145,6 +146,8 @@ export const ScreenUtils = {
       return;
     }
     const list = Array.from(container?.querySelectorAll(selector) || []).filter((node) => {
+      if (globalThis.document?.documentElement?.classList?.contains?.("desktop-browser") && node.tabIndex < 0) return false;
+      if (node.matches?.(':disabled, [aria-disabled="true"]') || node.closest?.('[hidden], .hidden, [inert], [aria-hidden="true"]')) return false;
       const rect = node.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
     });
@@ -152,7 +155,8 @@ export const ScreenUtils = {
       return;
     }
 
-    const current = container?.querySelector(`${selector}.focused`) || list[0];
+    const current = list.find(node => node === globalThis.document?.activeElement) ||
+      list.find(node => node.classList.contains("focused")) || list[0];
     if (!current.classList.contains("focused")) {
       list.forEach((node) => node.classList.remove("focused"));
       current.classList.add("focused");

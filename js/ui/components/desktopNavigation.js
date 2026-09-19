@@ -70,6 +70,7 @@ function renderProfile(profile, selectedRoute) {
 export function renderDesktopNavigation({ selectedRoute = "", profile = null } = {}) {
   const currentRoute = String(selectedRoute || "");
   return `
+    <a class="desktop-skip-link" href="#main-content" data-skip-content>Skip to content</a>
     <nav class="desktop-navigation" aria-label="Primary navigation">
       <div class="desktop-navigation-scroll">
         ${NAVIGATION_ITEMS.map((item) => {
@@ -99,6 +100,12 @@ function navigateTo(route) {
 }
 
 export function bindDesktopNavigationEvents(container) {
+  const skip = container?.querySelector('[data-skip-content]');
+  if (skip) skip.onclick = event => {
+    event.preventDefault();
+    const content = container.querySelector('main, [role="main"], h1, h2');
+    if (content) { content.tabIndex = -1; content.focus({ preventScroll: true }); }
+  };
   container?.querySelectorAll(".desktop-navigation [data-desktop-route]").forEach((button) => {
     button.onclick = (event) => {
       event.preventDefault();

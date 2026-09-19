@@ -43,6 +43,8 @@
  *   dialog.destroy();              // animated exit then removes from DOM
  */
 
+import { browserAccessibilityEnabled, isKeyboardEditable, trapDialogTab } from "../navigation/browserAccessibility.js";
+
 export class NuvioDialog {
   constructor({
     title,
@@ -111,6 +113,7 @@ export class NuvioDialog {
     backdrop.className = "nuvio-dialog-backdrop";
     backdrop.setAttribute("aria-modal", "true");
     backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-label", this.title || "Options");
 
     // Panel
     const panel = document.createElement("div");
@@ -134,6 +137,7 @@ export class NuvioDialog {
     if (this.error) {
       const errorEl = document.createElement("div");
       errorEl.className = "nuvio-dialog-error";
+      errorEl.setAttribute("role", "alert");
       errorEl.textContent = this.error;
       panel.appendChild(errorEl);
     }
@@ -152,12 +156,14 @@ export class NuvioDialog {
 
       this.buttons.forEach((btn, i) => {
         const el = document.createElement("button");
+        el.type = "button";
         el.className =
           "nuvio-dialog-button" +
           (btn.danger ? " nuvio-dialog-button-danger" : "") +
           (btn.selected ? " selected" : "") +
           (btn.className ? ` ${btn.className}` : "");
         this._setButtonSelected(el, Boolean(btn.selected));
+        if ("selected" in btn) el.setAttribute("aria-pressed", String(Boolean(btn.selected)));
         if (typeof btn.content === "function") {
           const customContent = btn.content(el);
           if (customContent?.nodeType) el.appendChild(customContent);
@@ -173,6 +179,10 @@ export class NuvioDialog {
         if (btn.title || btn.label) el.title = btn.title || btn.label;
         el.addEventListener("click", () => {
           if (btn.onAction) btn.onAction();
+        });
+        el.addEventListener("focus", () => {
+          this._focusedIndex = i;
+          this._buttonEls.forEach(button => button.classList.toggle("focused", button === el));
         });
         actions.appendChild(el);
         this._buttonEls.push(el);
@@ -198,7 +208,8 @@ export class NuvioDialog {
     window.addEventListener("keyup", this._keyUpHandler, { capture: true });
 
     // Focus first button after 2 frames (matches ATV LaunchedEffect repeat(2) { withFrameNanos })
-    this._scheduleFrame(() => this._scheduleFrame(() => this._focusIndex(0)));
+    if (browserAccessibilityEnabled()) this._focusIndex(0);
+    else this._scheduleFrame(() => this._scheduleFrame(() => this._focusIndex(0)));
 
     // Trigger enter animation
     this._scheduleFrame(() => {
@@ -228,6 +239,7 @@ export class NuvioDialog {
 
   _setButtonSelected(el, selected) {
     el.classList.toggle("selected", selected);
+    if (el.hasAttribute?.("aria-pressed")) el.setAttribute("aria-pressed", String(selected));
     let existing = null;
     for (let index = 0; index < el.children.length; index += 1) {
       const child = el.children[index];
@@ -263,6 +275,19 @@ export class NuvioDialog {
   _onKey(e) {
     if (this._destroyed) return;
     const key = this._eventKey(e);
+    if (browserAccessibilityEnabled()) {
+      const top = [...document.querySelectorAll('.nuvio-dialog-backdrop:not(.nuvio-dialog-backdrop-exit)')].at(-1);
+      if (top !== this._backdrop) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      if (trapDialogTab(e, this._backdrop)) { e.stopPropagation(); return; }
+      if (isKeyboardEditable(e.target) && e.key !== "Escape") return;
+      if (key.isEnter || key.isSpace) {
+        // Native activation follows actual focus, including content controls.
+        if (this._enterSuppressed) e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
 
     // A dialog can opt an editable field into native deletion. This check must
     // run in the capture handler, before the dialog's Backspace-as-dismiss
@@ -329,8 +354,9 @@ export class NuvioDialog {
     if (this._destroyed) return;
     const key = this._eventKey(e);
     if (key.isEnter || key.isSpace) {
+      const wasSuppressed = this._enterSuppressed;
       this._enterSuppressed = false;
-      if (this.suppressEnterUntilKeyUp) {
+      if (wasSuppressed) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -360,6 +386,7 @@ export class NuvioDialog {
     backdrop.classList.remove("nuvio-dialog-backdrop-enter");
     panel.classList.remove("nuvio-dialog-panel-enter");
     backdrop.classList.add("nuvio-dialog-backdrop-exit");
+    backdrop.setAttribute("aria-hidden", "true");
     panel.classList.add("nuvio-dialog-panel-exit");
 
     // Remove after animation completes (150ms exit)

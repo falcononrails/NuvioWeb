@@ -19,6 +19,14 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 
 Sign in with your existing Nuvio account and use your synced addons and collections. Browser playback still depends on the source, its server and your device's codec support.
 
+## Keyboard access
+
+Use Tab/Shift+Tab to reach controls, arrow keys to move between navigation buttons, source filters, seasons and cards, and Enter/Space to activate the focused control. Home/End jump to either end of a navigation or filter row. Shift+F10 opens a poster's context menu. Escape closes dialogs and returns focus to the control that opened them.
+
+Player controls are keyboard reachable. On the playback position slider, arrows seek 10 seconds, Page Up/Down seek one minute, and Home/End go to the beginning/end. Text fields and volume sliders keep their native keyboard behavior. The app respects reduced-motion preferences and includes a skip-to-content link.
+
+Automated keyboard and axe checks cover the main screens and mobile layouts; they do not replace testing with screen readers on real devices. Run `npx playwright install chromium` followed by `npm run test:accessibility` (Windows uses installed Chrome by default). These checks also run before nightly deployment.
+
 ## Playback limits
 
 Direct playback runs in your browser. HTTP sources, missing CORS headers and unsupported codecs can prevent it from working. HTTPS alone doesn't guarantee a playable file.

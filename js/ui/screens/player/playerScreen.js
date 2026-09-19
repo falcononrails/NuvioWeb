@@ -4409,7 +4409,7 @@ export const PlayerScreen = {
           <div class="player-loading-status player-loading-spinner-status hidden"></div>
         </div>
 
-        <div id="playerStartupErrorOverlay" class="player-startup-error-overlay hidden" aria-hidden="true"></div>
+        <div id="playerStartupErrorOverlay" class="player-startup-error-overlay hidden" aria-hidden="true" role="alertdialog" aria-modal="true" aria-label="Playback error"></div>
 
         <div id="playerTorrentOverlay" class="player-torrent-overlay hidden" aria-hidden="true">
           <div class="player-torrent-overlay-row">
@@ -4440,11 +4440,11 @@ export const PlayerScreen = {
         <div id="playerNextEpisodeCard" class="player-next-episode-card hidden"></div>
 
         <div id="playerModalBackdrop" class="player-modal-backdrop hidden"></div>
-        <div id="playerSubtitleDialog" class="player-modal player-subtitle-modal hidden"></div>
-        <div id="playerAudioDialog" class="player-modal player-audio-modal hidden"></div>
-        <div id="playerSpeedDialog" class="player-modal player-speed-modal hidden"></div>
-        <div id="playerMobileMorePanel" class="player-mobile-more-panel hidden"></div>
-        <div id="playerSourcesPanel" class="player-sources-panel hidden"></div>
+        <div id="playerSubtitleDialog" class="player-modal player-subtitle-modal hidden" role="dialog" aria-modal="true" aria-label="Subtitles"></div>
+        <div id="playerAudioDialog" class="player-modal player-audio-modal hidden" role="dialog" aria-modal="true" aria-label="Audio"></div>
+        <div id="playerSpeedDialog" class="player-modal player-speed-modal hidden" role="dialog" aria-modal="true" aria-label="Playback speed"></div>
+        <div id="playerMobileMorePanel" class="player-mobile-more-panel hidden" role="dialog" aria-modal="true" aria-label="More playback controls"></div>
+        <div id="playerSourcesPanel" class="player-sources-panel hidden" role="dialog" aria-modal="true" aria-label="Sources"></div>
 
         <div id="playerControlsOverlay" class="player-controls-overlay">
           <div class="player-controls-gradient player-controls-gradient-top"></div>
@@ -4463,7 +4463,7 @@ export const PlayerScreen = {
             </div>
 
             <div class="player-controls-bar">
-              <div id="playerProgressShell" class="player-progress-shell focusable" tabindex="-1" data-player-pointer-action="progress">
+              <div id="playerProgressShell" class="player-progress-shell focusable" tabindex="0" role="slider" aria-label="Playback position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" data-player-pointer-action="progress">
                 <div class="player-progress-track">
                   <div id="playerProgressBuffered" class="player-progress-buffered"></div>
                   <div id="playerProgressFill" class="player-progress-fill"></div>
@@ -8877,12 +8877,15 @@ export const PlayerScreen = {
     }
     this.controlFocusIndex = clamp(this.controlFocusIndex, 0, Math.max(0, controls.length - 1));
 
+    const focusedAction = Environment.isBrowser() && wrap.contains(document.activeElement)
+      ? document.activeElement?.dataset?.action : null;
     wrap.innerHTML = controls
       .map(
         (control) => `
       <button class="player-control-btn focusable${control.primary ? " is-primary" : ""}"
               data-action="${control.action}"
               tabindex="-1"
+              aria-label="${escapeHtml(control.title || control.label || control.action)}"
               title="${escapeHtml(control.title || "")}">
         ${
           control.icon
@@ -8903,15 +8906,11 @@ export const PlayerScreen = {
       this.controlFocusZone = "";
       buttons.forEach((button) => {
         button.classList.remove("focused");
-        if (document.activeElement === button) {
-          button.blur?.();
-        }
+        button.tabIndex = 0;
+        if (focusedAction && button.dataset.action === focusedAction) button.focus({ preventScroll: true });
       });
       const progressShell = this.uiRefs?.progressShell;
       progressShell?.classList?.remove("focused");
-      if (document.activeElement === progressShell) {
-        progressShell?.blur?.();
-      }
       this.renderCompactBrowserMorePanel();
       this.renderNextEpisodeCard();
       this.syncPlayerOverlayLayoutState();
@@ -8989,15 +8988,9 @@ export const PlayerScreen = {
     if (Environment.isBrowser()) {
       Array.from(wrap.querySelectorAll(".player-control-btn")).forEach((button) => {
         button.classList.remove("focused");
-        if (document.activeElement === button) {
-          button.blur?.();
-        }
       });
       const progressShell = this.uiRefs?.progressShell;
       progressShell?.classList?.remove("focused");
-      if (document.activeElement === progressShell) {
-        progressShell?.blur?.();
-      }
       return;
     }
 
@@ -9135,6 +9128,8 @@ export const PlayerScreen = {
   },
 
   setControlsVisible(visible, { focus = false } = {}) {
+    if (!visible && Environment.isBrowser() && document.documentElement?.classList.contains("keyboard-navigation") &&
+        this.uiRefs?.controlsOverlay?.contains(document.activeElement)) return;
     this.controlsVisible = Boolean(visible);
     if (Environment.isBrowser()) {
       this.container?.classList.toggle(
@@ -9922,6 +9917,12 @@ export const PlayerScreen = {
       }
     }
     const progressFill = uiRefs.progressFill;
+    if (uiRefs.progressShell && uiState.accessibleProgress !== Math.floor(current)) {
+      uiRefs.progressShell.setAttribute("aria-valuemax", String(Math.floor(duration || 0)));
+      uiRefs.progressShell.setAttribute("aria-valuenow", String(Math.floor(current || 0)));
+      uiRefs.progressShell.setAttribute("aria-valuetext", `${formatTime(current)} / ${formatTime(duration)}`);
+      uiState.accessibleProgress = Math.floor(current);
+    }
     if (progressFill) {
       const nextWidth = `${Math.round(progress * 10000) / 100}%`;
       if (uiState.progressWidth !== nextWidth) {
@@ -15567,6 +15568,9 @@ export const PlayerScreen = {
     const panel = document.createElement("div");
     panel.id = "episodeSidePanel";
     panel.className = "player-episode-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-label", "Episodes");
 
     this.syncEpisodePanelSeasonToIndex();
     const seasons = this.getEpisodePanelSeasons();
@@ -16469,6 +16473,18 @@ export const PlayerScreen = {
 
   async handleBrowserKeyDown(event) {
     const keyCode = Number(event?.keyCode || 0);
+    if (event?.target?.id === "playerProgressShell") {
+      const duration = PlayerController.getDurationSeconds();
+      const current = this.getPlaybackCurrentSeconds();
+      const targets = { ArrowLeft: current - 10, ArrowRight: current + 10,
+        ArrowDown: current - 10, ArrowUp: current + 10, Home: 0, End: duration,
+        PageDown: current - 60, PageUp: current + 60 };
+      if (event.key in targets) {
+        event.preventDefault();
+        this.seekPlaybackSeconds(clamp(targets[event.key], 0, duration));
+        return true;
+      }
+    }
     const isBackKey = isBackEvent(event);
     const eventTarget = event?.target instanceof Element ? event.target : document.activeElement;
     const activeTarget =

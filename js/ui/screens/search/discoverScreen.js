@@ -1732,7 +1732,7 @@ export const DiscoverScreen = {
     this.container.__discoverPointerBound = true;
 
     this.container.addEventListener("click", (event) => {
-      const isKeyboardClick = Number(event?.detail || 0) === 0;
+      const isKeyboardClick = !Platform.isBrowser() && Number(event?.detail || 0) === 0;
       const optionNode = event.target?.closest?.(".library-picker-option");
       if (optionNode && this.openPicker) {
         if (isKeyboardClick) {

@@ -21,6 +21,7 @@
     "build": "node ./scripts/build.mjs",
     "prepare": "husky || true",
     "test": "node --test \"**/*.test.mjs\"",
+    "test:accessibility": "node ./scripts/accessibility-smoke.mjs",
     "build:on-release": "node ./scripts/release-build-poller.mjs",
     "lint": "npm run lint:home:incremental",
     "lint:home:incremental": "eslint \"js/ui/screens/home/**/*.js\" \"eslint.config.mjs\"",
@@ -29,6 +30,7 @@
     "serve": "node ./scripts/serve.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@csstools/postcss-global-data": "^4.0.0",
     "@eslint/js": "^9.39.4",
     "autoprefixer": "^10.4.27",

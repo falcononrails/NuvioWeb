@@ -731,7 +731,7 @@ export function focusWithoutAutoScroll(node) {
   if (!node || typeof node.focus !== "function") {
     return;
   }
-  if (node.matches?.("article.focusable")) {
+  if (node.matches?.("article.focusable") && !globalThis.document?.documentElement?.classList?.contains("desktop-browser")) {
     node.removeAttribute?.("tabindex");
     const active = globalThis.document?.activeElement;
     if (active && active !== globalThis.document?.body && typeof active.blur === "function") {
