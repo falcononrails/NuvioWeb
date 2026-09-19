@@ -1469,7 +1469,7 @@ function renderPlayerSourceBadges(
     const label = formatBytes(sizeBytes);
     if (label) {
       chips.push(
-        `<span class="stream-route-stream-badge size">${escapeHtml(t("streams_size", [label], `SIZE ${label}`))}</span>`
+        `<span class="stream-route-stream-badge size">${escapeHtml(label)}</span>`
       );
     }
   }

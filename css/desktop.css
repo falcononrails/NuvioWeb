@@ -10208,81 +10208,141 @@ body.desktop-browser {
   }
 }
 
-/* Phone Home keeps the desktop browser composition, but uses a deliberate
-   mobile rhythm: readable cards, a visible next-card cue, and less empty hero
-   space before the first rail. These rules are browser-only and leave the TV
-   layout variables untouched. */
+/* Phone Home: centered artwork and a compact action, followed by full-width
+   rails with a visible next card. Desktop and TV retain their own composition. */
 @media (max-width: 600px) {
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern {
-    --browser-home-rail-gap: 12px;
+    --browser-home-rail-gap: 14px;
     --browser-home-poster-width: clamp(146px, 40vw, 172px);
-    --browser-home-continue-width: clamp(292px, 84vw, 348px);
+    --browser-home-continue-width: clamp(240px, 68vw, 320px);
     --browser-home-heading-inset: max(16px, var(--browser-safe-area-left));
   }
 
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-card,
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-card {
-    min-height: min(66dvh, 560px);
-    height: min(66dvh, 560px);
+    touch-action: pan-y pinch-zoom;
+    height: min(66svh, 660px);
+    min-height: min(360px, calc(100svh - 180px));
   }
 
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-copy,
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-copy {
-    padding: var(--browser-mobile-nav-clearance) var(--browser-page-gutter) 22px;
-    gap: 7px;
+    padding: var(--browser-mobile-nav-clearance) var(--browser-page-gutter) 68px;
+    gap: 16px;
+    align-items: center;
+    text-align: center;
+    margin-inline: auto;
+  }
+
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-brand {
+    align-items: center;
+    justify-content: center;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-logo {
-    max-height: 72px;
+    width: min(100%, 320px);
+    max-width: 100%;
+    height: 96px;
+    max-height: 96px;
+    object-position: center;
+  }
+
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-logo-transition-ghost {
+    inset-inline: 0;
+    margin-inline: auto;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-title-text {
     font-size: clamp(29px, 8.5vw, 38px);
+    line-height: 1.1;
   }
 
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-meta-primary,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-meta-secondary,
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-meta-line,
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-secondary {
-    gap: 8px;
-    font-size: 12px;
-    line-height: 1.3;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 8px;
+    font-size: 14px;
+    line-height: 20px;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-meta-group {
+    justify-content: center;
     gap: 8px;
   }
 
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-description {
-    max-width: 36ch;
-    font-size: 14px;
-    line-height: 1.42;
-    letter-spacing: 0.2px;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-hero-imdb img {
+    width: 28px;
+  }
+
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-badge {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-description {
+    display: none;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-details-button {
-    min-height: 40px;
-    margin-top: 3px;
-    padding-inline: 16px;
+    min-height: 46px;
+    margin-top: 0;
+    padding-inline: 28px;
+    border-radius: 999px;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel {
-    right: var(--browser-page-gutter);
-    bottom: 14px;
-    gap: 8px;
-    padding: 5px 7px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-button {
-    width: 32px;
-    height: 32px;
+    display: none;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-dots {
-    max-width: min(32vw, 150px);
-    gap: 6px;
+    max-width: calc(100vw - 64px);
+    gap: 0;
+    padding: 4px;
+  }
+
+  /* Small visible dots keep a usable touch target and keyboard focus ring. */
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-dot,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-dot.is-active,
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-dot:hover {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 32px;
+    background: none;
+  }
+
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-dot::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel-dot.is-active::before {
+    width: 20px;
+    background: #fff;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-row-continue {
-    margin-top: -2px;
+    margin-top: 8px;
   }
 
   .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-row-head {
@@ -12105,44 +12165,5 @@ body.desktop-browser {
   .desktop-browser .search-main,
   .desktop-browser .settings-main {
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-  }
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-card,
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-card {
-    touch-action: pan-y pinch-zoom;
-    /* NurvX's phone composition reserves room for the first shelf below the hero. */
-    height: min(62svh, 700px);
-    min-height: min(360px, calc(100svh - 180px));
-  }
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-copy,
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .home-modern-hero-copy {
-    align-items: center;
-    text-align: center;
-    padding-bottom: 64px;
-    margin-inline: auto;
-  }
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-logo {
-    max-width: 78%;
-    max-height: 100px;
-    object-position: center;
-  }
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-meta-primary,
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-meta-secondary,
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-modern-hero-meta-line,
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-modern-hero-secondary,
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-actions {
-    justify-content: center;
-  }
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled .home-hero-description {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    max-width: 34ch;
-  }
-  .desktop-browser .home-screen-shell.desktop-navigation-enabled.home-layout-modern .desktop-hero-carousel {
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 14px;
   }
 }

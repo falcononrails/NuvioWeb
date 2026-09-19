@@ -531,7 +531,7 @@ function renderImportedStreamBadgeChipContents(
   });
   if (showFileSizeBadges && sizeBytes != null) {
     chips.push(
-      `<span class="stream-route-stream-badge size">${escapeHtml(t("streams_size", [formatBytes(sizeBytes)], `SIZE ${formatBytes(sizeBytes)}`))}</span>`
+      `<span class="stream-route-stream-badge size">${escapeHtml(formatBytes(sizeBytes))}</span>`
     );
   }
   return chips.join("");

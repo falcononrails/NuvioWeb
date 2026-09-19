@@ -145,7 +145,7 @@ function renderBadges(stream, settings, enabled) {
     .filter(Boolean);
   if (settings?.showFileSizeBadges !== false && stream.behaviorHints?.videoSize != null) {
     const size = formatBytes(stream.behaviorHints.videoSize);
-    if (size) chips.push(`<span class="stream-route-stream-badge size">${escapeHtml(t("streams_size", [size], `SIZE ${size}`))}</span>`);
+    if (size) chips.push(`<span class="stream-route-stream-badge size">${escapeHtml(size)}</span>`);
   }
   return chips.length
     ? `<div class="stream-route-card-badges" aria-label="${escapeHtml(t("settings_stream_badges_section", {}, "Fusion Style"))}">${chips.join("")}</div>`
