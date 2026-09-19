@@ -3,11 +3,58 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { browserSourceWarnings } from "../../../core/player/browserMediaSupport.js";
+import { PlayerController } from "../../../core/player/playerController.js";
+import { renderBrowserSourceWarnings } from "../../components/browserStreamSourceCard.js";
 
 const playerScreenUrl = new URL("./playerScreen.js", import.meta.url);
 const desktopCssUrl = new URL("../../../../css/desktop.css", import.meta.url);
 const componentsCssUrl = new URL("../../../../css/components.css", import.meta.url);
 const dialogUrl = new URL("../../components/nuvioDialog.js", import.meta.url);
+
+test("source cards hide speculative audio badges without disabling audio recovery", () => {
+  const warnings = browserSourceWarnings({ title: "HEVC DTS" }, { canPlayType: () => "" });
+  assert.ok(warnings.some(warning => warning.startsWith("Audio")));
+  assert.doesNotMatch(renderBrowserSourceWarnings(warnings), /Audio/);
+  assert.match(renderBrowserSourceWarnings(warnings), /Video may not work/);
+});
+
+test("embedded cues follow the original clock on native, local and converted playback", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const method = source.match(/  renderHtmlSubtitleOverlayAtCurrentTime\(\) \{[\s\S]*?\n  \},/)[0];
+  const player = Object.create(PlayerController);
+  player.video = { currentTime: 25.2 };
+  const screen = vm.runInNewContext(`({${method}})`);
+  let active;
+  Object.assign(screen, { htmlSubtitleCues: [{ start: 25, end: 28, text: "English 25" }],
+    subtitleDelayMs: 0, refreshEmbeddedSubtitleWindow() {},
+    getPlaybackCurrentSeconds: () => player.getCurrentTimeSeconds(),
+    renderHtmlSubtitleOverlayCue: cues => { active = cues; } });
+  for (const mode of ["native", "avplayer", "server"]) {
+    player.localAudio = mode === "avplayer" ? { position: 25.2 } : null;
+    player.compatibility = mode === "server" ? { offset: 24.7 } : null;
+    player.video.currentTime = mode === "native" ? 25.2 : 0.5;
+    screen.renderHtmlSubtitleOverlayAtCurrentTime();
+    assert.equal(active[0]?.text, "English 25", mode);
+    screen.subtitleDelayMs = 1000;
+    screen.renderHtmlSubtitleOverlayAtCurrentTime();
+    assert.equal(active.length, 0, "User delay must still apply");
+    screen.subtitleDelayMs = 0;
+  }
+});
+
+test("a late embedded subtitle response cannot restore subtitles after Off", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const method = source.match(/  async refreshEmbeddedSubtitleWindow\(\) \{[\s\S]*?\n  \},/)[0];
+  let complete;
+  const player = { playRequestToken: 1, readEmbeddedSubtitles: () => new Promise(resolve => { complete = resolve; }) };
+  const screen = vm.runInNewContext(`({${method}})`, { PlayerController: player });
+  Object.assign(screen, { embeddedSubtitleSelection: { index: 3 }, getPlaybackCurrentSeconds: () => 25,
+    parseSubtitleCues: () => assert.fail("Stale subtitles were restored") });
+  const pending = screen.refreshEmbeddedSubtitleWindow();
+  screen.embeddedSubtitleSelection = null;
+  complete({ text: "WEBVTT", offset: 20, end: 145 });
+  await pending;
+});
 
 test("browser PlayerScreen retains browser track paths without native TV playback branches", async () => {
   const source = await readFile(playerScreenUrl, "utf8");

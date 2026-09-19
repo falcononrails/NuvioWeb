@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { mediaHeaders, openSource, validateSource, resolveTorboxSource, SourceReadError } from "./source.mjs";
+import { selectAudioTrack } from "./tracks.mjs";
+export { selectAudioTrack } from "./tracks.mjs";
 
 const MAX_SESSIONS = 2;
 const IDLE_MS = 90_000;
@@ -46,7 +48,14 @@ export function compatibleProbe(data) {
   if (!audio.length) throw failure(422, "This file has no audio track. Choose another source.");
   return {
     duration,
+    startTime: Number(data.format?.start_time) || 0,
     videoCodec: video.codec_name,
+    subtitles: (data.streams || []).filter(stream => stream.codec_type === "subtitle").slice(0, 32)
+      .map(stream => ({
+        index: stream.index, language: stream.tags?.language || "und", title: stream.tags?.title || "",
+        forced: Boolean(stream.disposition?.forced), codec: stream.codec_name,
+        supported: ["subrip", "srt", "ass", "ssa", "webvtt", "mov_text", "text"].includes(stream.codec_name)
+      })),
     tracks: audio.map((stream) => ({
       index: stream.index,
       language: stream.tags?.language || "und",
@@ -55,18 +64,6 @@ export function compatibleProbe(data) {
       codec: stream.codec_name
     }))
   };
-}
-
-export function selectAudioTrack(tracks, preferredLanguages = []) {
-  const language = (value) => {
-    try { return new Intl.Locale(value).language; } catch { return "und"; }
-  };
-  for (const preferred of preferredLanguages) {
-    const code = language(preferred);
-    const match = code !== "und" && tracks.find(track => language(track.language) === code);
-    if (match) return match.index;
-  }
-  return (tracks.find(track => track.default) || tracks[0]).index;
 }
 
 export async function verifyNuvioAccount(bearer, authUrl, apiKey) {
@@ -213,16 +210,13 @@ export async function createPlaybackBridge({
     return child;
   }
 
-  async function probe(session) {
+  async function probeJson(session, args) {
     const child = launch(session, "ffprobe", [
       "-v",
       "error",
-      ...inputArgs,
-      "-show_streams",
-      "-show_format",
+      ...args,
       "-of",
-      "json",
-      session.readerUrl
+      "json"
     ]);
     return new Promise((resolve, reject) => {
       let output = "";
@@ -245,12 +239,27 @@ export async function createPlaybackBridge({
           return;
         }
         try {
-          resolve(compatibleProbe(JSON.parse(output)));
+          resolve(JSON.parse(output));
         } catch (error) {
           reject(error);
         }
       });
     });
+  }
+
+  async function probe(session) {
+    return compatibleProbe(await probeJson(session, [...inputArgs, "-show_streams", "-show_format", session.readerUrl]));
+  }
+
+  async function firstVideoTimestamp(session, source, position) {
+    const result = await probeJson(session, [
+      ...(source === session.readerUrl ? inputArgs : []),
+      "-read_intervals", `${position}%+#1`, "-select_streams", "v:0",
+      "-show_packets", "-show_entries", "packet=pts_time", source
+    ]);
+    const timestamp = Number(result.packets?.[0]?.pts_time);
+    if (!Number.isFinite(timestamp)) throw failure(422, "Could not read this source's playback timing.");
+    return timestamp;
   }
 
   async function start(session, position, track) {
@@ -347,6 +356,12 @@ export async function createPlaybackBridge({
         const bufferedSeconds = [...manifest.matchAll(/^#EXTINF:([\d.]+)/gm)]
           .reduce((total, match) => total + Number(match[1]), 0);
         if (bufferedSeconds >= 12 || (bufferedSeconds > 0 && manifest.includes("#EXT-X-ENDLIST"))) {
+          // Video copy starts at a keyframe before the requested seek. Map the
+          // converted timestamps back to that frame, including muxer/B-frame offsets.
+          const sourceTimestamp = await firstVideoTimestamp(session, session.readerUrl, position + session.startTime);
+          const convertedTimestamp = await firstVideoTimestamp(session,
+            `concat:${join(directory, "init.mp4")}|${join(directory, "segment-00000.m4s")}`, 0);
+          session.offset = sourceTimestamp - session.startTime - convertedTimestamp;
           console.info("[playback] ready", { startupMs: Date.now() - startedAt, bufferedSeconds });
           for (let old = 1; old < generation; old++)
             await rm(join(session.directory, String(old)), { recursive: true, force: true });
@@ -354,16 +369,61 @@ export async function createPlaybackBridge({
             id: session.id,
             url: `/api/playback/sessions/${session.id}/${generation}/index.m3u8`,
             duration: session.duration,
-            offset: position,
+            offset: session.offset,
             tracks: session.tracks,
+            subtitles: session.subtitles,
             track,
             videoCodec: session.videoCodec
           };
         }
-      } catch {}
+      } catch (error) {
+        if (error.status) throw error;
+      }
       await pause(250);
     }
     throw session.sourceError || failure(422, "This source could not start in compatibility mode. Try another source.");
+  }
+
+  async function subtitleWindow(session, data) {
+    const position = Number(data.position), index = data.subtitle;
+    const track = session.subtitles.find(track => track.index === index);
+    if (!Number.isInteger(index) || !track || !Number.isFinite(position) || position < 0 || position >= session.duration)
+      throw failure(400, "Invalid subtitle track or position.");
+    if (!track.supported) throw failure(422, "This image subtitle format needs an external player. Try an addon subtitle.");
+    if (session.subtitlePending) throw failure(409, "Subtitles are still loading. Try again shortly.");
+    const cached = session.subtitleWindow;
+    if (cached?.index === index && position >= cached.offset && position < cached.end - 20) return cached;
+    const offset = Math.max(0, position - 5), end = Math.min(session.duration, offset + 125);
+    session.subtitlePending = true;
+    // ponytail: extract only a bounded window of the selected text track. This rereads
+    // source bytes; integrate demuxed cues if subtitle traffic becomes significant.
+    const child = launch(session, "ffmpeg", ["-v", "error", "-nostdin", ...inputArgs,
+      "-ss", String(offset), "-i", session.readerUrl, "-map", `0:${index}`,
+      "-t", String(end - offset), "-c:s", "webvtt", "-f", "webvtt", "pipe:1"]);
+    try {
+      const text = await new Promise((resolve, reject) => {
+        let output = "", bytes = 0;
+        const timer = setTimeout(() => {
+          child.kill("SIGKILL");
+          reject(failure(504, "Embedded subtitles took too long to load. Try an addon subtitle."));
+        }, 20000);
+        child.stdout.setEncoding("utf8");
+        child.stdout.on("data", chunk => {
+          bytes += Buffer.byteLength(chunk);
+          if (bytes > 2 * 1024 * 1024) {
+            child.kill("SIGKILL");
+            reject(failure(422, "This subtitle track is too large."));
+          } else output += chunk;
+        });
+        child.once("error", () => { clearTimeout(timer); reject(failure(503, "Embedded subtitles are unavailable.")); });
+        child.once("close", code => {
+          clearTimeout(timer);
+          if (code === 0 && !session.stopped) resolve(output);
+          else reject(failure(422, "Could not read embedded subtitles. Try an addon subtitle."));
+        });
+      });
+      return session.subtitleWindow = { index, offset, end, text };
+    } finally { session.subtitlePending = false; }
   }
 
   async function body(req) {
@@ -394,7 +454,7 @@ export async function createPlaybackBridge({
         return;
       }
       const match =
-        /^\/api\/playback\/sessions(?:\/([a-f0-9]{48})(?:\/(heartbeat|seek|\d+\/(?:index\.m3u8|init\.mp4|segment-\d+\.m4s)))?)?$/.exec(
+        /^\/api\/playback\/sessions(?:\/([a-f0-9]{48})(?:\/(heartbeat|seek|subtitles|\d+\/(?:index\.m3u8|init\.mp4|segment-\d+\.m4s)))?)?$/.exec(
           path
         );
       if (!match) throw failure(404, "Not found.");
@@ -423,7 +483,7 @@ export async function createPlaybackBridge({
         // stop() removes the old reservation synchronously; reserve the new one before awaiting.
         const previous = [...sessions.values()].find((session) => session.user === user);
         // Inspection shares the probe limit, but must not interrupt another tab's playback.
-        if (data.inspect === true && previous)
+        if ((data.inspect === true || data.subtitle !== undefined) && previous)
           throw failure(409, "Audio tracks cannot be checked while another source is being prepared or converted.");
         const stopped = stop(previous);
         if (sessions.size >= MAX_SESSIONS)
@@ -470,7 +530,13 @@ export async function createPlaybackBridge({
           }
           if (data.inspect === true) {
             const result = { tracks: session.tracks, track: selectAudioTrack(session.tracks),
-              duration: session.duration, videoCodec: session.videoCodec };
+              subtitles: session.subtitles, duration: session.duration, videoCodec: session.videoCodec };
+            await stop(session);
+            json(res, 200, result);
+            return;
+          }
+          if (data.subtitle !== undefined) {
+            const result = await subtitleWindow(session, data);
             await stop(session);
             json(res, 200, result);
             return;
@@ -506,6 +572,11 @@ export async function createPlaybackBridge({
         session.seen = Date.now();
         setCookie(req, res, user);
         json(res, 200, { active: true });
+        return;
+      }
+      if (req.method === "POST" && action === "subtitles") {
+        session.seen = Date.now();
+        json(res, 200, await subtitleWindow(session, await body(req)));
         return;
       }
       if (req.method === "POST" && action === "seek") {

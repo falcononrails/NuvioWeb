@@ -11,6 +11,7 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
 - Fixes for animated collection backdrops, browser playback and audio controls.
 - Local AC3, EAC3 and DTS audio decoding with AVPlayer when native playback cannot handle the source. It loads on demand and keeps the existing player controls.
+- Embedded text subtitles through the playback service, with language selection, delay controls and seek-aware timing. Image subtitle formats still need an external player or a subtitle addon.
 - An open-source [playback service](services/playback-bridge) for files whose audio the browser cannot play. It copies supported video and converts the selected audio track to AAC, starting automatically when needed.
 
 Sign in with your existing Nuvio account and use your synced addons and collections. Browser playback still depends on the source, its server and your device's codec support.

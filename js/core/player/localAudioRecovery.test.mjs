@@ -48,8 +48,9 @@ test("local audio is tried before allocating a conversion session", async () => 
     assert.equal(url, "https://media.example/file.mkv");
     assert.equal(options.position, 123);
     assert.equal(options.track, 2);
+    assert.deepEqual(Array.from(options.preferredLanguages), ["en"]);
   });
-  await p.enableCompatibilityPlayback(123, { track: 2 });
+  await p.enableCompatibilityPlayback(123, { track: 2, preferredLanguages: ["en"] });
   assert.equal(p.playbackEngine, "avplayer");
   assert.equal(requests.length, 0);
 });

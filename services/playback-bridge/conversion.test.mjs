@@ -128,7 +128,6 @@ test(
         track: session.tracks[1].index
       });
       assert.equal(seek.status, 200, JSON.stringify(seek.body));
-      assert.equal(seek.body.offset, 20.7);
       assert.equal(seek.body.track, session.tracks[1].index);
       assert.equal(seek.body.duration, session.duration);
       const seekManifest = await (await fetch(base + seek.body.url, { headers: { cookie } })).text();
@@ -154,6 +153,8 @@ test(
       assert.deepEqual(withoutEdits, streams,
         "Browser playback must not need an MP4 edit list to align the audio and video");
       const start = type => Number(streams.find(stream => stream.codec_type === type)?.start_time);
+      assert.ok(Math.abs(seek.body.offset + start("video") - 20) < 0.15,
+        "The original clock must follow the fixture's 20s keyframe, not the requested 20.7s seek");
       assert.ok(Math.abs(start("audio") - start("video")) < 0.15,
         "A seek between keyframes must keep audio with the copied video's preroll for browser HLS");
       const removed = await fetch(base + `/api/playback/sessions/${session.id}`, {

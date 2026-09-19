@@ -92,6 +92,24 @@ export const PlayerController = {
     return supportsLocalAudio() && this.playbackEngine === "native-file";
   },
 
+  getEmbeddedSubtitleTracks() {
+    if (this.compatibility) return this.compatibility.subtitles || [];
+    if (this.localAudio?.loaded) return this.localAudio.subtitleTracks;
+    return this.audioInspection?.playToken === this.playRequestToken ? this.audioInspection.subtitles || [] : [];
+  },
+
+  readEmbeddedSubtitles(subtitle, position) {
+    const playToken = this.playRequestToken;
+    // Rapid track changes share the service's one-extraction-per-account limit.
+    return this.embeddedSubtitleRequest = (this.embeddedSubtitleRequest || Promise.resolve()).catch(() => {}).then(() => {
+      if (this.playRequestToken !== playToken) throw new Error("Playback was stopped.");
+      if (this.compatibility) return requestCompatibilityPlayback(`/${this.compatibility.id}/subtitles`, { subtitle, position });
+      return requestCompatibilityPlayback("", {
+        url: this.currentPlaybackUrl, headers: this.currentPlaybackHeaders, subtitle, position
+      });
+    });
+  },
+
   stopLocalAudioPlayback() {
     const engine = this.localAudio;
     this.localAudio = null;
@@ -113,7 +131,7 @@ export const PlayerController = {
       Array.from(this.video.querySelectorAll("source")).forEach(node => node.remove());
       this.video.load();
       try {
-        await local.start(this.currentPlaybackUrl, { headers: this.currentPlaybackHeaders, position, track });
+        await local.start(this.currentPlaybackUrl, { headers: this.currentPlaybackHeaders, position, track, preferredLanguages });
         if (playToken !== this.playRequestToken) return;
         if (local.failed) throw new Error("Local audio playback failed.");
         this.playbackEngine = "avplayer";

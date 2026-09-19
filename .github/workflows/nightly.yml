@@ -34,7 +34,7 @@ jobs:
           npm run build
           node --input-type=module -e 'import {writeFileSync} from "node:fs"; writeFileSync("dist/release.json", JSON.stringify({commit:process.env.GITHUB_SHA,channel:"nightly",builtAt:new Date().toISOString()}));'
           mkdir -p dist/server/playback-bridge
-          cp services/playback-bridge/server.mjs services/playback-bridge/source.mjs dist/server/playback-bridge/
+          cp services/playback-bridge/server.mjs services/playback-bridge/source.mjs services/playback-bridge/tracks.mjs dist/server/playback-bridge/
           tar -czf release.tar.gz -C dist .
       - name: Deploy release
         env:

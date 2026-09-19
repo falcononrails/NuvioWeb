@@ -1,4 +1,5 @@
 import { loadStreamingLibs } from "../../../runtime/loadStreamingLibs.js";
+import { selectAudioTrack } from "../../../../services/playback-bridge/tracks.mjs";
 
 let audioContext;
 export function supportsLocalAudio() {
@@ -59,7 +60,7 @@ export class LocalAudioEngine {
     }
   }
 
-  async start(url, { headers = {}, position = 0, track = null } = {}) {
+  async start(url, { headers = {}, position = 0, track = null, preferredLanguages = [] } = {}) {
     await this.guard(loadStreamingLibs({ hls: false, dash: false, avplayer: true }));
     if (this.destroyed || !globalThis.AVPlayer) throw new Error("Local audio is unavailable.");
     unlockLocalAudio();
@@ -104,11 +105,12 @@ export class LocalAudioEngine {
     this.loaded = true;
     this.player.setVolume(1); // The existing video element owns mute and volume.
     await this.guard(this.player.play({ audioMasterForce: true, subtitle: false }));
-    if (track != null) {
-      const selected = this.tracks.find((entry) => entry.sourceIndex === track);
-      if (selected) await this.guard(this.player.selectAudio(Number(selected.id)));
-    }
-    if (position > 0 || track != null)
+    // Select before attaching the MediaStream, so the first audible track honors Settings.
+    track ??= selectAudioTrack(this.tracks.map(entry => ({ ...entry, index: entry.sourceIndex })), preferredLanguages);
+    const selected = this.tracks.find((entry) => entry.sourceIndex === track);
+    const changed = selected && !selected.selected;
+    if (changed) await this.guard(this.player.selectAudio(Number(selected.id)));
+    if (position > 0 || changed)
       await this.guard(this.player.seek(BigInt(Math.round(position * 1000))));
     if (this.destroyed) throw new Error("Playback was stopped.");
     this.video.srcObject = this.stream;
@@ -130,11 +132,21 @@ export class LocalAudioEngine {
         engine: "avplayer",
         label: s.metadata?.title || s.metadata?.language || `Audio ${index + 1}`,
         language: s.metadata?.language || "",
+        default: Boolean(s.disposition & 1),
         selected: s.id === (this.pendingTrackId ?? this.player.getSelectedAudioStreamId()),
         codec:
           { 86018: "aac", 86019: "ac3", 86020: "dts", 86056: "eac3" }[s.codecparProxy.codecId] ||
           "",
         raw: { language: s.metadata?.language || "" }
+      }));
+  }
+  get subtitleTracks() {
+    return (this.loaded ? this.player.getStreams() : [])
+      .filter(stream => stream.mediaType.toLowerCase() === "subtitle")
+      .map(stream => ({ index: stream.index, language: stream.metadata?.language || "und",
+        title: stream.metadata?.title || "", forced: Boolean(stream.disposition & 64),
+        // libmedia uses FFmpeg's AVCodecID values for these text subtitle formats.
+        supported: [94210, 94212, 94213, 94216, 94225, 94226, 94230].includes(stream.codecparProxy.codecId)
       }));
   }
   get position() {
@@ -193,7 +205,11 @@ export class LocalAudioEngine {
       this.video.pause();
       this.video.srcObject = null;
     }
-    this.stream.getTracks().forEach((track) => track.stop());
-    await this.player?.destroy();
+    // Stop the frame producer before closing the MediaStream's writable tracks.
+    try {
+      await this.player?.destroy();
+    } finally {
+      this.stream.getTracks().forEach((track) => track.stop());
+    }
   }
 }
