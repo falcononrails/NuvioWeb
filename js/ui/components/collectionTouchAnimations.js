@@ -3,7 +3,8 @@ export function bindCollectionTouchAnimations(container, hydrate) {
   const touch = matchMedia("(hover: none), (pointer: coarse)");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   const visible = new Set();
-  const cards = [...container.querySelectorAll('.home-collection-card[data-focus-gif-enabled="true"]')];
+  const selector = '.home-collection-card[data-focus-gif-enabled="true"]';
+  const cards = new Set(container.querySelectorAll(selector));
   const refresh = () => {
     const enabled = touch.matches && !reducedMotion.matches && !document.hidden && !container.inert;
     for (const card of cards) hydrate(card, enabled && visible.has(card));
@@ -16,8 +17,28 @@ export function bindCollectionTouchAnimations(container, hydrate) {
     refresh();
   }, { threshold: [0, 0.25] });
   cards.forEach(card => observer.observe(card));
-  const routeObserver = new MutationObserver(refresh);
-  routeObserver.observe(container, { attributes: true, attributeFilter: ["inert"] });
+  const routeObserver = new MutationObserver(records => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        const added = node.matches(selector) ? [node] : node.querySelectorAll(selector);
+        for (const card of added) {
+          if (cards.has(card) || !container.contains(card)) continue;
+          cards.add(card);
+          observer.observe(card);
+        }
+      }
+    }
+    for (const card of cards) {
+      if (container.contains(card)) continue;
+      observer.unobserve(card);
+      cards.delete(card);
+      visible.delete(card);
+      hydrate(card, false);
+    }
+    refresh();
+  });
+  routeObserver.observe(container, { attributes: true, attributeFilter: ["inert"], childList: true, subtree: true });
   document.addEventListener("visibilitychange", refresh);
   touch.addEventListener("change", refresh);
   reducedMotion.addEventListener("change", refresh);
