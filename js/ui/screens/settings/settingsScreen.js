@@ -8330,6 +8330,7 @@ export const SettingsScreen = {
           <p class="settings-about-copy">Maintained by ${escapeHtml(APP_IDENTITY.maintainer)}.</p>
           <p class="settings-about-copy">Based on alphasquare404's NuvioWeb, with selected mobile improvements from NurvX and original work by NuvioMedia, Tapframe, WhiteGiso, edoedac0 and their contributors.</p>
           <p class="settings-about-copy">Independent community fork with browser playback improvements and an optional playback server. Native Trakt requires the host's own app credentials.</p>
+          <p class="settings-about-copy">nuvioweb.space uses Umami for aggregate visits and screen usage. Account details, searches, media titles and stream URLs are excluded. Analytics respects Do Not Track and Global Privacy Control and is disabled on other domains.</p>
         </div>
         <div class="settings-stack">
           ${this.renderActionRow({ focusKey: "about:website", title: "nuvioweb.space", subtitle: "Open the hosted nightly version.", external: true })}

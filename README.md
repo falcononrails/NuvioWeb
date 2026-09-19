@@ -45,6 +45,10 @@ The web app checks Library series using the same addon dates as Calendar. It sch
 
 Self-hosters must configure Web Push keys and preserve the notifications volume; see [Docker setup](docs/docker.md).
 
+## Hosted-site analytics
+
+nuvioweb.space uses [Umami Cloud](https://umami.is/) in the EU region for aggregate visits, referrals, devices and screen usage. Pageviews use generic screen names such as Home, Library and Player; account details, searches, media titles and stream URLs are not sent. Referrals include only the referring site's origin. Tracking respects Do Not Track and Global Privacy Control and is disabled on other domains, including local and self-hosted copies.
+
 ## Trakt
 
 **Native Trakt integration is not configured on nuvioweb.space.** The Trakt bridge code is included, but a host must supply its own Trakt application credentials to enable it. Signing in with a Nuvio account doesn't authorize this fork to reuse the official apps' Trakt integration.

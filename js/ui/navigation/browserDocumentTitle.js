@@ -1,4 +1,5 @@
 import { Platform } from "../../platform/index.js";
+import { trackBrowserScreen } from "./browserAnalytics.js";
 
 const APP_TITLE = "Nuvio";
 
@@ -51,7 +52,11 @@ export function setBrowserDocumentTitle(value = "") {
 }
 
 export function setBrowserRouteTitle(routeName) {
-  setBrowserDocumentTitle(ROUTE_TITLES[String(routeName || "").trim()] || "");
+  const route = String(routeName || "").trim();
+  setBrowserDocumentTitle(ROUTE_TITLES[route] || "");
+  if (Object.hasOwn(ROUTE_TITLES, route)) {
+    trackBrowserScreen(ROUTE_TITLES[route] || (route === "player" ? "Player" : "Home"));
+  }
 }
 
 export function setBrowserMediaTitle({
