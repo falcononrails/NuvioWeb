@@ -165,7 +165,9 @@ export async function openSource(value, headers = {}, redirects = 0) {
   if (![200, 206].includes(response.statusCode)) {
     response.resume();
     throw Object.assign(
-      new SourceReadError(`The media host refused this source (HTTP ${response.statusCode}). Try another source.`),
+      new SourceReadError(response.statusCode === 429
+        ? "The streaming provider is limiting requests (HTTP 429). Wait a moment before trying again."
+        : `The media host refused this source (HTTP ${response.statusCode}). Try another source.`),
       { sourceHost: url.hostname, upstreamStatus: response.statusCode }
     );
   }

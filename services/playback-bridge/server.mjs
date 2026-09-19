@@ -104,6 +104,7 @@ export async function createPlaybackBridge({
   const sessions = new Map();
   const cookies = new Map();
   const authCache = new Map();
+  const probes = new Map();
   const requests = new Map();
   const revision = await readFile(new URL("../../release.json", import.meta.url), "utf8").then(text => JSON.parse(text).commit).catch(() => null);
   await mkdir(root, { recursive: true });
@@ -440,15 +441,26 @@ export async function createPlaybackBridge({
         try {
           await stopped;
           await validateSource(session.url);
-          const resolved = await resolveTorboxSource(session.url);
+          // Track inspection is often followed immediately by conversion of the same file.
+          // Reuse only this account's last successful probe with identical URL and headers.
+          const probeKey = createHash("sha256").update(JSON.stringify([data.url, headers])).digest("hex");
+          const cachedProbe = probes.get(user);
+          const cached = cachedProbe?.key === probeKey && cachedProbe.expires > Date.now()
+            ? cachedProbe : null;
+          const resolved = cached?.url || await resolveTorboxSource(session.url);
           if (new URL(resolved).origin !== new URL(session.url).origin) delete session.headers.authorization;
           session.url = resolved;
           if (session.stopped) throw failure(409, "Playback was cancelled.");
           session.directory = await mkdtemp(join(root, "session-"));
           if (session.stopped) throw failure(409, "Playback was cancelled.");
           session.readerUrl = `http://127.0.0.1:${reader.address().port}/${session.readerToken}`;
-          Object.assign(session, await probe(session));
+          const metadata = cached?.metadata || await probe(session);
+          Object.assign(session, metadata);
           if (session.stopped) throw failure(409, "Playback was cancelled.");
+          if (!cached) {
+            if (probes.size >= 64) probes.delete(probes.keys().next().value);
+            probes.set(user, { key: probeKey, url: resolved, metadata, expires: Date.now() + 60000 });
+          }
           if (data.inspect === true) {
             const result = { tracks: session.tracks, track: selectAudioTrack(session.tracks),
               duration: session.duration, videoCodec: session.videoCodec };
@@ -545,7 +557,7 @@ export async function createPlaybackBridge({
     const now = Date.now();
     for (const session of sessions.values())
       if (now - session.seen > IDLE_MS || now - session.created > MAX_AGE_MS) void stop(session);
-    for (const map of [cookies, authCache])
+    for (const map of [cookies, authCache, probes])
       for (const [key, value] of map) if (value.expires < now) map.delete(key);
     for (const [key, value] of requests) if (now - value.at(-1) > 60000) requests.delete(key);
   }, 15000);

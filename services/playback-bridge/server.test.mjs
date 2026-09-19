@@ -6,6 +6,8 @@ import { join } from "node:path";
 import https from "node:https";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { isPublicAddress, validateSource, mediaHeaders, openSource, resolveTorboxSource } from "./source.mjs";
 import { compatibleProbe, selectAudioTrack, createPlaybackBridge, verifyNuvioAccount } from "./server.mjs";
 
@@ -65,6 +67,9 @@ test("source refusals and file limits retain useful errors without exposing the 
   await assert.rejects(openSource(url), error => error.status === 422 && /HTTP 403/.test(error.message) &&
     error.sourceHost === "1.1.1.1" && error.upstreamStatus === 403 &&
     !JSON.stringify(error).includes("private-stream-token"));
+  statusCode = 429;
+  await assert.rejects(openSource(url), error => /limiting requests \(HTTP 429\)/.test(error.message) &&
+    error.upstreamStatus === 429 && !JSON.stringify(error).includes("private-stream-token"));
   statusCode = 200;
   await assert.rejects(openSource(url), { status: 422, message: "This file exceeds the 25 GB conversion limit. Choose a smaller source." });
 });
@@ -160,6 +165,64 @@ test("audio preferences match file language codes before falling back to its def
   assert.equal(selectAudioTrack(tracks, ["ja"]), 4);
   assert.equal(selectAudioTrack(tracks), 4);
   assert.equal(selectAudioTrack([{ index: 2, language: "bad_language" }], ["en"]), 2);
+});
+
+test("successful probes are reused briefly for the same account, URL and headers only", async (t) => {
+  let calls = 0, now = Date.now(), failProbe = false;
+  t.mock.method(Date, "now", () => now);
+  t.mock.method(childProcess, "spawn", (executable) => {
+    assert.equal(executable, "ffprobe");
+    calls++;
+    const child = new EventEmitter();
+    Object.assign(child, { stdout: new PassThrough(), stderr: new PassThrough(), kill() {} });
+    queueMicrotask(() => {
+      child.stdout.end(JSON.stringify({ format: { duration: "60" }, streams: [
+        { codec_type: "video", codec_name: "h264" },
+        { index: 1, codec_type: "audio", codec_name: "eac3", tags: { language: "eng" } }
+      ] }));
+      child.emit("close", failProbe ? 1 : 0);
+    });
+    return child;
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const root = await mkdtemp(join(tmpdir(), "nuvio-probe-test-"));
+  const origin = "https://nuvioweb.space";
+  const bridge = await createPlaybackBridge({ root, origin,
+    authenticate: async bearer => ({ id: bearer, role: "authenticated" }) });
+  await new Promise(resolve => bridge.server.listen(0, "127.0.0.1", resolve));
+  const inspect = async (data = {}, owner = "one") => {
+    const response = await fetch(`http://127.0.0.1:${bridge.server.address().port}/api/playback/sessions`, {
+      method: "POST", headers: { origin, Authorization: `Bearer test-account-token-${owner}` },
+      body: JSON.stringify({ url: "https://1.1.1.1/media.mkv", inspect: true, ...data })
+    });
+    await response.json();
+    return response.status;
+  };
+  try {
+    assert.equal(await inspect(), 200);
+    assert.equal(await inspect(), 200);
+    assert.equal(calls, 1, "Repeated inspection must not read the file again");
+    assert.equal(await inspect({}, "two"), 200);
+    assert.equal(calls, 2, "Accounts must not share probe results");
+    assert.equal(await inspect({ headers: { Authorization: "different" } }), 200);
+    assert.equal(calls, 3, "Changed credentials require a fresh probe");
+    assert.equal(await inspect({ url: "https://1.1.1.1/other.mkv" }), 200);
+    assert.equal(calls, 4, "Changed URLs require a fresh probe");
+    now += 60001;
+    assert.equal(await inspect({ url: "https://1.1.1.1/other.mkv" }), 200);
+    assert.equal(calls, 5, "Expired results must be refreshed");
+    assert.equal(await inspect({ url: "http://127.0.0.1/private" }), 400);
+    assert.equal(calls, 5, "URL validation still runs before probing");
+    failProbe = true;
+    assert.equal(await inspect(), 422);
+    failProbe = false;
+    assert.equal(await inspect(), 200);
+    assert.equal(calls, 7, "Failed probes must not be cached");
+  } finally {
+    await bridge.close();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("the bridge requires account authentication and same-origin writes before reading a source", async () => {
