@@ -118,8 +118,15 @@ import {
 } from "./homeConstants.js";
 import { resolveNextUpCandidates } from "./nextUpCandidateResolver.js";
 import { shouldRefreshContinueWatchingForChange } from "./continueWatchingRefreshPolicy.js";
+import {
+  selectWatchedItemsForContinueWatching,
+  shouldSeedNextUpFromLocalWatchedItems
+} from "./nextUpSeedPolicy.js";
 import { continueWatchingEnrichmentSignatureFor } from "./continueWatchingEnrichmentSignature.js";
-import { patchContinueWatchingDisplayProgress } from "./continueWatchingProgressPatch.js";
+import {
+  patchContinueWatchingDisplayProgress,
+  removeContinueWatchingDisplayItem
+} from "./continueWatchingProgressPatch.js";
 import { isHomeLoadGenerationCurrent } from "./homeLoadGeneration.js";
 import { getBrowserVerticalScrollOwner } from "../../navigation/browserScrollPosition.js";
 import {
@@ -140,6 +147,7 @@ import {
   limitTextToWordCount,
   parseCssPx,
   prettyId,
+  resolveContinueWatchingEpisodeStill,
   uniqueNonEmptyValues
 } from "./homeUtils.js";
 
@@ -1527,13 +1535,8 @@ function normalizeContinueWatchingItem(item) {
       item.poster,
       item.episodeThumbnail
     ),
-    episodeThumbnail: firstNonEmpty(
-      item.episodeThumbnail,
-      item.thumbnail,
-      item.backdrop,
-      item.background,
-      item.poster
-    ),
+    // Series-only, for the same reason episodeCode and episodeTitle below are.
+    episodeThumbnail: resolveContinueWatchingEpisodeStill(item, isSeries),
     poster: isSeries
       ? firstNonEmpty(
           item.poster,
@@ -3854,6 +3857,11 @@ export const HomeScreen = {
 
   requestRender(options = {}) {
     if (!this.container || Router.getCurrent() !== "home") {
+      // Dropping it outright is what left an already-correct row unpainted: a
+      // return from an external player lands on Stream, so the write that
+      // carries the new position arrives while Home is covered, and Back only
+      // reveals the layer it left standing rather than drawing it again.
+      this.deferredRenderPending = true;
       return;
     }
     const delayMs = Math.max(0, Number(options?.delayMs || 0));
@@ -3881,6 +3889,7 @@ export const HomeScreen = {
     this.homeRenderFrame = requestAnimationFrame(() => {
       this.homeRenderFrame = null;
       if (!this.container || Router.getCurrent() !== "home") {
+        this.deferredRenderPending = true;
         return;
       }
       this.render();
@@ -8707,8 +8716,30 @@ export const HomeScreen = {
         handleWatchProgressChange
       );
     }
+    const handleWatchedItemsChange = (change) => {
+      const { reason, authoritative, item } = change || {};
+      if (
+        authoritative &&
+        reason === "upsert" &&
+        item &&
+        shouldRefreshContinueWatchingForChange(change, ProfileManager.getActiveProfileId())
+      ) {
+        // Finishing a title removes its progress row instead of updating it, so
+        // there is nothing for the progress patch above to touch. Under a
+        // tracking provider the card is built from the provider's own list, and
+        // the refresh below cannot drop it until the network answers -- long
+        // enough that a finished title visibly lingered.
+        const remaining = removeContinueWatchingDisplayItem(this.continueWatchingDisplay, item);
+        if (remaining) {
+          this.continueWatchingDisplay = remaining;
+          this.requestBackgroundRender();
+        }
+      }
+      handleChange(change);
+    };
     if (!this.unsubscribeWatchedItemsStoreChanges) {
-      this.unsubscribeWatchedItemsStoreChanges = WatchedItemsStore.subscribe(handleChange);
+      this.unsubscribeWatchedItemsStoreChanges =
+        WatchedItemsStore.subscribe(handleWatchedItemsChange);
     }
   },
 
@@ -8736,6 +8767,27 @@ export const HomeScreen = {
       this.observedShowUnairedNextUp = showUnairedNextUp;
       this.scheduleContinueWatchingStoreRefresh();
     });
+  },
+
+  // Called by the router when Home is revealed again as a live layer, where
+  // mount() -- and therefore the source-change check and the Continue Watching
+  // resolve -- never runs. Without it the only way to see playback that just
+  // happened, or a Watch Progress source switched while Home was covered, was
+  // to reload the page.
+  onRouteRevealed() {
+    // A render was owed while Home was covered, and its data is already correct
+    // -- paint it now rather than leaving the old row standing until a network
+    // refresh happens to finish.
+    if (this.deferredRenderPending) {
+      this.deferredRenderPending = false;
+      this.render();
+    }
+    const sourceKey = watchProgressRepository.getContinueWatchingSourceKey();
+    if (sourceKey !== String(this.loadedWatchProgressSourceKey || "")) {
+      void this.loadData({ background: true, preserveReturnState: true });
+      return;
+    }
+    this.scheduleContinueWatchingStoreRefresh();
   },
 
   scheduleContinueWatchingStoreRefresh() {
@@ -8769,8 +8821,12 @@ export const HomeScreen = {
       String(ProfileManager.getActiveProfileId() || "") === String(profileId || "");
     const prefs = LayoutPreferences.get();
     this.layoutPrefs = prefs;
+    const continueWatchingSource = watchProgressRepository.getContinueWatchingSource?.();
     const includeWatchedItemNextUpSeeds =
-      watchProgressRepository.getContinueWatchingSource?.() !== "trakt";
+      shouldSeedNextUpFromLocalWatchedItems(continueWatchingSource);
+    // The 60-day Next Up cutoff stays a Trakt-only rule. Reusing the seed flag
+    // for it would silently start hiding older SIMKL shows too.
+    const applyTraktNextUpDaysCap = continueWatchingSource === "trakt";
     try {
       const [allProgress, continueWatching, watchedItems] = await Promise.all([
         watchProgressRepository.getAllForContinueWatching(),
@@ -8788,9 +8844,9 @@ export const HomeScreen = {
       this.nextUpProgressCandidates = this.selectNextUpProgressCandidates(
         this.allProgress,
         this.continueWatching,
-        this.watchedItems,
+        this.getContinueWatchingWatchedItems(),
         {
-          applyDaysCap: !includeWatchedItemNextUpSeeds,
+          applyDaysCap: applyTraktNextUpDaysCap,
           includeProgressSeeds: !includeWatchedItemNextUpSeeds,
           includeWatchedItemSeeds: includeWatchedItemNextUpSeeds,
           nextUpFromFurthestEpisode: prefs.nextUpFromFurthestEpisode
@@ -8812,7 +8868,7 @@ export const HomeScreen = {
 
       const enriched = await this.enrichContinueWatching(this.continueWatching, {
         allProgress: this.allProgress,
-        watchedItems: this.watchedItems,
+        watchedItems: this.getContinueWatchingWatchedItems(),
         nextUpProgressCandidates: this.nextUpProgressCandidates
       });
       if (!isCurrent()) {
@@ -8875,8 +8931,12 @@ export const HomeScreen = {
     this.layoutPrefs = prefs;
     this.sidebarExpanded = Boolean(this.layoutPrefs?.modernSidebar && this.sidebarExpanded);
     this.layoutMode = String(prefs.homeLayout || "classic").toLowerCase();
+    const continueWatchingSource = watchProgressRepository.getContinueWatchingSource?.();
     const includeWatchedItemNextUpSeeds =
-      watchProgressRepository.getContinueWatchingSource?.() !== "trakt";
+      shouldSeedNextUpFromLocalWatchedItems(continueWatchingSource);
+    // The 60-day Next Up cutoff stays a Trakt-only rule. Reusing the seed flag
+    // for it would silently start hiding older SIMKL shows too.
+    const applyTraktNextUpDaysCap = continueWatchingSource === "trakt";
     const watchedItemsPromise = watchedItemsRepository.getAll(2000).catch(() => []);
     watchedItemsPromise.then((watchedItems) => {
       if (token !== this.homeLoadToken || Router.getCurrent() !== "home") {
@@ -9173,9 +9233,9 @@ export const HomeScreen = {
         this.nextUpProgressCandidates = this.selectNextUpProgressCandidates(
           this.allProgress,
           this.continueWatching,
-          this.watchedItems,
+          this.getContinueWatchingWatchedItems(),
           {
-            applyDaysCap: !includeWatchedItemNextUpSeeds,
+            applyDaysCap: applyTraktNextUpDaysCap,
             includeProgressSeeds: !includeWatchedItemNextUpSeeds,
             includeWatchedItemSeeds: includeWatchedItemNextUpSeeds,
             nextUpFromFurthestEpisode: prefs.nextUpFromFurthestEpisode
@@ -9241,9 +9301,9 @@ export const HomeScreen = {
           this.nextUpProgressCandidates = this.selectNextUpProgressCandidates(
             this.allProgress,
             this.continueWatching,
-            this.watchedItems,
+            this.getContinueWatchingWatchedItems(),
             {
-              applyDaysCap: !includeWatchedItemNextUpSeeds,
+              applyDaysCap: applyTraktNextUpDaysCap,
               includeProgressSeeds: !includeWatchedItemNextUpSeeds,
               includeWatchedItemSeeds: includeWatchedItemNextUpSeeds,
               nextUpFromFurthestEpisode: prefs.nextUpFromFurthestEpisode
@@ -9317,7 +9377,7 @@ export const HomeScreen = {
           const progressiveInProgressItems = [];
           const enriched = await this.enrichContinueWatching(this.continueWatching, {
             allProgress: this.allProgress,
-            watchedItems: this.watchedItems,
+            watchedItems: this.getContinueWatchingWatchedItems(),
             nextUpProgressCandidates: this.nextUpProgressCandidates,
             onInProgressItemReady: waitForInitialContinueWatching
               ? (item) => {
@@ -9470,6 +9530,10 @@ export const HomeScreen = {
     // Rebuild the runtime registry before deriving catalog descriptors. A
     // previous offline attempt may have produced an empty success-only list.
     await addonRepository.reloadConfiguredAddons?.({ force: true }).catch(() => null);
+    // A pull-to-refresh has to mean "ask the tracking provider now". Without
+    // this the reload only re-ran the ordinary once-a-minute check, so a second
+    // pull within that minute did nothing at all and the gesture looked dead.
+    await watchProgressRepository.forceRefreshSelectedSource?.().catch(() => false);
     await this.loadData({ background: false, preserveReturnState: false, reason });
   },
 
@@ -9689,6 +9753,7 @@ export const HomeScreen = {
 
   render() {
     const renderStart = HOME_PERF_DEBUG ? homePerfNow() : 0;
+    this.deferredRenderPending = false;
     this.cancelScheduledRender();
     this.cancelModernCameraFollow({ stopAnimations: true });
     this.teardownModernTrackScrollPagination();
@@ -10420,6 +10485,16 @@ export const HomeScreen = {
 
     return Array.from(latestCompletedByContent.values()).sort(
       (left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0)
+    );
+  },
+
+  // Continue Watching must reason only about the selected source's watched
+  // state -- both for which titles seed Next Up and for which episode each
+  // card resumes at.
+  getContinueWatchingWatchedItems() {
+    return selectWatchedItemsForContinueWatching(
+      this.watchedItems,
+      watchProgressRepository.getContinueWatchingSource?.()
     );
   },
 
