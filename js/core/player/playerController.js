@@ -1,5 +1,7 @@
 import { watchProgressRepository } from "../../data/repository/watchProgressRepository.js";
 import { markPlaybackWatched } from "./markPlaybackWatched.js";
+import { buildExternalScrobbleContext } from "./externalScrobbleContext.js";
+import { TrackingScrobbleService } from "../../data/repository/trackingScrobbleService.js";
 import { WatchProgressSyncService } from "../profile/watchProgressSyncService.js";
 import { nativeVideoEngine } from "./engines/nativeVideoEngine.js";
 import { hlsJsEngine } from "./engines/hlsJsEngine.js";
@@ -1867,6 +1869,7 @@ export const PlayerController = {
       window.addEventListener("keydown", unlockLocalAudio, { capture: true });
       this.lifecycleFlushHandler = (event) => {
         this.flushCurrentProgress({ forceCloudSync: true });
+        this.scrobbleTerminalReport();
         if (event?.type === "pagehide" || event?.type === "beforeunload") {
           this.playRequestToken += 1;
           void this.stopLocalAudioPlayback();
@@ -2091,6 +2094,13 @@ export const PlayerController = {
     this.playbackSessionActive = false;
     this.setStartupAudioGate(false, { resume: false });
 
+    // Report to the tracking providers here, beside the local flush above and
+    // before the teardown below. Every way out of the player funnels through
+    // stop(), and the back-to-Stream path calls it long before the route
+    // actually changes -- so a report left to route cleanup runs after
+    // video.load() has reset currentTime, and has no position left to send.
+    this.scrobbleTerminalReport();
+
     try {
       this.video.pause();
     } catch (_) {
@@ -2204,6 +2214,21 @@ export const PlayerController = {
     return snapshot;
   },
 
+  // Backgrounding or closing the app is how playback usually ends on a phone,
+  // and until now that path only ever wrote locally: the tracking provider kept
+  // whatever position it last heard about, so it looked like NuvioWeb had
+  // stopped reporting progress entirely.
+  scrobbleTerminalReport() {
+    const context = this.createProgressContext();
+    if (!context?.itemId) return;
+    const snapshot = this.getRecordedProgressSnapshot(context);
+    const positionMs =
+      Math.floor(this.getCurrentTimeSeconds() * 1000) || Number(snapshot?.positionMs || 0);
+    const durationMs =
+      Math.floor(this.getDurationSeconds() * 1000) || Number(snapshot?.durationMs || 0);
+    TrackingScrobbleService.report(buildExternalScrobbleContext(context, positionMs, durationMs));
+  },
+
   async flushCurrentProgress({ forceCloudSync = false, allowCloudSync = true } = {}) {
     const context = this.createProgressContext();
     if (!context.itemId) {
@@ -2281,11 +2306,36 @@ export const PlayerController = {
     this.isPlaying = false;
   },
 
-  async completePlayback(context = null, { allowCloudSync = true, externalAuthoritative = false } = {}) {
+  // A provider drops its own resume entry when a scrobble stops at the end; a
+  // history write cannot, which is why an external player's completion left the
+  // title sitting in SIMKL's playback list -- and therefore in Continue
+  // Watching -- at whatever percentage it last heard about, however many times
+  // it was finished. The built-in player's natural end already scrobbles; this
+  // is the same message for the external path.
+  scrobbleExternalCompletion(context) {
+    const snapshot = this.getRecordedProgressSnapshot(context);
+    const durationMs =
+      Math.floor(this.getDurationSeconds() * 1000) || Number(snapshot?.durationMs || 0);
+    // Reported at the full duration: a completion is 100%, whatever position
+    // the external player happened to stop at.
+    const scrobbleContext = buildExternalScrobbleContext(context, durationMs, durationMs);
+    if (!scrobbleContext || !TrackingScrobbleService.isEnabled()) return false;
+    TrackingScrobbleService.stop(scrobbleContext);
+    return true;
+  },
+
+  async completePlayback(
+    context = null,
+    { allowCloudSync = true, externalAuthoritative = false } = {}
+  ) {
     const active = context || this.createProgressContext();
     if (!active?.itemId) return false;
     if (!externalAuthoritative && this.shouldSuppressStaleInternalProgress(active, 0)) return true;
-    await this.markPlaybackWatched(active, { authoritative: externalAuthoritative });
+    const scrobbled = Boolean(externalAuthoritative && this.scrobbleExternalCompletion?.(active));
+    await this.markPlaybackWatched(active, {
+      authoritative: externalAuthoritative,
+      skipTrackingWrite: scrobbled
+    });
     if (externalAuthoritative) this.acceptExternalPlaybackCompletion(active);
     if (allowCloudSync) await this.pushProgressIfDue(true);
     return true;
@@ -2314,8 +2364,19 @@ export const PlayerController = {
       return PlayerController.completePlayback.call(this, context, { externalAuthoritative: true });
     }
     if (reportedPositionMs <= 0) return false;
-    const applied = await this.flushProgress(reportedPositionMs, durationMs, false, context, { externalAuthoritative: true });
-    if (applied) this.acceptExternalPlaybackProgress?.(context, reportedPositionMs, durationMs);
+    const applied = await this.flushProgress(reportedPositionMs, durationMs, false, context, {
+      externalAuthoritative: true
+    });
+    if (applied) {
+      this.acceptExternalPlaybackProgress?.(context, reportedPositionMs, durationMs);
+      // The report is terminal, so this is the only chance to tell the tracking
+      // providers where the user got to. "finished" needs nothing here: it goes
+      // through markPlaybackWatched, which already writes the history entry.
+      const scrobbleContext = buildExternalScrobbleContext(context, reportedPositionMs, durationMs);
+      if (scrobbleContext) {
+        TrackingScrobbleService.report(scrobbleContext);
+      }
+    }
     return applied;
   },
 
@@ -2392,8 +2453,11 @@ export const PlayerController = {
     }
     // Saving progress locally succeeded. Cloud sync is best effort and has
     // its own retry path, so callers must not show a manual fallback merely
-    // because this particular push was deferred or offline.
-    await this.pushProgressIfDue(false);
+    // because this particular push was deferred or offline -- and for the same
+    // reason they must not wait for it either. Awaiting it here put a network
+    // round trip between an accepted external-player report and the card
+    // moving, for a write nothing was waiting on.
+    void this.pushProgressIfDue(false);
     return true;
   },
 
