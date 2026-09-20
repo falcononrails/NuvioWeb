@@ -8075,8 +8075,11 @@ export const HomeScreen = {
         if (!Platform.isBrowser()) return;
         const card = event?.target?.closest?.(".home-collection-card");
         if (!card || card.contains(event.relatedTarget)) return;
+        // Restore through NuvioWeb's own focus model rather than
+        // document.activeElement: spatial focus is tracked by currentFocusedNode
+        // and the .focused class, and the two can diverge.
         this.syncFocusedCollectionCardState(
-          event.type === "focusout" ? event.relatedTarget : document.activeElement
+          event.type === "focusout" ? event.relatedTarget : this.getCurrentFocusedNode()
         );
       };
     }
@@ -8121,8 +8124,14 @@ export const HomeScreen = {
       this.boundHomeEventContainer.removeEventListener("focusin", this.boundHomeFocusInHandler);
       this.boundHomeEventContainer.removeEventListener("click", this.boundHomeClickHandler);
       this.boundHomeEventContainer.removeEventListener("mouseover", this.boundHomeMouseOverHandler);
-      this.boundHomeEventContainer.removeEventListener("mouseout", this.boundHomeCollectionLeaveHandler);
-      this.boundHomeEventContainer.removeEventListener("focusout", this.boundHomeCollectionLeaveHandler);
+      this.boundHomeEventContainer.removeEventListener(
+        "mouseout",
+        this.boundHomeCollectionLeaveHandler
+      );
+      this.boundHomeEventContainer.removeEventListener(
+        "focusout",
+        this.boundHomeCollectionLeaveHandler
+      );
       this.boundHomeEventContainer.removeEventListener("wheel", this.boundHomeWheelHandler);
     }
     this.container.addEventListener("focusin", this.boundHomeFocusInHandler);
@@ -12265,8 +12274,14 @@ export const HomeScreen = {
       this.boundHomeEventContainer.removeEventListener("focusin", this.boundHomeFocusInHandler);
       this.boundHomeEventContainer.removeEventListener("click", this.boundHomeClickHandler);
       this.boundHomeEventContainer.removeEventListener("mouseover", this.boundHomeMouseOverHandler);
-      this.boundHomeEventContainer.removeEventListener("mouseout", this.boundHomeCollectionLeaveHandler);
-      this.boundHomeEventContainer.removeEventListener("focusout", this.boundHomeCollectionLeaveHandler);
+      this.boundHomeEventContainer.removeEventListener(
+        "mouseout",
+        this.boundHomeCollectionLeaveHandler
+      );
+      this.boundHomeEventContainer.removeEventListener(
+        "focusout",
+        this.boundHomeCollectionLeaveHandler
+      );
       this.boundHomeEventContainer.removeEventListener("wheel", this.boundHomeWheelHandler);
       this.boundHomeEventContainer = null;
     }
