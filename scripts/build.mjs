@@ -504,6 +504,10 @@ async function runBuild() {
 
     console.log("building version files...");
     await syncVersionFiles();
+    const { identity } = await readAppMetadata();
+    await writeFile(path.join(distDir, "release.json"), JSON.stringify({
+      commit: identity.revision, version: identity.version, channel: identity.channel
+    }));
     await buildCSS();
 
     console.log("copying static assets...");

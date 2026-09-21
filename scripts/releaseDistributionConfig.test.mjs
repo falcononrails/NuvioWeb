@@ -23,6 +23,12 @@ test("publishing includes all fork services and keeps beta and nightly out of st
   assert.match(workflow, /flavor: latest=false/);
   assert.match(workflow, /needs: \[checks, compose\]/);
   assert.match(workflow, /needs: publish/);
+  assert.match(workflow, /platforms: linux\/amd64,linux\/arm64/);
+  assert.match(workflow, /needs: verify-images/);
+  const composeChecks = await readRepositoryFile(".github/workflows/docker-compose.yml");
+  assert.match(composeChecks, /runner: \[ubuntu-24.04, ubuntu-24.04-arm\]/);
+  assert.match(composeChecks, /--no-build --pull always --wait/);
+  assert.match(composeChecks, /ffmpeg.*-c:a aac/);
   assert.match(workflow, /--prerelease --latest=false/);
   assert.match(workflow, /Release tag must match package.json version/);
 });

@@ -5,20 +5,33 @@ on:
     paths: ['Dockerfile', 'docker-compose.yml', '.dockerignore', '.env.example', 'docker/**', 'nginx/**', 'services/**', 'package*.json', '.github/workflows/docker-compose.yml']
   workflow_dispatch:
   workflow_call:
+    inputs:
+      image-tag:
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   compose:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     env:
       NUVIO_PORT: 4173
       NUVIO_ORIGIN: http://localhost:4173
+      NUVIO_IMAGE_TAG: ${{ inputs.image-tag || 'nightly' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Build and start the stack
+        if: inputs.image-tag == ''
         run: docker compose --env-file .env.example up -d --build --pull never --wait --wait-timeout 120
+      - name: Start published images without a registry login
+        if: inputs.image-tag != ''
+        run: docker compose --env-file .env.example up -d --no-build --pull always --wait --wait-timeout 120
       - name: Check the frontend and proxied services
         run: |
           curl --fail --silent http://localhost:4173/ > /dev/null
@@ -29,6 +42,17 @@ jobs:
             -H 'Origin: http://localhost:4173' -H 'Content-Type: application/json' \
             --data '{}' http://localhost:4173/api/playback/sessions)
           test "$status" = 401
+      - name: Check native playback tools and audio conversion
+        run: |
+          docker compose --env-file .env.example exec -T playback-bridge node -e 'if(process.arch !== "${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}") process.exit(1)'
+          docker compose --env-file .env.example exec -T playback-bridge ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=1000:duration=1' -c:a aac -f adts /tmp/audio-test.aac
+          docker compose --env-file .env.example exec -T playback-bridge ffprobe -v error -show_entries stream=codec_name -of default=nw=1 /tmp/audio-test.aac | grep -Fx 'codec_name=aac'
+      - name: Check published build identity
+        if: inputs.image-tag != ''
+        run: |
+          curl --fail --silent http://localhost:4173/release.json > release.json
+          curl --fail --silent http://localhost:4173/api/playback/health > playback.json
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; for(const [file,key] of [["release.json","commit"],["playback.json","revision"]]) {if(JSON.parse(readFileSync(file))[key] !== process.env.GITHUB_SHA) throw Error(`Wrong build in ${file}`);}'
       - name: Show failed container logs
         if: failure()
         run: docker compose --env-file .env.example logs --tail=100

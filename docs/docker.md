@@ -1,6 +1,6 @@
 # Docker Compose
 
-Images are published under `ghcr.io/falcononrails`. Prebuilt images currently support Linux x86-64, including Docker Desktop's Linux containers. Source builds also support ARM64.
+Images are published under `ghcr.io/falcononrails`. New builds support Linux x86-64 and ARM64, including Docker Desktop's Linux containers. Both architectures are built and tested on native runners; Docker automatically selects the matching image. Releases through `0.2.0-beta.2` only contain x86-64 images.
 
 ## Install a numbered release
 
