@@ -52,7 +52,8 @@ jobs:
         run: |
           curl --fail --silent http://localhost:4173/release.json > release.json
           curl --fail --silent http://localhost:4173/api/playback/health > playback.json
-          node --input-type=module -e 'import {readFileSync} from "node:fs"; for(const [file,key] of [["release.json","commit"],["playback.json","revision"]]) {if(JSON.parse(readFileSync(file))[key] !== process.env.GITHUB_SHA) throw Error(`Wrong build in ${file}`);}'
+          curl --fail --silent http://localhost:4173/api/debrid/health > debrid.json
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; for(const [file,key] of [["release.json","commit"],["playback.json","revision"],["debrid.json","revision"]]) {if(JSON.parse(readFileSync(file))[key] !== process.env.GITHUB_SHA) throw Error(`Wrong build in ${file}`);}'
       - name: Show failed container logs
         if: failure()
         run: docker compose --env-file .env.example logs --tail=100

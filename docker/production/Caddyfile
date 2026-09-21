@@ -1,0 +1,35 @@
+{
+    admin off
+    auto_https off
+}
+:80 {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Robots-Tag "noindex, nofollow"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+    respond /robots.txt "User-agent: *\nDisallow: /" 200
+    respond /server/* 404
+    handle /__deploy/* {
+        request_body {
+            max_size 64B
+        }
+        reverse_proxy unix//run/nuvio-deploy/deploy.sock
+    }
+    handle_path /__media-tests/* {
+        root * /srv/test-media
+        file_server
+    }
+    @debrid path /api/debrid/*
+    request_body @debrid {
+        max_size 8KB
+    }
+    @external path /api/external-return/*
+    request_body @external {
+        max_size 128KB
+    }
+    handle {
+        reverse_proxy nuvio-frontend:80
+    }
+}

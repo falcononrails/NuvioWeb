@@ -1,0 +1,27 @@
+# Hosted installation only; merge with the public Compose file and a digest lock.
+services:
+  nuvioweb:
+    container_name: nuvio-frontend
+    networks: [default, proxy]
+    security_opt: [no-new-privileges:true]
+  trakt-auth-bridge:
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 32
+  debrid-api-bridge:
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
+  external-return-bridge:
+    cpus: 0.5
+    volumes: !override
+      - /opt/nuvio-web/notifications-data:/data
+networks:
+  proxy:
+    external: true
+    name: bridgeapi-mcp_default

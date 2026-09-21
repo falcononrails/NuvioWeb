@@ -1,9 +1,8 @@
 name: Deploy nightly
 
 on:
-  push:
-    branches: [nightly]
-  workflow_dispatch:
+  # Called only after the native published-image checks pass.
+  workflow_call:
 
 concurrency:
   group: nightly-deployment
@@ -23,42 +22,30 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm test
-      - run: npm run lint
       - name: Check browser accessibility and keyboard flows
         run: |
           npx playwright install --with-deps chromium
           npm run test:accessibility
-      - name: Build with deployment configuration
-        env:
-          NUVIO_PROPERTIES: ${{ secrets.NUVIO_PROPERTIES }}
-          NUVIO_REQUIRE_LOCAL_PROPERTIES: '1'
-          NUVIO_RELEASE_CHANNEL: nightly
-        run: |
-          printf '%s' "$NUVIO_PROPERTIES" > local.properties
-          npm run build
-          node --input-type=module -e 'import {writeFileSync} from "node:fs"; writeFileSync("dist/release.json", JSON.stringify({commit:process.env.GITHUB_SHA,channel:"nightly",builtAt:new Date().toISOString()}));'
-          mkdir -p dist/server/playback-bridge
-          cp services/playback-bridge/server.mjs services/playback-bridge/source.mjs services/playback-bridge/tracks.mjs dist/server/playback-bridge/
-          cp -r services/shared services/external-return-bridge services/debrid-api-bridge dist/server/
-          tar -czf release.tar.gz -C dist .
-      - name: Deploy release
+      - name: Deploy the checked image revision
         env:
           DEPLOY_TOKEN: ${{ secrets.NUVIO_DEPLOY_TOKEN }}
         run: |
           curl --fail-with-body --max-time 180 --silent --show-error \
             --header "Authorization: Bearer $DEPLOY_TOKEN" \
-            --header 'Content-Type: application/gzip' \
-            --data-binary @release.tar.gz "https://nuvioweb.space/__deploy/$GITHUB_SHA"
+            --header 'Content-Type: application/json' \
+            --data '{}' "https://nuvioweb.space/__deploy/$GITHUB_SHA"
       - name: Verify public release
         run: |
-          curl --fail --retry 3 --silent "https://nuvioweb.space/release.json?commit=$GITHUB_SHA" > deployed.json
-          node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync("deployed.json")); if(r.commit!==process.env.GITHUB_SHA) throw Error("Deployment did not serve the expected commit"); console.log("Deployed",r.commit);'
-          for attempt in $(seq 1 20); do
-            if curl --fail --silent https://nuvioweb.space/api/playback/health > playback.json && node --input-type=module -e 'import {readFileSync} from "node:fs"; if(JSON.parse(readFileSync("playback.json")).revision !== process.env.GITHUB_SHA) process.exit(1)'; then exit 0; fi
-            sleep 2
+          for attempt in $(seq 1 100); do
+            if curl --fail --max-time 15 --silent "https://nuvioweb.space/release.json?commit=$GITHUB_SHA" > deployed.json && \
+               curl --fail --max-time 15 --silent https://nuvioweb.space/api/playback/health > playback.json && \
+               node --input-type=module -e 'import {readFileSync} from "node:fs"; for(const [file,key] of [["deployed.json","commit"],["playback.json","revision"]]) {if(JSON.parse(readFileSync(file))[key] !== process.env.GITHUB_SHA) process.exit(1);}'; then
+              echo "Deployed $GITHUB_SHA"
+              exit 0
+            fi
+            sleep 3
           done
-          echo 'Playback bridge did not load the new release.'
+          echo 'Image deployment did not pass verification. Inspect nuvio-images.service; failed startup checks restore the previous images.'
           exit 1
       - name: Verify notifications service
         run: |

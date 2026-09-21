@@ -1,0 +1,9 @@
+[Unit]
+Description=Pull and verify a fixed Nuvio image set
+After=docker.service network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/bin/nuvio-deploy-images
+TimeoutStartSec=15min
+UMask=0077

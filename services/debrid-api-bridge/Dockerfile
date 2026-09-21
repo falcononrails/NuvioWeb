@@ -1,6 +1,8 @@
 FROM node:22-alpine
 
 WORKDIR /app
+ARG NUVIO_BUILD_REVISION
+RUN NUVIO_BUILD_REVISION="$NUVIO_BUILD_REVISION" node -e "require('node:fs').writeFileSync('/release.json', JSON.stringify({commit: process.env.NUVIO_BUILD_REVISION || ''}))"
 COPY services/debrid-api-bridge ./
 
 USER node

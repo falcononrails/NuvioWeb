@@ -1,0 +1,7 @@
+[Unit]
+Description=Deploy checked Nuvio image revisions
+[Path]
+PathExists=/srv/nuvio-web/image-requests/pending
+Unit=nuvio-images.service
+[Install]
+WantedBy=multi-user.target
