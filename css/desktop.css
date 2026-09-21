@@ -2566,8 +2566,8 @@ html.desktop-browser {
   outline: none;
 }
 
-.desktop-browser #player .player-control-btn.focused .player-control-icon,
-.desktop-browser #player .player-control-btn:focus-visible .player-control-icon {
+.desktop-browser #player .player-control-btn.focused .player-control-icon:not(.player-control-icon-mask),
+.desktop-browser #player .player-control-btn:focus-visible .player-control-icon:not(.player-control-icon-mask) {
   filter: invert(1) brightness(1.15);
 }
 
