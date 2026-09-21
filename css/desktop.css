@@ -3875,6 +3875,7 @@ html.desktop-browser {
 }
 
 .desktop-browser #player .player-speed-modal .player-dialog-item-check {
+  color: var(--player-text-primary);
   font-size: 16px;
 }
 
@@ -3946,6 +3947,7 @@ html.desktop-browser {
 
 .desktop-browser #player .player-source-desc,
 .desktop-browser #player .player-source-addon {
+  color: var(--player-text-secondary);
   font-size: 12px;
   line-height: 1.25;
 }

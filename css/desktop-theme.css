@@ -430,6 +430,7 @@ html.desktop-browser :is(.series-season-btn, .series-season-download-action,
   .player-episode-season-tab, .series-secondary-btn, .desktop-addon-action,
   .desktop-plugin-action) {
   background: var(--desktop-surface);
+  color: var(--text-color);
   border-radius: var(--desktop-radius);
   box-shadow: none;
 }

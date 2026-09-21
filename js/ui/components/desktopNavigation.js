@@ -51,6 +51,11 @@ function renderProfile(profile, selectedRoute) {
   const name = String(profileState.activeProfileName || label).trim() || label;
   const initial = String(profileState.activeProfileInitial || name.charAt(0) || "P").charAt(0).toUpperCase();
   const color = String(profileState.activeProfileColorHex || "#1E88E5");
+  const channels = /^#[0-9a-f]{6}$/i.test(color)
+    ? color.slice(1).match(/.{2}/g).map(hex => parseInt(hex, 16) / 255) : [];
+  const luminance = channels.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  const initialColor = luminance > 0.179 ? "#000" : "#fff";
   const avatarUrl = String(profileState.activeProfileAvatarUrl || "").trim();
   const isActive = selectedRoute === "profileSelection";
 
@@ -59,7 +64,7 @@ function renderProfile(profile, selectedRoute) {
             type="button"
             data-desktop-route="profileSelection"
             aria-label="${escapeHtml(label)}"${isActive ? ' aria-current="page"' : ""}>
-      <span class="desktop-navigation-avatar" style="background:${escapeHtml(color)}">
+      <span class="desktop-navigation-avatar" style="background:${escapeHtml(color)};color:${initialColor}">
         ${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="" />` : escapeHtml(initial)}
       </span>
       <span class="desktop-navigation-label">${escapeHtml(label)}</span>

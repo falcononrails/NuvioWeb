@@ -112,7 +112,8 @@ export function initBrowserAccessibility() {
       if (!previous) opener = lastInteraction || restoreFocus;
       for (let node = next; node.parentElement && node !== document.body; node = node.parentElement) {
         for (const sibling of node.parentElement.children) {
-          if (sibling !== node && !sibling.matches('script, style, link')) {
+          // A separate dismiss backdrop must still receive pointer events.
+          if (sibling !== node && !sibling.matches('script, style, link, [data-dialog-backdrop]')) {
             background.push([sibling, sibling.inert]);
             sibling.inert = true;
           }

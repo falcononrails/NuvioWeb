@@ -38,9 +38,9 @@ Router.getCurrent = () => 'home';
 Router.navigate = async route => { window.activatedRoute = route; };
 window.tvKeys = 0; window.clicks = [];
 FocusEngine.init();
-window.showControls = () => {
+window.showControls = (profileColor) => {
   current = { container: app, onKeyDown(){ window.tvKeys++; } };
-  app.innerHTML = renderDesktopNavigation({ selectedRoute:'home' }) + '<main><h1>Library</h1><div class="library-view-mode-row"><button class="library-view-mode-button focusable selected" data-choice="saved">Saved</button><button class="library-view-mode-button focusable" data-choice="cloud">Cloud</button><button disabled>Unavailable</button></div><label>Search <input id="query" value="hello"></label><div class="test-cards"><article class="focusable" data-card="one" tabindex="0">First title</article><article class="focusable" data-card="two" tabindex="0">Second title</article></div><button id="open-dialog">Options</button></main>';
+  app.innerHTML = renderDesktopNavigation({ selectedRoute:'home',profile:{activeProfileColorHex:profileColor} }) + '<main><h1>Library</h1><div class="library-view-mode-row"><button class="library-view-mode-button focusable selected" data-choice="saved">Saved</button><button class="library-view-mode-button focusable" data-choice="cloud">Cloud</button><button disabled>Unavailable</button></div><label>Search <input id="query" value="hello"></label><div class="test-cards"><article class="focusable" data-card="one" tabindex="0">First title</article><article class="focusable" data-card="two" tabindex="0">Second title</article></div><button id="open-dialog">Options</button></main>';
   bindDesktopNavigationEvents(app); ScreenUtils.indexFocusables(app);
   app.querySelectorAll('[data-choice], [data-card]').forEach(button => button.onclick=()=>{ window.clicks.push(button.dataset.choice || button.dataset.card); });
   app.querySelector('#open-dialog').onclick = () => {
@@ -53,6 +53,7 @@ window.showControls = () => {
   };
 };
 function clearScreen(id) {
+  current.unbindDesktopPlayerPointerBridge?.();
   if (current === settings) { settings.cleanup(); settings.container=null; }
   app.id=id; app.innerHTML=''; app.style.display='block'; app.onclick=null;
 }
@@ -116,26 +117,30 @@ window.showPlayer = () => {
     isDesktopPictureInPictureSupported:()=>false,canOpenInExternalPlayer:()=>false,
     getDesktopVolumeState:()=>({volume:1,muted:false}),getControlDefinitions:()=>[
       {action:'playPause',title:'Play',label:'Play'}, {action:'audioTrack',title:'Audio',label:'Audio'},
-      {action:'subtitleDialog',title:'Subtitles',label:'Subtitles'}],
-    renderSubtitleDialog(){},renderAudioDialog(){},renderSpeedDialog(){},renderSourcesPanel(){},
+      {action:'subtitleDialog',title:'Subtitles',label:'Subtitles'},
+      {action:'source',title:'Sources',label:'Sources'}, {action:'speed',title:'Speed',label:'Speed'},
+      {action:'episodes',title:'Episodes',label:'Episodes'}, {action:'more',title:'More',label:'More'}],
+    hasPrecomputedStreamCandidates:true,streamCandidates:[{id:'source-1',name:'Test source',title:'English',url:'https://example.org/video.mp4',addonName:'Test addon'}],sourceFilter:'all',sourcesFocus:{zone:'filter',index:0},
+    getAudioEntries:()=>[{label:'English',selected:true},{label:'French',selected:false}],
+    getSubtitleLanguageRailItems:()=>[{key:'en',label:'English',count:1,selected:true}],
+    getSelectedSubtitleLanguageKey:()=> 'en',
+    getSubtitleOptionsForLanguage:()=>[{title:'English',sourceLabel:'Embedded',selected:true}],
+    getPlaybackSpeed:()=>1,getPlaybackSpeedOptions:()=>[0.5,1,1.5,2],
+    episodes,episodePanelIndex:0,episodePanelSeason:1,
+    discoverEmbeddedSubtitleTracks(){},discoverHiddenAudioTracks(){},syncTrackState(){},applyAudioAmplification(){},
+    flushPersistPlayerPresentationSettings(){},
+    reloadSources(){window.clicks.push('reload');this.renderSourcesPanel();},
     renderParentalGuideOverlay(){},renderSkipIntroButton(){},renderSeekOverlay(){},renderPauseOverlay(){},
-    renderNextEpisodeCard(){},renderCompactBrowserMorePanel(){},syncPlayerOverlayLayoutState(){},
+    renderNextEpisodeCard(){},syncPlayerOverlayLayoutState(){},
     bindLoadingLogoFallback(){},updateSkipIntroCountdown(){},resetControlsAutoHide(){},
     revealDesktopPlayerControls(){ this.controlsVisible=true; },
     controlsVisible:true,controlFocusIndex:0,controlFocusZone:'',
-    isDialogOpen(){ return !this.uiRefs.audioDialog.classList.contains('hidden'); },
-    consumeBackRequest(){ this.uiRefs.audioDialog.classList.add('hidden');return true; }
+    handleBrowserVideoAreaTap(){window.clicks.push('video-tap');},
+    seekBrowserPlayerGesture(){window.clicks.push('video-seek');}
   });
   current=player; window.player=player; player.renderPlayerUi();
   player.uiRefs.loadingOverlay.classList.add('hidden');
-  app.onclick=event=>{
-    const button=event.target.closest('button');
-    if(button?.dataset.action==='playPause') {window.clicks.push('play');player.renderControlButtons();}
-    if(button?.dataset.action==='audioTrack') {
-      player.uiRefs.audioDialog.innerHTML='<h2>Audio</h2><button data-track="en">English</button><button data-track="fr">French</button>';
-      player.uiRefs.audioDialog.classList.remove('hidden');
-    }
-  };
+  player.bindDesktopPlayerPointerBridge();
 };
 window.showControls(); window.ready=true;
 `;
@@ -157,10 +162,10 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL || (process.platform==='win32'?'chrome':undefined),headless:true});
 const context=await browser.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce'});
 const page=await context.newPage();
-const errors=[];page.on('pageerror',error=>errors.push(error.message));
+const errors=[];page.on('pageerror',error=>{errors.push(error.message);console.error(error.stack);});
 const focused=async selector=>assert.equal(await page.locator(selector).evaluate(el=>el===document.activeElement),true,`Focus: ${selector}; actual: ${await page.evaluate(()=>document.activeElement?.outerHTML.slice(0,250))}`);
-const audit=async name=>{
-  const {violations}=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+const audit=async (name,targetPage=page)=>{
+  const {violations}=await new AxeBuilder({page:targetPage}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
   assert.deepEqual(violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),[],name);
   console.log(`${name}: axe passed`);
 };
@@ -190,7 +195,17 @@ try {
   await audit('Options dialog');
   await page.keyboard.press('Space');await page.waitForFunction(()=>!document.querySelector('.nuvio-dialog-backdrop'));
   await focused('#open-dialog');assert.deepEqual(await page.evaluate(()=>window.clicks),['cloud','two','cancel']);
+  await page.locator('#open-dialog').click();
+  await page.locator('#dialog-input').click();
+  assert.equal(await page.locator('.nuvio-dialog-backdrop').count(),1,'Inside clicks keep dialogs open');
+  await page.locator('.nuvio-dialog-backdrop').click({position:{x:8,y:8}});
+  await page.locator('.nuvio-dialog-backdrop').waitFor({state:'detached'});
+  await focused('#open-dialog');
   await audit('Navigation and cards');
+  for(const [background,foreground] of [['#ffffff','rgb(0, 0, 0)'],['#111111','rgb(255, 255, 255)'],['#1E88E5','rgb(0, 0, 0)']]) {
+    await page.evaluate(color=>showControls(color),background);
+    assert.equal(await page.locator('.desktop-navigation-avatar').evaluate(el=>getComputedStyle(el).color),foreground,'Readable profile initial on '+background);
+  }
   for(const section of ['account','profiles','about','appearance','layout','contentDiscovery','integration','streams','playback','downloads','trakt','advanced']) {
     await page.evaluate(section=>showSettings(section),section);await audit(`Settings ${section}`);
   }
@@ -199,6 +214,9 @@ try {
   await page.keyboard.press('ArrowLeft');await page.keyboard.press('Backspace');
   assert.equal(await page.locator('[data-text-dialog-role="field"]').inputValue(),'Updatd');
   await page.keyboard.press('Escape');await page.locator('.settings-text-dialog').waitFor({state:'detached'});
+  await page.evaluate(()=>showTextDialog());
+  await page.locator('.settings-dialog-backdrop').click({position:{x:8,y:8}});
+  await page.locator('.settings-text-dialog').waitFor({state:'detached'});
   await page.evaluate(()=>showSearch());await audit('Search');
   await page.evaluate(()=>showLibrary());await audit('Library');
   await page.locator('.library-view-mode-button').first().focus();
@@ -231,14 +249,67 @@ try {
   await page.setViewportSize({width:1440,height:900});
   await page.evaluate(()=>showPlayer());
   await page.locator('[data-action="audioTrack"]').focus();await page.keyboard.press('Enter');
-  await page.waitForFunction(()=>document.activeElement?.dataset.track==='en');
-  await page.keyboard.press('Shift+Tab');await focused('[data-track="fr"]');
+  await page.waitForFunction(()=>document.activeElement?.dataset.audioIndex==='0');
+  await page.keyboard.press('Shift+Tab');await focused('[data-audio-index="1"]');
   await page.keyboard.press('Escape');await focused('[data-action="audioTrack"]');
   await page.locator('[data-action="playPause"]').focus();await page.keyboard.press('Space');
   await focused('[data-action="playPause"]');
   await page.evaluate(()=>player.setControlsVisible(false));
   assert.equal(await page.evaluate(()=>player.controlsVisible),true);
   await audit('Player controls');
+  for (const width of [1440,390,844]) {
+    const mobile=width!==1440;
+    const mobileContext=mobile ? await browser.newContext({hasTouch:true,viewport:{width,height:width===844?390:900},reducedMotion:'reduce'}) : null;
+    const playerPage=mobile ? await mobileContext.newPage() : page;
+    if(mobile) {
+      playerPage.on('pageerror',error=>{errors.push(error.message);console.error(error.stack);});
+      await playerPage.goto(page.url());await playerPage.waitForFunction(()=>window.ready);
+    }
+    await playerPage.evaluate(()=>showPlayer());
+    const panels=[['source','#playerSourcesPanel'],['subtitleDialog','#playerSubtitleDialog'],['audioTrack','#playerAudioDialog'],['speed','#playerSpeedDialog'],['episodes','#episodeSidePanel']];
+    if(await playerPage.evaluate(()=>player.isCompactBrowserPlayerToolbar())) panels.push(['more','#playerMobileMorePanel']);
+    for (const [action,panel] of panels) {
+      await playerPage.locator('[data-action="'+action+'"]').first().click();
+      await playerPage.waitForFunction(selector=>document.activeElement?.closest(selector),panel);
+      await playerPage.locator(panel+' .player-sources-title, '+panel+' .player-dialog-title, '+panel+' .player-episode-panel-title, '+panel+' .player-mobile-more-title').click();
+      assert.equal(await playerPage.locator(panel).evaluate(el=>!el.classList.contains('hidden')),true,'Inside '+action);
+      if(action==='source') {
+        await playerPage.locator('[data-top-action="reload"]').click();
+        assert.equal(await playerPage.evaluate(()=>window.clicks.at(-1)),'reload');
+        assert.equal(await playerPage.locator('[data-top-action="reload"]').evaluate(el=>getComputedStyle(el).color),'rgb(255, 255, 255)','Reload foreground stays white after activation');
+      }
+      if(action==='speed') {
+        assert.equal(await playerPage.locator(panel+' .selected .player-dialog-item-check').evaluate(el=>getComputedStyle(el).color),'rgb(255, 255, 255)','Selected speed checkmark stays white');
+      }
+      await audit('Player '+action+' '+width,playerPage);
+      if(action==='episodes') {
+        await playerPage.evaluate(()=>{player.episodePanelMode='streams';player.episodePanelStreams=[];player.renderEpisodePanel();});
+        await audit('Player episode sources '+width,playerPage);
+      }
+      assert.equal(await playerPage.locator('#playerControlsOverlay').evaluate(el=>el.inert),true,'Background controls stay inert');
+      assert.equal(await playerPage.locator('#playerModalBackdrop').evaluate(el=>el.inert),false,'Dismiss backdrop remains clickable');
+      const outside=await playerPage.evaluate(()=>{
+        for(const y of [8,innerHeight/2,innerHeight-8]) for(const x of [8,innerWidth/2,innerWidth-8]) {
+          if(document.elementFromPoint(x,y)?.id==='playerModalBackdrop')return {x,y};
+        }
+        return null;
+      });
+      if(outside) {
+        if(mobile) await playerPage.touchscreen.tap(outside.x,outside.y);
+        else await playerPage.mouse.click(outside.x,outside.y);
+      } else {
+        // Full-screen phone sheets have no exposed backdrop.
+        assert.equal(mobile,true,'Desktop panels must have a dismiss backdrop');
+        if(action==='source') await playerPage.locator('[data-top-action="close"]').click();
+        else if(action==='episodes') await playerPage.locator('[data-episode-action="close"]').click();
+        else await playerPage.keyboard.press('Escape');
+      }
+      await playerPage.waitForFunction(selector=>!document.querySelector(selector)||document.querySelector(selector).classList.contains('hidden'),panel);
+      await playerPage.waitForFunction(()=>!document.querySelector('#playerControlsOverlay').inert);
+    }
+    assert.equal(await playerPage.evaluate(()=>window.clicks.some(c=>c==='video-tap'||c==='video-seek')),false,'Dismissing a panel must not activate video gestures');
+    if(mobile) await mobileContext.close();
+  }
   await page.screenshot({path:path.resolve(root,'../accessibility-player-qa.png')});
   assert.deepEqual(errors,[]);
   console.log('Keyboard navigation, native editing, card activation, modal trapping/restoration and player focus passed.');

@@ -4439,7 +4439,7 @@ export const PlayerScreen = {
 
         <div id="playerNextEpisodeCard" class="player-next-episode-card hidden"></div>
 
-        <div id="playerModalBackdrop" class="player-modal-backdrop hidden"></div>
+        <div id="playerModalBackdrop" class="player-modal-backdrop hidden" data-dialog-backdrop></div>
         <div id="playerSubtitleDialog" class="player-modal player-subtitle-modal hidden" role="dialog" aria-modal="true" aria-label="Subtitles"></div>
         <div id="playerAudioDialog" class="player-modal player-audio-modal hidden" role="dialog" aria-modal="true" aria-label="Audio"></div>
         <div id="playerSpeedDialog" class="player-modal player-speed-modal hidden" role="dialog" aria-modal="true" aria-label="Playback speed"></div>
@@ -5105,6 +5105,7 @@ export const PlayerScreen = {
       ".player-controls-bottom",
       ".player-modal",
       ".player-modal-backdrop",
+      ".player-mobile-more-panel",
       ".player-sources-panel",
       ".player-episode-panel",
       ".player-pause-overlay",
@@ -5439,12 +5440,15 @@ export const PlayerScreen = {
       {
         visible: this.episodePanelVisible,
         node: this.uiRefs?.root?.querySelector("#episodeSidePanel"),
+        close: () => this.hideEpisodePanel()
+      },
+      {
+        visible: this.isCompactBrowserPlayerToolbar() && this.moreActionsVisible,
+        node: this.uiRefs?.mobileMorePanel,
         close: () => {
-          if (this.episodePanelMode === "streams") {
-            this.closeEpisodeStreamsView();
-          } else {
-            this.hideEpisodePanel();
-          }
+          this.moreActionsVisible = false;
+          this.renderControlButtons();
+          this.resetControlsAutoHide();
         }
       }
     ];
@@ -8289,7 +8293,8 @@ export const PlayerScreen = {
       this.audioDialogVisible ||
       this.sourcesPanelVisible ||
       this.episodePanelVisible ||
-      this.speedDialogVisible;
+      this.speedDialogVisible ||
+      (this.isCompactBrowserPlayerToolbar() && this.moreActionsVisible);
     modalBackdrop.classList.toggle("hidden", !hasModal);
     modalBackdrop.classList.toggle("episodes-open", Boolean(this.episodePanelVisible));
     controlsOverlay?.classList.toggle("modal-blocked", hasModal);
@@ -8796,6 +8801,7 @@ export const PlayerScreen = {
     }
     const visible = this.isCompactBrowserPlayerToolbar() && this.moreActionsVisible;
     panel.classList.toggle("hidden", !visible);
+    this.updateModalBackdrop();
     if (!visible) {
       panel.innerHTML = "";
       return;
@@ -9055,7 +9061,8 @@ export const PlayerScreen = {
       this.audioDialogVisible ||
       this.sourcesPanelVisible ||
       this.episodePanelVisible ||
-      this.speedDialogVisible
+      this.speedDialogVisible ||
+      (this.isCompactBrowserPlayerToolbar() && this.moreActionsVisible)
     );
   },
 
@@ -15635,6 +15642,7 @@ export const PlayerScreen = {
     this.episodePanelStreamLoadToken = Number(this.episodePanelStreamLoadToken || 0) + 1;
     const panel = this.uiRefs?.root?.querySelector("#episodeSidePanel");
     panel?.classList.add("is-exiting");
+    panel?.setAttribute("aria-hidden", "true");
     if (this.episodePanelExitTimer) {
       clearTimeout(this.episodePanelExitTimer);
     }
