@@ -5328,11 +5328,11 @@ export const HomeScreen = {
     }
     if (normalized.isNextUp) {
       ContinueWatchingPreferences.addDismissedNextUpKey(normalized.contentId);
-      this.pruneContinueWatchingItem(normalized);
+      this.pruneContinueWatchingItem({ ...normalized, videoId: null });
       return true;
     }
-    await watchProgressRepository.removeProgress(normalized.contentId, normalized.videoId || null);
-    this.pruneContinueWatchingItem(normalized);
+    if (!(await watchProgressRepository.removeContinueWatchingTitle(normalized.contentId))) return false;
+    this.pruneContinueWatchingItem({ ...normalized, videoId: null });
     return true;
   },
 

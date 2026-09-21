@@ -3,6 +3,7 @@ import { ProfileManager } from "../../core/profile/profileManager.js";
 import { LocalStore } from "../../core/storage/localStore.js";
 import { ContinueWatchingPreferences } from "../local/continueWatchingPreferences.js";
 import { watchProgressOwner } from "./watchProgressProvenance.js";
+import { continueWatchingRemovalSuppression } from "./continueWatchingRemovalSuppression.js";
 import {
   TraktSettingsStore,
   WatchProgressSource,
@@ -380,6 +381,8 @@ function toProgressItemFromPlayback(playbackItem) {
     imdbId: playbackItem.imdbId,
     tmdbId: playbackItem.tmdbId || null,
     traktId: playbackItem.traktId || null,
+    // Kept so a removal can delete the right remote playback entry.
+    traktPlaybackId: playbackItem.traktPlaybackId ?? null,
     source: "trakt_playback",
     updatedAt: pausedAtMs,
     positionMs: 0,
@@ -554,6 +557,30 @@ async function batchEnrichProgressItems(items) {
   });
 }
 
+// Deletes the Trakt playback entries backing a title. Playback only: Trakt
+// watched history lives behind /sync/history and is never touched here.
+async function removeTraktPlaybackForContent(contentId, profileId) {
+  const wanted = String(contentId || "").trim();
+  if (!wanted) return { attempted: 0, deleted: 0, failed: 0 };
+  // Resolve deletion IDs from a fresh read for the initiating profile, not a
+  // display cache that may still be loading when profiles change.
+  const playback = await TraktAuthService.fetchPlaybackState({ limit: 50 });
+  if (activeProfileId() !== profileId) return { attempted: 0, deleted: 0, failed: 1 };
+  const ids = Array.from(
+    new Set(
+      (playback || []).map(toProgressItemFromPlayback)
+        .filter((item) => String(item?.contentId || "").trim() === wanted)
+        .map((item) => Number(item?.traktPlaybackId))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    )
+  );
+  if (!ids.length) return { attempted: 0, deleted: 0, failed: 0 };
+  const result = await TraktAuthService.removePlaybackEntries(ids, { profileId });
+  // Force the next compose to ask Trakt again rather than reuse the cache.
+  traktProgressSnapshotCache = null;
+  return result;
+}
+
 class WatchProgressRepository {
   async saveProgress(progress, { authoritative = false } = {}) {
     if (isSeriesType(progress?.contentType)) {
@@ -705,12 +732,23 @@ class WatchProgressRepository {
       selectedContinueWatchingSource() === WatchProgressSource.TRAKT
         ? await fetchTraktProgressSnapshot()
         : await fetchSimklProgressSnapshot();
-    return filterForSelectedContinueWatchingSource([
-      ...localItems,
-      ...snapshot.historyItems,
-      ...snapshot.playbackItems,
-      ...snapshot.watchedShowSeedItems
-    ]);
+    // A suppression only means something against the account it was made for,
+    // so drop the set outright when the profile or source changes.
+    continueWatchingRemovalSuppression.scopeTo(this.getContinueWatchingSourceKey());
+    // Settle any in-flight removal against what the provider now reports.
+    // Only the playback rows matter here: those are what a removal deletes,
+    // and a lingering history row must not keep a card hidden.
+    continueWatchingRemovalSuppression.reconcile(
+      (snapshot.playbackItems || []).map((item) => item?.contentId)
+    );
+    return continueWatchingRemovalSuppression.filterItems(
+      filterForSelectedContinueWatchingSource([
+        ...localItems,
+        ...snapshot.historyItems,
+        ...snapshot.playbackItems,
+        ...snapshot.watchedShowSeedItems
+      ])
+    );
   }
 
   getContinueWatchingSourceKey() {
@@ -755,6 +793,56 @@ class WatchProgressRepository {
       WatchProgressSyncService.pull().catch(() => []),
       WatchedItemsSyncService.pull().catch(() => [])
     ]);
+    return true;
+  }
+
+  /**
+   * Remove a title from Continue Watching everywhere it is represented.
+   *
+   * Title-wide by decision: removing a series removes its progress, not only
+   * the episode whose card was used. Watched/history records are never
+   * touched -- only playback/progress rows -- so removing a card from
+   * Continue Watching can never silently un-watch anything.
+   *
+   * A provider-backed row is not stored locally, so deleting it is a network
+   * round trip. The title is suppressed from the projection meanwhile, and
+   * that suppression is settled by a later snapshot rather than by the call
+   * appearing to succeed.
+   */
+  async removeContinueWatchingTitle(contentId) {
+    const normalizedContentId = String(contentId || "").trim();
+    if (!normalizedContentId) {
+      return false;
+    }
+    const profileId = activeProfileId();
+    const scopeKey = this.getContinueWatchingSourceKey();
+    const source = selectedContinueWatchingSource();
+    await this.removeProgress(normalizedContentId);
+    if (this.getContinueWatchingSourceKey() !== scopeKey) return false;
+    const removeRemote =
+      source === WatchProgressSource.SIMKL && SimklAuthStore.isAuthenticated()
+        ? () => SimklSyncService.removePlaybackForContent(normalizedContentId, { profileId })
+        : source === WatchProgressSource.TRAKT && TraktAuthStore.isAuthenticated()
+          ? () => removeTraktPlaybackForContent(normalizedContentId, profileId)
+          : null;
+    if (!removeRemote) {
+      return true;
+    }
+
+    continueWatchingRemovalSuppression.scopeTo(this.getContinueWatchingSourceKey());
+    continueWatchingRemovalSuppression.suppress(normalizedContentId);
+    const result = await removeRemote().catch(() => ({
+      attempted: 0,
+      deleted: 0,
+      failed: 1
+    }));
+    if (this.getContinueWatchingSourceKey() !== scopeKey) return false;
+    // Nothing was deleted and the provider rejected us: let the card come
+    // back rather than leave a removal that never actually happened.
+    if (result.deleted === 0 && result.failed > 0) {
+      continueWatchingRemovalSuppression.release(normalizedContentId);
+    }
+    invalidateContinueWatchingDisplaySnapshot();
     return true;
   }
 

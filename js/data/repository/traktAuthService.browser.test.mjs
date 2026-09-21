@@ -15,6 +15,33 @@ const { Platform } = await import("../../platform/index.js");
 Platform.current = null;
 const { TraktAuthStore } = await import("../local/traktAuthStore.js");
 const { TraktAuthService } = await import("./traktAuthService.js");
+const { ProfileManager } = await import("../../core/profile/profileManager.js");
+
+test("Continue Watching removal deletes only playback IDs and stops if the profile changes during token refresh", async (t) => {
+  let profileId = "1";
+  let switchProfile = false;
+  const calls = [];
+  t.mock.method(ProfileManager, "getActiveProfileId", () => profileId);
+  t.mock.method(TraktAuthService, "getValidAccessToken", async () => {
+    if (switchProfile) profileId = "2";
+    return "test-token";
+  });
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    calls.push({ url: String(url), method: options.method });
+    return json({});
+  });
+  assert.deepEqual(await TraktAuthService.removePlaybackEntries([12, 12, -1, "bad", 34]), {
+    attempted: 2, deleted: 2, failed: 0
+  });
+  assert.deepEqual(calls, [
+    { url: "https://api.trakt.tv/sync/playback/12", method: "DELETE" },
+    { url: "https://api.trakt.tv/sync/playback/34", method: "DELETE" }
+  ]);
+  calls.length = 0;
+  switchProfile = true;
+  assert.equal((await TraktAuthService.removePlaybackEntries([12])).failed, 1);
+  assert.equal(calls.length, 0, "must not delete another profile's playback");
+});
 
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
