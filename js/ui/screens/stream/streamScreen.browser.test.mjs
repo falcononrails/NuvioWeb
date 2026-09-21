@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import vm from "node:vm";
+import { resolveExternalResumeSeconds } from "../../components/externalPlayerResume.js";
 
 async function loadStreamScreen() {
   const result = await build({
@@ -39,6 +41,26 @@ async function loadStreamScreen() {
   });
   return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].contents).toString("base64")}`);
 }
+
+test("external playback converts percentage-only progress using the route runtime", async () => {
+  const { StreamScreen } = await loadStreamScreen();
+  let launch;
+  const screen = vm.runInNewContext(`({${StreamScreen.routeSelectedStream.toString()}})`, {
+    Environment: { isBrowser: () => true },
+    PlayerSettingsStore: { get: () => ({ browserExternalPlayer: "vlc" }) },
+    normalizeBrowserExternalPlayer: (value) => value,
+    normalizeType: (value) => value,
+    getBrowserExternalPlayerPlatform: () => "android",
+    prepareBrowserExternalPlaybackLaunch: (options) => { launch = options; return null; },
+    resolveExternalResumeSeconds,
+    buildStreamResumeIdentity: () => null
+  });
+  screen.params = { itemId: "movie-1", itemType: "movie", runtime: 100 };
+  screen.getBackdropUrl = () => "";
+  await screen.routeSelectedStream({ url: "https://media.example/video" }, { resumeProgressPercent: 25 });
+  assert.equal(launch.resumePositionSeconds, 1500);
+  assert.equal(launch.knownDurationMs, 6000000);
+});
 
 test("StreamScreen mounts its browser route before loading sources", async () => {
   const { StreamScreen } = await loadStreamScreen();

@@ -2082,6 +2082,8 @@ export const PlayerController = {
     const flushPromise = flushProgress
       ? this.flushCurrentProgress({ forceCloudSync, allowCloudSync })
       : Promise.resolve(false);
+    // Read the absolute timeline before local audio or server playback is torn down.
+    if (this.playbackSessionActive) this.scrobbleTerminalReport();
     this.stopCompatibilityPlayback();
     void this.stopLocalAudioPlayback();
     if (!this.playbackSessionActive) {
@@ -2093,13 +2095,6 @@ export const PlayerController = {
     }
     this.playbackSessionActive = false;
     this.setStartupAudioGate(false, { resume: false });
-
-    // Report to the tracking providers here, beside the local flush above and
-    // before the teardown below. Every way out of the player funnels through
-    // stop(), and the back-to-Stream path calls it long before the route
-    // actually changes -- so a report left to route cleanup runs after
-    // video.load() has reset currentTime, and has no position left to send.
-    this.scrobbleTerminalReport();
 
     try {
       this.video.pause();

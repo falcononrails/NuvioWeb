@@ -2425,6 +2425,8 @@ export const StreamScreen = {
     const player = normalizeBrowserExternalPlayer(PlayerSettingsStore.get().browserExternalPlayer);
     if (player === "disabled") return false;
     const itemType = normalizeType(this.params?.itemType);
+    const knownDurationMs = Number(context.resumeDurationMs || 0) ||
+      Math.max(0, Number(this.params?.runtime || this.params?.runtimeMinutes || 0)) * 60_000;
     const prepared = prepareBrowserExternalPlaybackLaunch({
       player,
       platform: getBrowserExternalPlayerPlatform(),
@@ -2434,11 +2436,9 @@ export const StreamScreen = {
       resumePositionSeconds: resolveExternalResumeSeconds({
         positionMs: context.resumePositionMs,
         progressPercent: context.resumeProgressPercent,
-        durationMs: context.resumeDurationMs
+        durationMs: knownDurationMs
       }),
-      knownDurationMs:
-        Number(context.resumeDurationMs || 0) ||
-        Math.max(0, Number(this.params?.runtime || this.params?.runtimeMinutes || 0)) * 60_000,
+      knownDurationMs,
       progressMode: PlayerSettingsStore.get().externalPlayerProgress,
       progressContext: {
         itemId: this.params?.itemId || null,

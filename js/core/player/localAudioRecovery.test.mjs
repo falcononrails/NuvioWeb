@@ -3,6 +3,36 @@ import test from "node:test";
 import vm from "node:vm";
 import { PlayerController } from "./playerController.js";
 import { LocalAudioEngine } from "./engines/localAudioEngine.js";
+import { TrackingScrobbleService } from "../../data/repository/trackingScrobbleService.js";
+
+test("stopping local audio and server playback reports the absolute position before teardown", async (t) => {
+  const reports = [];
+  t.mock.method(TrackingScrobbleService, "report", (context) => reports.push(context));
+  for (const engine of ["local", "server"]) {
+    const p = Object.create(PlayerController);
+    Object.assign(p, {
+      video: { currentTime: 3, duration: Infinity, pause() {}, load() {}, removeAttribute() {}, querySelectorAll: () => [] },
+      playbackSessionActive: true,
+      currentItemId: "tt-test",
+      currentItemType: "movie",
+      localAudio: engine === "local" ? { position: 1203, duration: 3600 } : null,
+      compatibility: engine === "server" ? { offset: 1200, duration: 3600 } : null,
+      compatibilityPendingPosition: null,
+      setStartupPresentationAudioMuted() {},
+      setStartupAudioGate() {},
+      stopCompatibilityPlayback() { this.compatibility = null; },
+      stopLocalAudioPlayback() { this.localAudio = null; },
+      teardownAdaptiveInstances() {},
+      clearPlaybackEngineAttempts() {}
+    });
+    await p.stop({ flushProgress: false });
+    assert.equal(reports.at(-1).positionMs, 1203000);
+    assert.equal(reports.at(-1).durationMs, 3600000);
+    const count = reports.length;
+    await p.stop({ flushProgress: false });
+    assert.equal(reports.length, count, "repeated cleanup does not send another report");
+  }
+});
 
 function controller(start) {
   const requests = [];
