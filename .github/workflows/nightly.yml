@@ -40,7 +40,7 @@ jobs:
           node --input-type=module -e 'import {writeFileSync} from "node:fs"; writeFileSync("dist/release.json", JSON.stringify({commit:process.env.GITHUB_SHA,channel:"nightly",builtAt:new Date().toISOString()}));'
           mkdir -p dist/server/playback-bridge
           cp services/playback-bridge/server.mjs services/playback-bridge/source.mjs services/playback-bridge/tracks.mjs dist/server/playback-bridge/
-          cp -r services/shared services/external-return-bridge dist/server/
+          cp -r services/shared services/external-return-bridge services/debrid-api-bridge dist/server/
           tar -czf release.tar.gz -C dist .
       - name: Deploy release
         env:
@@ -64,3 +64,5 @@ jobs:
         run: |
           curl --fail --retry 5 --retry-delay 2 --silent https://nuvioweb.space/api/external-return/push/public-key > push.json
           node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync("push.json")); if(!r.enabled || !r.episodes) throw Error("Episode push service is not configured"); console.log("Episode push service ready");'
+      - name: Verify debrid service and resolver routes
+        run: node scripts/check-debrid-service.mjs https://nuvioweb.space

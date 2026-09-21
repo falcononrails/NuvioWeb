@@ -326,7 +326,8 @@ async function handleTorboxPlaybackAction(action, request, response, fetchImpl, 
 
 export function createDebridApiBridgeHandler({
   fetchImpl = fetch,
-  requestTimeoutMs = REQUEST_TIMEOUT_MS
+  requestTimeoutMs = REQUEST_TIMEOUT_MS,
+  revision = null
 } = {}) {
   return async function handleDebridApiBridge(request, response) {
     const url = new URL(request.url || "/", "http://bridge.local");
@@ -334,7 +335,7 @@ export function createDebridApiBridgeHandler({
       url.pathname
     );
     if (url.pathname === "/api/debrid/health" && request.method === "GET") {
-      json(response, 200, { ok: true });
+      json(response, 200, { ok: true, ...(revision ? { revision } : {}) });
       return;
     }
     if (!match) {

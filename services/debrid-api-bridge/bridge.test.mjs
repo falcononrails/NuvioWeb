@@ -21,6 +21,20 @@ function upstream(payload, status = 200, headers = {}) {
   });
 }
 
+test("deployment health identifies its release and every resolver route rejects missing credentials", async () => {
+  await withBridge({ revision: "test-release", fetchImpl: () => assert.fail("Unauthenticated requests must not reach TorBox") }, async (baseUrl) => {
+    const health = await fetch(`${baseUrl}/api/debrid/health`);
+    assert.deepEqual(await health.json(), { ok: true, revision: "test-release" });
+    for (const action of ["cache/check", "torrent/create", "torrent/lookup", "link/resolve"]) {
+      const response = await fetch(`${baseUrl}/api/debrid/torbox/${action}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}"
+      });
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).error, "missing_provider_credential");
+    }
+  });
+});
+
 test("TorBox device start uses the fixed upstream URL and returns only device fields", async () => {
   const calls = [];
   await withBridge(

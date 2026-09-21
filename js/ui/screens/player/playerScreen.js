@@ -72,7 +72,7 @@ import {
   isOfflineSubtitleTextLoadable,
   listOfflineSubtitles
 } from "../../../core/offline/browserOfflineDownloads.js";
-import { DirectDebridResolver } from "../../../core/debrid/directDebridResolver.js";
+import { DirectDebridResolver, debridResolveErrorMessage } from "../../../core/debrid/directDebridResolver.js";
 import { TrackingScrobbleService } from "../../../data/repository/trackingScrobbleService.js";
 import { StreamPreferencesStore } from "../../../data/local/streamPreferencesStore.js";
 
@@ -5759,7 +5759,7 @@ export const PlayerScreen = {
         ? PlayerController.getLastHlsErrorDetail()
         : "";
     const httpStatus = extractPlaybackHttpStatus(
-      [
+      resolverStatus ? resolverDetail : [
         detail,
         eventErrorDetail,
         rememberedHlsError,
@@ -5795,12 +5795,11 @@ export const PlayerScreen = {
     ].find(Boolean);
     const activeUrl =
       playbackUrl ||
-      this.activePlaybackUrl ||
       candidate?.url ||
       candidate?.externalUrl ||
       raw?.url ||
       raw?.externalUrl ||
-      "";
+      (streamCandidate ? "" : this.activePlaybackUrl) || "";
 
     pushPlaybackDiagnosticLine(
       lines,
@@ -5808,32 +5807,34 @@ export const PlayerScreen = {
       "browser"
     );
     pushPlaybackDiagnosticLine(lines, "Reason", reason);
-    pushPlaybackDiagnosticLine(lines, "Media code", this.getPlaybackErrorCodeLabel(mediaErrorCode));
     pushPlaybackDiagnosticLine(lines, "HTTP status", httpStatus || "unavailable");
-    pushPlaybackDiagnosticLine(lines, "Runtime error", runtimeDetail);
-    pushPlaybackDiagnosticLine(
-      lines,
-      "HLS error",
-      eventDetail?.hlsErrorDetails || eventDetail?.hlsErrorType || rememberedHlsError,
-      420
-    );
-    pushPlaybackDiagnosticLine(lines, "DASH error", eventDetail?.dashError);
-    pushPlaybackDiagnosticLine(lines, "HTML media error", mediaError?.message || mediaError?.code);
-    pushPlaybackDiagnosticLine(lines, "Video readyState", video?.readyState);
-    pushPlaybackDiagnosticLine(lines, "Video networkState", video?.networkState);
-    pushPlaybackDiagnosticLine(
-      lines,
-      "Current source",
-      describeSafePlaybackEndpoint(video?.currentSrc || video?.src)
-    );
-    pushPlaybackDiagnosticLine(
-      lines,
-      "Playback engine",
-      PlayerController.playbackEngine || "unknown"
-    );
-    pushPlaybackDiagnosticLine(lines, "Source", sourceLabel);
+    if (!resolverStatus) {
+      pushPlaybackDiagnosticLine(lines, "Media code", this.getPlaybackErrorCodeLabel(mediaErrorCode));
+      pushPlaybackDiagnosticLine(lines, "Runtime error", runtimeDetail);
+      pushPlaybackDiagnosticLine(
+        lines,
+        "HLS error",
+        eventDetail?.hlsErrorDetails || eventDetail?.hlsErrorType || rememberedHlsError,
+        420
+      );
+      pushPlaybackDiagnosticLine(lines, "DASH error", eventDetail?.dashError);
+      pushPlaybackDiagnosticLine(lines, "HTML media error", mediaError?.message || mediaError?.code);
+      pushPlaybackDiagnosticLine(lines, "Video readyState", video?.readyState);
+      pushPlaybackDiagnosticLine(lines, "Video networkState", video?.networkState);
+      pushPlaybackDiagnosticLine(
+        lines,
+        "Loaded media",
+        describeSafePlaybackEndpoint(video?.currentSrc || video?.src)
+      );
+      pushPlaybackDiagnosticLine(
+        lines,
+        "Playback engine",
+        PlayerController.playbackEngine || "unknown"
+      );
+    }
+    pushPlaybackDiagnosticLine(lines, "Selected source", sourceLabel);
     pushPlaybackDiagnosticLine(lines, "Source type", sourceType);
-    pushPlaybackDiagnosticLine(lines, "Source endpoint", describeSafePlaybackEndpoint(activeUrl));
+    pushPlaybackDiagnosticLine(lines, "Selected source endpoint", activeUrl ? describeSafePlaybackEndpoint(activeUrl) : "not resolved");
     pushPlaybackDiagnosticLine(lines, "Proxy header names", headerNames);
     pushPlaybackDiagnosticLine(lines, "Resolver status", resolverStatus);
     pushPlaybackDiagnosticLine(lines, "Resolver detail", resolverDetail);
@@ -10574,39 +10575,9 @@ export const PlayerScreen = {
             raw: { ...(streamCandidate.raw || {}), ...(result.stream.raw || {}) }
           });
         } else {
-          fallbackError =
-            result.status === "service_degraded"
-              ? t(
-                  "stream.debrid.serviceDegraded",
-                  {},
-                  "The Debrid service is currently degraded. Try again later or choose another source."
-                )
-              : result.status === "not_cached"
-                ? t("stream.debrid.notCached", {}, "Not cached on this service.")
-                : result.status === "stale"
-                  ? t("stream.debrid.stale", {}, "This Debrid result expired. Refreshing streams.")
-                  : t("stream.debrid.failed", {}, "Could not resolve this Debrid stream.");
+          fallbackError = debridResolveErrorMessage(result);
           resolveFailureStatus = result.status || "debrid-failed";
           resolveFailureDetail = result.detail || result.error || "";
-          if (result.status === "service_degraded") {
-            if (!this.hasPresentedPlaybackFrame) {
-              this.showStartupError(fallbackError, {
-                streamCandidate,
-                reason: "debrid-resolve",
-                resolverStatus: resolveFailureStatus,
-                resolverDetail: resolveFailureDetail
-              });
-            } else {
-              this.sourcesError = this.formatPlaybackErrorForSources(fallbackError, {
-                streamCandidate,
-                reason: "debrid-resolve",
-                resolverStatus: resolveFailureStatus,
-                resolverDetail: resolveFailureDetail
-              });
-              this.renderSourcesPanel();
-            }
-            return;
-          }
         }
       }
 

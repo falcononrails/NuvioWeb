@@ -1,4 +1,4 @@
-import { DirectDebridResolver } from "../debrid/directDebridResolver.js";
+import { DirectDebridResolver, debridResolveErrorMessage } from "../debrid/directDebridResolver.js";
 import {
   createOfflineMediaId,
   createOfflineDownloadId,
@@ -671,8 +671,10 @@ export async function resolveBrowserOfflineDownloadSource(
     throw new Error("This source cannot be downloaded in the browser.");
   }
   const result = await DirectDebridResolver.resolve(stream, resolverContext);
+  if (result?.status !== "success") {
+    throw new Error(debridResolveErrorMessage(result));
+  }
   if (
-    result?.status !== "success" ||
     !isHttpUrl(result.stream?.url) ||
     isSegmentedPlayback(result.stream, result.stream?.url)
   ) {

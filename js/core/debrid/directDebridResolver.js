@@ -1,5 +1,6 @@
 import { DebridSettingsStore } from "../../data/local/debridSettingsStore.js";
 import { DebridApi } from "../../data/remote/api/debridApi.js";
+import { I18n } from "../../i18n/index.js";
 import { DEBRID_CAPABILITIES, DEBRID_PROVIDER_IDS, DebridProviders } from "./debridProviders.js";
 import {
   getDebridFileDisplayName,
@@ -192,17 +193,34 @@ function success(url, filename = null, videoSize = null) {
   return { status: "success", url, filename, videoSize };
 }
 
-function isServiceDegradedResponse(response = {}) {
-  const status = Number(response?.status || 0);
-  return status === 502 || status === 503 || status === 504;
+function requestFailure(response, providerName, operation, bridge = false) {
+  const httpStatus = Number(response?.status || 0);
+  // A missing same-origin route is not evidence that a provider's file expired.
+  const status = !httpStatus ? "network_error"
+    : bridge && httpStatus === 404 && response.data?.error !== "provider_request_failed" ? "service_unavailable"
+    : httpStatus === 401 || httpStatus === 403 ? "auth_failed"
+    : httpStatus === 429 ? "rate_limited"
+    : httpStatus >= 500 ? "service_degraded"
+    : httpStatus === 404 ? "stale"
+    : httpStatus === 409 && operation === "torrent/create" ? "not_cached"
+    : "error";
+  return failure(status, `${providerName} ${operation}: ${httpStatus ? `HTTP ${httpStatus}` : "no HTTP response"}.`);
 }
 
-function serviceDegradedFailure(response = {}, providerName = "Debrid") {
-  if (!isServiceDegradedResponse(response)) {
-    return null;
-  }
-  const status = Number(response?.status || 0);
-  return failure("service_degraded", `${providerName} service returned HTTP ${status}.`);
+export function debridResolveErrorMessage(result = {}) {
+  const messages = {
+    service_unavailable: "The website's debrid service is unavailable. Try again later or use a source with a direct playback link.",
+    network_error: "Could not reach the debrid service. Check your connection and try again.",
+    auth_failed: "The debrid service rejected the request. Check your debrid account and API key in Settings.",
+    rate_limited: "Too many requests to the debrid service. Wait a moment and try again.",
+    service_degraded: "The debrid service could not complete the request. Try again later or choose another source.",
+    not_cached: "This file is not cached on your debrid service. Choose another source.",
+    stale: "No playable file was found for this debrid source. Reload Sources or choose another source.",
+    missing_api_key: "Connect your debrid account in Settings to play this source.",
+    error: "Could not resolve this debrid source. Try again or choose another source."
+  };
+  const status = Object.hasOwn(messages, result.status) ? result.status : "error";
+  return I18n.t(`debrid_resolve_${status}`, {}, { fallback: messages[status] });
 }
 
 async function resolveTorbox(resolve, apiKey, season, episode) {
@@ -213,22 +231,12 @@ async function resolveTorbox(resolve, apiKey, season, episode) {
   const create = await DebridApi.torboxCreateTorrent(apiKey, magnet);
   const torrentId = create.data?.data?.torrent_id ?? create.data?.data?.id;
   if (!create.ok || !torrentId) {
-    const degraded = serviceDegradedFailure(create, "Torbox");
-    if (degraded) {
-      return degraded;
-    }
-    return create.status === 409
-      ? failure("not_cached")
-      : failure(create.status === 401 || create.status === 403 ? "error" : "stale");
+    return requestFailure(create, "TorBox", "torrent/create", true);
   }
   const torrent = await DebridApi.torboxGetTorrent(apiKey, torrentId);
-  const files = torrent.data?.data?.files || [];
+  const files = torrent.data?.data?.files;
   if (!torrent.ok || !Array.isArray(files)) {
-    const degraded = serviceDegradedFailure(torrent, "Torbox");
-    if (degraded) {
-      return degraded;
-    }
-    return failure("stale");
+    return requestFailure(torrent, "TorBox", "torrent/lookup", true);
   }
   const file = selectDebridFile(files, resolve, { season, episode, kind: "torbox" });
   if (!file) {
@@ -237,11 +245,7 @@ async function resolveTorbox(resolve, apiKey, season, episode) {
   const link = await DebridApi.torboxRequestDownloadLink(apiKey, torrentId, file.id);
   const url = typeof link.data?.data === "string" ? link.data.data : "";
   if (!link.ok || !url) {
-    const degraded = serviceDegradedFailure(link, "Torbox");
-    if (degraded) {
-      return degraded;
-    }
-    return failure("stale");
+    return requestFailure(link, "TorBox", "link/resolve", true);
   }
   return success(url, getDebridFileDisplayName(file), getDebridFileSize(file));
 }
@@ -253,14 +257,13 @@ async function resolvePremiumize(resolve, apiKey, season, episode, stream = {}) 
   }
   const response = await DebridApi.premiumizeDirectDownload(apiKey, source);
   if (!response.ok) {
-    return failure(response.status === 401 || response.status === 403 ? "error" : "stale");
+    return requestFailure(response, "Premiumize", "direct-download");
   }
   const body = response.data || {};
   if (String(body.status || "").toLowerCase() === "error") {
     const message = `${body.message || ""} ${body.code || ""}`.toLowerCase();
     return failure(
-      message.includes("cache") || message.includes("not found") ? "not_cached" : "stale",
-      message
+      message.includes("cache") || message.includes("not found") ? "not_cached" : "error"
     );
   }
   const file = selectDebridFile(body.content || [], resolve, {
@@ -287,14 +290,14 @@ async function resolveRealDebrid(resolve, apiKey, season, episode) {
   const add = await DebridApi.realDebridAddMagnet(apiKey, magnet);
   const torrentId = add.data?.id;
   if (!add.ok || !torrentId) {
-    return failure(add.status === 401 || add.status === 403 ? "error" : "stale");
+    return requestFailure(add, "Real-Debrid", "add-magnet");
   }
   let resolved = false;
   try {
     const infoBefore = await DebridApi.realDebridTorrentInfo(apiKey, torrentId);
-    const files = infoBefore.data?.files || [];
+    const files = infoBefore.data?.files;
     if (!infoBefore.ok || !Array.isArray(files)) {
-      return failure("stale");
+      return requestFailure(infoBefore, "Real-Debrid", "torrent-info");
     }
     const file = selectDebridFile(files, resolve, { season, episode, kind: "realdebrid" });
     if (file?.id == null) {
@@ -302,10 +305,13 @@ async function resolveRealDebrid(resolve, apiKey, season, episode) {
     }
     const select = await DebridApi.realDebridSelectFiles(apiKey, torrentId, String(file.id));
     if (!select.ok && select.status !== 202) {
-      return failure("stale");
+      return requestFailure(select, "Real-Debrid", "select-files");
     }
     const infoAfter = await DebridApi.realDebridTorrentInfo(apiKey, torrentId);
-    if (!infoAfter.ok || String(infoAfter.data?.status || "").toLowerCase() !== "downloaded") {
+    if (!infoAfter.ok) {
+      return requestFailure(infoAfter, "Real-Debrid", "torrent-info");
+    }
+    if (String(infoAfter.data?.status || "").toLowerCase() !== "downloaded") {
       return failure("stale");
     }
     const link = (Array.isArray(infoAfter.data?.links) ? infoAfter.data.links : []).find(Boolean);
@@ -315,7 +321,7 @@ async function resolveRealDebrid(resolve, apiKey, season, episode) {
     const unrestricted = await DebridApi.realDebridUnrestrictLink(apiKey, link);
     const url = unrestricted.data?.download || "";
     if (!unrestricted.ok || !url) {
-      return failure("stale");
+      return requestFailure(unrestricted, "Real-Debrid", "unrestrict-link");
     }
     resolved = true;
     return success(
@@ -339,23 +345,15 @@ async function getLocalTorrentCacheStatus(provider, apiKey, hash) {
   }
   if (provider.id === DEBRID_PROVIDER_IDS.TORBOX) {
     const response = await DebridApi.torboxCheckCached(apiKey, [normalized]);
-    const degraded = serviceDegradedFailure(response, "Torbox");
-    if (degraded) {
-      return degraded;
-    }
-    if (!response.ok || response.data?.success === false) {
-      return { status: "unknown" };
+    if (!response.ok || response.data?.success === false || !response.data?.data || typeof response.data.data !== "object") {
+      return requestFailure(response, "TorBox", "cache/check", true);
     }
     return { status: "success", cached: Boolean(response.data?.data?.[normalized]) };
   }
   if (provider.id === DEBRID_PROVIDER_IDS.PREMIUMIZE) {
     const response = await DebridApi.premiumizeCheckCache(apiKey, [normalized]);
-    const degraded = serviceDegradedFailure(response, "Premiumize");
-    if (degraded) {
-      return degraded;
-    }
     if (!response.ok || String(response.data?.status || "").toLowerCase() === "error") {
-      return { status: "unknown" };
+      return requestFailure(response, "Premiumize", "cache/check");
     }
     return { status: "success", cached: response.data?.response?.[0] === true };
   }
@@ -467,7 +465,7 @@ export const DirectDebridResolver = {
       const cacheStatus = await getLocalTorrentCacheStatus(provider, apiKey, stream.infoHash).catch(
         (error) => failure("error", error?.message || "")
       );
-      if (cacheStatus?.status === "service_degraded") {
+      if (cacheStatus?.status !== "success" && cacheStatus?.status !== "unknown") {
         return cacheStatus;
       }
       if (cacheStatus?.status === "success" && cacheStatus.cached === false) {

@@ -1328,7 +1328,16 @@
     <string name="stream_finding_source">Finding stream source</string>
     <string name="debrid_resolving_stream">Resolving debrid stream</string>
     <string name="p2p_resolving_stream">Resolving P2P stream</string>
-    <string name="debrid_stale_stream">This Debrid result expired. Refreshing streams.</string>
+    <string name="debrid_stale_stream">No playable file was found for this debrid source. Reload Sources or choose another source.</string>
+    <string name="debrid_resolve_service_unavailable">The website's debrid service is unavailable. Try again later or use a source with a direct playback link.</string>
+    <string name="debrid_resolve_network_error">Could not reach the debrid service. Check your connection and try again.</string>
+    <string name="debrid_resolve_auth_failed">The debrid service rejected the request. Check your debrid account and API key in Settings.</string>
+    <string name="debrid_resolve_rate_limited">Too many requests to the debrid service. Wait a moment and try again.</string>
+    <string name="debrid_resolve_service_degraded">The debrid service could not complete the request. Try again later or choose another source.</string>
+    <string name="debrid_resolve_not_cached">This file is not cached on your debrid service. Choose another source.</string>
+    <string name="debrid_resolve_stale">No playable file was found for this debrid source. Reload Sources or choose another source.</string>
+    <string name="debrid_resolve_missing_api_key">Connect your debrid account in Settings to play this source.</string>
+    <string name="debrid_resolve_error">Could not resolve this debrid source. Try again or choose another source.</string>
     <string name="debrid_missing_api_key">Add a Debrid API key in Settings.</string>
     <string name="debrid_not_cached">Not cached on this service.</string>
     <string name="debrid_resolution_failed">Could not resolve this Debrid stream.</string>

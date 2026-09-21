@@ -11,6 +11,59 @@ const desktopCssUrl = new URL("../../../../css/desktop.css", import.meta.url);
 const componentsCssUrl = new URL("../../../../css/components.css", import.meta.url);
 const dialogUrl = new URL("../../components/nuvioDialog.js", import.meta.url);
 
+test("startup and source switching show the same actionable resolver error without claiming a refresh", async () => {
+  const { debridResolveErrorMessage } = await import("../../../core/debrid/directDebridResolver.js");
+  const source = await readFile(playerScreenUrl, "utf8");
+  const method = source.match(/  async playStreamCandidate\([\s\S]*?\n  \},/)[0];
+  const candidate = { id: "torrentio", name: "TB Instant" };
+  for (const status of ["service_unavailable", "service_degraded", "auth_failed", "stale"]) {
+    const result = { status, detail: "TorBox torrent/create: HTTP 404." };
+    const screen = vm.runInNewContext(`({${method}})`, {
+      Environment: { isBrowser: () => true }, streamMergeKey: entry => entry.id,
+      streamDirectPlaybackUrl: () => "", debridResolveErrorMessage,
+      DirectDebridResolver: { canResolveStream: () => true, resolve: async () => result }
+    });
+    let displayed;
+    Object.assign(screen, { isActiveMountToken: () => true, streamCandidates: [candidate],
+      showStartupError: (message, details) => { displayed = { message, details }; },
+      formatPlaybackErrorForSources: (message, details) => { displayed = { message, details }; return message; },
+      renderSourcesPanel() {}, playStreamByUrl: () => assert.fail("Do not play an unresolved source") });
+    for (const hasPresentedPlaybackFrame of [false, true]) {
+      screen.hasPresentedPlaybackFrame = hasPresentedPlaybackFrame;
+      await screen.playStreamCandidate(candidate);
+      assert.equal(displayed.message, debridResolveErrorMessage(result));
+      assert.equal(displayed.details.resolverStatus, status);
+      assert.equal(displayed.details.streamCandidate, candidate);
+      assert.doesNotMatch(displayed.message, /expired|refreshing/i);
+    }
+  }
+});
+
+test("a failed source resolution reports its own HTTP error without the previous media URL", async () => {
+  const source = await readFile(playerScreenUrl, "utf8");
+  const helpers = source.slice(source.indexOf("function cleanPlaybackDiagnosticValue("), source.indexOf("function formatEpisodePanelDate("));
+  const method = source.match(/  getPlaybackErrorDetailLines\([\s\S]*?\n  \},/)[0];
+  const screen = vm.runInNewContext(`${helpers}\n({${method}})`, {
+    URL,
+    PlayerController: {
+      video: { currentSrc: "https://pengu.example/old.mp4?token=secret", readyState: 0, error: { message: "Previous HTTP 403" } },
+      playbackEngine: "native", getLastHlsErrorDetail: () => "Previous HTTP 403"
+    }
+  });
+  Object.assign(screen, { activePlaybackUrl: "https://pengu.example/old.mp4?token=secret",
+    getPlaybackEventErrorDetail: () => "", getPlaybackErrorCodeLabel: () => "none" });
+  const details = screen.getPlaybackErrorDetailLines({ streamCandidate: { addonName: "Torrentio", name: "4K TB Instant" },
+    reason: "stream-resolve", resolverStatus: "service_unavailable", resolverDetail: "TorBox torrent/create: HTTP 404." }).join("\n");
+  assert.match(details, /HTTP status: 404/);
+  assert.match(details, /Selected source: Torrentio \/ 4K TB Instant/);
+  assert.match(details, /Selected source endpoint: not resolved/);
+  assert.doesNotMatch(details, /pengu|secret|403|Playback engine|HTML media error/i);
+  const playback = screen.getPlaybackErrorDetailLines({ streamCandidate: { url: "https://selected.example/new.mkv?token=secret" } }).join("\n");
+  assert.match(playback, /Selected source endpoint: selected.example/);
+  assert.match(playback, /Loaded media: pengu.example/);
+  assert.doesNotMatch(playback, /secret/);
+});
+
 test("source cards hide speculative audio badges without disabling audio recovery", () => {
   const warnings = browserSourceWarnings({ title: "HEVC DTS" }, { canPlayType: () => "" });
   assert.ok(warnings.some(warning => warning.startsWith("Audio")));
