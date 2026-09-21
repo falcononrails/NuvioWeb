@@ -1,4 +1,4 @@
-name: Sync upstream
+name: Review upstream updates
 
 on:
   schedule:
@@ -6,15 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 concurrency:
   group: upstream-sync
   cancel-in-progress: false
 
 jobs:
-  sync:
+  review:
     if: github.repository == 'falcononrails/NuvioWeb'
     runs-on: ubuntu-latest
     steps:
@@ -22,27 +21,22 @@ jobs:
         with:
           ref: nightly
           fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '24'
-      - name: Merge and check upstream
-        id: merge
+      - name: List changes since the last reviewed upstream commit
+        shell: bash
         run: |
+          set -euo pipefail
+          reviewed=$(cat .github/upstream-reviewed.txt)
+          [[ "$reviewed" =~ ^[0-9a-f]{40}$ ]]
           git fetch https://github.com/alphasquare404/NuvioWeb.git web
-          if git merge-base --is-ancestor FETCH_HEAD HEAD; then exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git -c core.hooksPath=/dev/null merge --no-edit FETCH_HEAD
-          npm ci --ignore-scripts
-          npm test
-          npm run lint
-          npm run build
-          git push origin HEAD:nightly
-          echo 'changed=true' >> "$GITHUB_OUTPUT"
-      - name: Deploy checked merge
-        if: steps.merge.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run nightly.yml --ref nightly
-          gh workflow run publish-ghcr.yml --ref nightly
+          latest=$(git rev-parse FETCH_HEAD)
+          git merge-base --is-ancestor "$reviewed" "$latest"
+          if [[ "$reviewed" == "$latest" ]]; then
+            echo 'No upstream changes since the last review.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'Upstream has changes to review. This job never merges or deploys them.' >> "$GITHUB_STEP_SUMMARY"
+          echo "[Compare reviewed changes](https://github.com/alphasquare404/NuvioWeb/compare/$reviewed...$latest)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          git log --reverse --no-merges --format='%h %s' "$reviewed..$latest" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo 'See docs/upstream-sync.md for the integration policy.' >> "$GITHUB_STEP_SUMMARY"
