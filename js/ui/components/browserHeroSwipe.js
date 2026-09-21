@@ -6,9 +6,12 @@ export function heroSwipeDirection(dx, dy, elapsed, width) {
     ? dx < 0 ? 1 : -1 : 0;
 }
 
+// DOM updates replace attributes while keeping the element and its listeners.
+const boundCards = new WeakSet();
+
 export function bindBrowserHeroSwipe(card, { rotate, pause, resume }) {
-  if (card.dataset.browserHeroSwipeBound) return;
-  card.dataset.browserHeroSwipeBound = "true";
+  if (boundCards.has(card)) return;
+  boundCards.add(card);
   let gesture = null;
   let suppressClickUntil = 0;
   card.addEventListener("pointerdown", event => {

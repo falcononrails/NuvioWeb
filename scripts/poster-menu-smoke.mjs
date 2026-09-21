@@ -31,6 +31,8 @@ import {watchedItemsRepository} from './js/data/repository/watchedItemsRepositor
 import {watchProgressRepository} from './js/data/repository/watchProgressRepository.js';
 import {libraryRepository, LibrarySourceMode} from './js/data/repository/libraryRepository.js';
 import {I18n} from './js/i18n/index.js';
+import {applySectionScopedUpdate} from './js/ui/screens/home/homeSectionUpdate.js';
+import {bindBrowserHeroSwipe} from './js/ui/components/browserHeroSwipe.js';
 await I18n.init();
 savedLibraryRepository.isSaved=async()=>Boolean(window.saved);
 savedLibraryRepository.toggle=async()=>window.saved=!window.saved;
@@ -43,6 +45,29 @@ libraryRepository.getSourceMode=async()=>LibrarySourceMode.LOCAL;
 libraryRepository.getMembershipSnapshot=async()=>({listMembership:{}});
 const screens={${routes.map(([name]) => name).join(",")}};
 const bindings=${JSON.stringify(bindings)};
+window.checkHomeRebind=()=>{
+  const container=document.querySelector('main');
+  const markup=(caption)=>'<section class="home-shell"><div class="home-modern-hero-card" style="width:390px"><span>'+caption+'</span><button>Details</button></div><section class="home-row-continue"><div class="home-track" data-track-row-key="cw"><span>'+caption+'</span><article>Poster</article></div></section></section>';
+  container.innerHTML=markup('Before');
+  const hero=container.querySelector('.home-modern-hero-card');
+  const track=container.querySelector('.home-track');
+  let swipes=0, drags=0;
+  const screen=Object.assign(Object.create(HomeScreen),{container,clearDesktopCatalogDrag(){drags++}});
+  const bind=()=>{
+    bindBrowserHeroSwipe(hero,{rotate(){swipes++},pause(){},resume(){}});
+    screen.bindDesktopCatalogDragScrolling();
+  };
+  bind();
+  for(const caption of ['Updated','Updated again']){
+    if(!applySectionScopedUpdate(container,markup(caption))) throw Error('Expected an in-place Home update');
+    if(container.querySelector('.home-track')!==track) throw Error('Home rail was unnecessarily replaced');
+    bind();
+  }
+  hero.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',pointerId:1,clientX:300,clientY:5}));
+  hero.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerType:'touch',pointerId:1,clientX:150,clientY:5}));
+  track.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',pointerId:2,button:0,clientX:200}));
+  return {swipes,drags};
+};
 window.mount=([name, ,classes,action='openDetail'])=>{
   window.unbind?.();
   const container=document.querySelector('main');
@@ -140,5 +165,8 @@ try {
   await page.getByRole("dialog").waitFor({ state: "detached" });
   assert.equal(await page.evaluate(() => window.details), 0);
   console.log("PASS library/watched actions and Continue Watching menu");
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.deepEqual(await page.evaluate(() => window.checkHomeRebind()), { swipes: 1, drags: 1 });
+  console.log("PASS partial Home updates retain rails without duplicating swipe/drag handlers");
   assert.deepEqual(errors, []);
 } finally { await browser.close(); server.closeAllConnections(); server.close(); }

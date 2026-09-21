@@ -9,7 +9,7 @@ We backport compatible changes on an isolated branch. We do not merge upstream U
 | --- | --- |
 | `ba1aee6e`, `dd0eb3b8` | Import Continue Watching identity deduplication and tracking-source ownership. |
 | `567cba17`, `2c99abe7`, `7939a9c6`, `1a64da59`, `7d8aa6bb` | Import stop/background progress reports, Back settlement, explicit refresh, external-player resume and Home reveal refresh. Report before our local/server engines are torn down; retain our explicit-Back suppression override. |
-| `503518af`, `fa4722f1`, `a789f2ec` | Import preview stacking, collection focus restoration and partial Home updates that reuse decoded images and preserve scroll. |
+| `503518af`, `fa4722f1`, `a789f2ec` | Import preview stacking, collection focus restoration and partial Home updates that reuse decoded images and preserve scroll. Keep swipe/drag binding state outside reconciled DOM attributes to prevent duplicate handlers on reused nodes. |
 | `97bcfe56` | Import browser-compatible MDBList GET ratings. |
 | `7fc50814`, `b2d7ba7d` | Import only Continue Watching removal/reconciliation. Retain our accessible card menus. Remote removal deletes playback sessions, never watched history; guard profile changes during async work. |
 | `834a8f4b`, `b3e8b83d` | Already covered by our progress-bar logic and collection-hover implementation. |

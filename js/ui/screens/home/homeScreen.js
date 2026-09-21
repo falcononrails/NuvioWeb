@@ -2802,6 +2802,9 @@ export function createPosterCardMarkup(
   `;
 }
 
+// Keep binding state outside attributes, which partial renders reconcile.
+const desktopDragBoundTracks = new WeakSet();
+
 export const HomeScreen = {
   getRouteStateKey() {
     return "home";
@@ -8220,10 +8223,10 @@ export const HomeScreen = {
       ".home-modern-catalogs .home-track, .home-row-continue .home-track"
     );
     desktopCarouselTracks.forEach((track) => {
-      if (track.dataset.desktopDragBound === "true") {
+      if (desktopDragBoundTracks.has(track)) {
         return;
       }
-      track.dataset.desktopDragBound = "true";
+      desktopDragBoundTracks.add(track);
 
       // Browser images are draggable by default. Prevent their native drag
       // gesture so pointer movement can continue to the shelf drag handler.
