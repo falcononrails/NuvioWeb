@@ -6,6 +6,8 @@ services:
       NUVIO_SUPABASE_URL: ${NUVIO_SUPABASE_URL:?Copy .env.example to .env first}
       NUVIO_SUPABASE_ANON_KEY: ${NUVIO_SUPABASE_ANON_KEY:?Copy .env.example to .env first}
       NUVIO_SUPABASE_FALLBACK_URL: ${NUVIO_SUPABASE_FALLBACK_URL:-}
+      TV_LOGIN_WEB_BASE_URL: ${TV_LOGIN_WEB_BASE_URL:-}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
       YOUTUBE_PROXY_URL: ${YOUTUBE_PROXY_URL:-youtube-proxy.html}
       INTRODB_API_URL: "${INTRODB_API_URL:-https://api.introdb.app/}"
       IMDB_RATINGS_API_BASE_URL: ${IMDB_RATINGS_API_BASE_URL:-}

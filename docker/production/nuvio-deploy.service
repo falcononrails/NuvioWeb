@@ -1,0 +1,21 @@
+[Unit]
+Description=Nuvio checked image deployment receiver
+After=network.target
+[Service]
+User=nuvio-deploy
+Group=nuvio-deploy
+EnvironmentFile=/etc/nuvio-deploy.env
+ExecStart=/usr/bin/python3 /usr/local/bin/nuvio-deploy-http
+RuntimeDirectory=nuvio-deploy
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=restart
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/nuvio-web/image-requests /run/nuvio-deploy
+MemoryMax=256M
+TasksMax=8
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildRuntimeEnvScript, normalizeEnvProperties } from "./envProperties.mjs";
+import { buildRuntimeEnvScript, normalizeEnvProperties, ENV_PROPERTY_KEYS } from "./envProperties.mjs";
 
 test("runtime env output includes only configured public integration values", () => {
   const script = buildRuntimeEnvScript({
@@ -38,6 +38,11 @@ test("container runtime allowlist includes Premiumize but excludes Trakt server 
   assert.match(entrypoint, /write_value SIMKL_CLIENT_ID/);
   assert.match(entrypoint, /write_value TRAKT_CLIENT_ID/);
   assert.doesNotMatch(entrypoint, /write_value TRAKT_CLIENT_SECRET|write_value TRAKT_REDIRECT_URI/);
+  const compose = await readFile(new URL("../docker-compose.yml", import.meta.url), "utf8");
+  for (const key of ENV_PROPERTY_KEYS) {
+    assert.ok(entrypoint.includes(`write_value ${key} `), `${key} must survive image deployment`);
+    assert.ok(compose.includes(`${key}:`), `${key} must reach the container`);
+  }
 });
 
 test("Service Worker fetches runtime config from the network without precaching it", async () => {

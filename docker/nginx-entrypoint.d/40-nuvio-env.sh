@@ -41,6 +41,8 @@ EOF
   write_value NUVIO_SUPABASE_URL "${NUVIO_SUPABASE_URL:-}"; printf ',\n'
   write_value NUVIO_SUPABASE_ANON_KEY "${NUVIO_SUPABASE_ANON_KEY:-}"; printf ',\n'
   write_value NUVIO_SUPABASE_FALLBACK_URL "${NUVIO_SUPABASE_FALLBACK_URL:-}"; printf ',\n'
+  write_value TV_LOGIN_WEB_BASE_URL "${TV_LOGIN_WEB_BASE_URL:-}"; printf ',\n'
+  write_value TMDB_API_KEY "${TMDB_API_KEY:-}"; printf ',\n'
   write_value YOUTUBE_PROXY_URL "${YOUTUBE_PROXY_URL:-youtube-proxy.html}"; printf ',\n'
   write_value INTRODB_API_URL "${INTRODB_API_URL:-https://api.introdb.app/}"; printf ',\n'
   write_value IMDB_RATINGS_API_BASE_URL "${IMDB_RATINGS_API_BASE_URL:-}"; printf ',\n'
