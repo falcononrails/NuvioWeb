@@ -1907,6 +1907,32 @@ button:focus-visible {
   transform: scale(1.1);
 }
 
+.watch-party-dialog-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.watch-party-code {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.nuvio-dialog-actions.watch-party-actions {
+  flex-wrap: wrap;
+}
+
+.watch-party-dialog-content [hidden] {
+  display: none;
+}
+
 .poster-list-picker-dialog-panel {
   max-height: min(86vh, 900px);
 }

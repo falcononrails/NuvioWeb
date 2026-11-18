@@ -49,6 +49,7 @@ import {
 } from "../../../core/debrid/debridDeviceAuthService.js";
 import { ProfileManager } from "../../../core/profile/profileManager.js";
 import { AuthManager } from "../../../core/auth/authManager.js";
+import { openWatchPartyDialog } from "../player/watchPartyDialog.js";
 import { SupabaseApi } from "../../../data/remote/supabase/supabaseApi.js";
 import { Platform } from "../../../platform/index.js";
 import {
@@ -3345,6 +3346,7 @@ export const SettingsScreen = {
     );
     if (isDesktopBrowser) {
       this.actionMap.set("account:signinQr", () => Router.navigate("authQrSignIn"));
+      this.actionMap.set("account:watchParty", () => openWatchPartyDialog());
     }
     this.actionMap.set("account:signout", async () => {
       this.accountSyncOverview = null;
@@ -3425,6 +3427,12 @@ export const SettingsScreen = {
                   )
             )}</p>
             ${isDesktopBrowser ? this.renderAccountBackendInfo() : ""}
+            ${isDesktopBrowser ? this.renderAccountActionButton({
+              focusKey: "account:watchParty",
+              icon: "groups",
+              title: "Watch party",
+              subtitle: "Join friends with a room code"
+            }) : ""}
             ${
               model.accountSyncOverview
                 ? this.renderAccountSyncOverview(model.accountSyncOverview)

@@ -13,6 +13,7 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
 - Posters/Text season picker and a release Calendar in Library. Artwork and release dates depend on the metadata your addons provide.
 - Fixes for animated collection backdrops, browser playback and audio controls.
+- Watch Party uses Nuvio rooms. Start a room from the browser player's More menu, or join from Settings → Account. Each participant picks their own source for the movie or episode.
 - Local AC3, EAC3 and DTS audio decoding with AVPlayer when native playback cannot handle the source. It loads on demand and keeps the existing player controls.
 - Embedded text subtitles through the playback service, with language selection, delay controls and seek-aware timing. Image subtitle formats still need an external player or a subtitle addon.
 - An open-source [playback service](services/playback-bridge) for files whose audio the browser cannot play. It copies supported video and converts the selected audio track to AAC, starting automatically when needed.
@@ -97,7 +98,7 @@ Checks: `npm test`, `npm run lint`, `npm run build`.
 
 ## Credits and license
 
-- [NuvioMedia](https://github.com/NuvioMedia), [tapframe/NuvioTV](https://github.com/tapframe/NuvioTV), and the official [NuvioTVSmart](https://github.com/NuvioMedia/NuvioTVSmart) and [NuvioDesktop](https://github.com/NuvioMedia/NuvioDesktop) teams for the original apps, code and design.
+- [NuvioMedia](https://github.com/NuvioMedia), [tapframe/NuvioTV](https://github.com/tapframe/NuvioTV), and the official [NuvioTVSmart](https://github.com/NuvioMedia/NuvioTVSmart) and [NuvioDesktop](https://github.com/NuvioMedia/NuvioDesktop) teams for the original apps, code and design. The Watch Party protocol and tests come from NuvioTVSmart 1.4.4.
 - [alphasquare404/NuvioWeb](https://github.com/alphasquare404/NuvioWeb) for the browser/PWA fork this repository builds on.
 - [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb) for the mobile navigation and hero behavior adapted here. This is a selective port, not a full merge of that fork.
 - [lucaboox/nuvio-web](https://github.com/lucaboox/nuvio-web) for the Library release-calendar reference and the notification/backend settings idea.

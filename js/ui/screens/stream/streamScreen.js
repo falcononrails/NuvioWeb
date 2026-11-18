@@ -1,5 +1,6 @@
 import { Router } from "../../navigation/router.js";
 import { ScreenUtils } from "../../navigation/screen.js";
+import { isFollowingParty } from "../player/watchPartyPlayback.js";
 import { streamRepository } from "../../../data/repository/streamRepository.js";
 import { addonRepository } from "../../../data/repository/addonRepository.js";
 import { watchProgressRepository } from "../../../data/repository/watchProgressRepository.js";
@@ -2521,7 +2522,7 @@ export const StreamScreen = {
       resumeDurationMs = Number(resumeProgress?.durationMs || 0) || resumeDurationMs;
     }
     if (
-      !skipExternalRoute &&
+      !skipExternalRoute && !isFollowingParty(this.params) &&
       (await this.routeSelectedStream(selected, {
         offlineObjectUrl,
         offlineDownload,

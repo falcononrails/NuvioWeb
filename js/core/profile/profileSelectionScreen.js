@@ -1,6 +1,7 @@
 import { Router } from "../../ui/navigation/router.js";
 import { MAX_PROFILES, ProfileManager } from "../../core/profile/profileManager.js";
 import { ProfileSyncService } from "../../core/profile/profileSyncService.js";
+import { PartyRepository } from "../party/partyRepository.js";
 import { StartupSyncService } from "../../core/profile/startupSyncService.js";
 import { ScreenUtils } from "../../ui/navigation/screen.js";
 import { AvatarRepository } from "../../data/remote/supabase/avatarRepository.js";
@@ -2322,6 +2323,9 @@ export const ProfileSelectionScreen = {
       // suspended under Detail) must never survive into the next profile --
       // its DOM belongs to data that no longer applies.
       Router.releaseAllSuspendedLayers?.({ cleanup: true });
+      if (String(ProfileManager.getActiveProfileId()) !== String(profileId) && PartyRepository.getState().party) {
+        void PartyRepository.leave();
+      }
       await ProfileManager.setActiveProfile(profileId);
       StartupSyncService.enableProfileScopedSync();
       // Kick off critical hydration but do not block the screen transition on

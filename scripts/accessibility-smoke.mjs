@@ -30,6 +30,9 @@ import { libraryRepository } from './js/data/repository/libraryRepository.js';
 import { ProfileManager } from './js/core/profile/profileManager.js';
 import { ProfileSelectionScreen } from './js/core/profile/profileSelectionScreen.js';
 import { ProfileSyncService } from './js/core/profile/profileSyncService.js';
+import { AuthManager } from './js/core/auth/authManager.js';
+import { PartyRepository } from './js/core/party/partyRepository.js';
+import { openWatchPartyDialog } from './js/ui/screens/player/watchPartyDialog.js';
 await I18n.init(); ThemeManager.apply();
 addonRepository.getInstalledAddons = async () => [];
 ProfileManager.getProfiles=async()=>[];
@@ -90,6 +93,32 @@ window.showProfilePin = () => {
   window.pinUnlocked = false;
   current = screen;
   screen.openPinOverlay('unlock', profile);
+};
+window.showWatchParty = () => {
+  const saved = { ...PartyRepository };
+  const authState = AuthManager.getAuthState();
+  AuthManager.setState('authenticated');
+  let party = null;
+  let refresh = () => {};
+  Object.assign(PartyRepository, {
+    getState: () => ({ party }),
+    async refreshAvailability() {},
+    canUse: () => true,
+    subscribeState(listener) { refresh = listener; return () => { refresh = () => {}; }; },
+    async join(code) {
+      window.joinedPartyCode = code;
+      party = { code, memberId:'guest', hostMemberId:'host', members:[{},{}], connected:true,
+        media:{meta_type:'series',meta_id:'tt123',title:'Fixture show',season:1,episode:2} };
+      refresh();
+    }
+  });
+  const navigate = Router.navigate;
+  Router.navigate = async (route, params) => { window.partyRoute = { route, params }; };
+  openWatchPartyDialog({ onClose() {
+    Object.assign(PartyRepository, saved);
+    AuthManager.setState(authState);
+    Router.navigate = navigate;
+  } });
 };
 const episodes=[1,2,3].map(season=>({id:'fixture:'+season+':1',season,episode:1,title:'Episode one',overview:'Episode description',released:'2026-09-19'}));
 const meta={id:'fixture',type:'series',name:'Synthetic series',description:'Local metadata.',videos:episodes};
@@ -204,6 +233,16 @@ try {
   assert.deepEqual(await page.evaluate(() => window.pinAttempts), ['0123'], 'Typing submits the same PIN in order');
   assert.equal(await page.evaluate(() => window.pinUnlocked), true);
   await page.evaluate(() => { document.querySelector('#profileSelection').id = 'test'; window.showControls(); });
+  await page.evaluate(() => window.showWatchParty());
+  const partyDialog = page.getByRole('dialog', { name: 'Watch party' });
+  await partyDialog.getByRole('textbox', { name: 'Room code or Nuvio invite link' }).fill('abc-234');
+  await partyDialog.getByRole('button', { name: 'Join party' }).click();
+  await partyDialog.getByText('ABC 234 · 2 members · Fixture show').waitFor();
+  assert.equal(await page.evaluate(() => window.joinedPartyCode), 'ABC234');
+  await partyDialog.getByRole('button', { name: 'Choose source' }).click();
+  assert.deepEqual(await page.evaluate(() => [window.partyRoute?.route, window.partyRoute?.params?.videoId]), ['stream', 'tt123:1:2']);
+  await partyDialog.waitFor({ state: 'detached' });
+  await page.waitForFunction(() => !document.body.classList.contains('nuvio-modal-open'));
   await page.locator('[data-desktop-route="home"]').focus();
   await page.keyboard.press('ArrowRight');await focused('[data-desktop-route="search"]');
   assert.equal(await page.evaluate(()=>window.activatedRoute),undefined);

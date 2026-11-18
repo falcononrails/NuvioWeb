@@ -63,6 +63,10 @@ import { bindBrowserPushReturn } from "../../components/browserPushReturn.js";
 import { markBrowserExternalPlaybackFinished } from "../../components/browserExternalPlaybackFinish.js";
 import { validateExternalPlaybackPositionParts } from "../../components/browserExternalPlaybackTime.js";
 import { NuvioDialog } from "../../components/nuvioDialog.js";
+import { AuthManager } from "../../../core/auth/authManager.js";
+import { PartyRepository } from "../../../core/party/partyRepository.js";
+import { openWatchPartyDialog } from "./watchPartyDialog.js";
+import { bindPartyPlayback, isFollowingParty, playerPartyMedia } from "./watchPartyPlayback.js";
 import { normalizeSubtitleForDisplay } from "../../components/browserSubtitleDisplay.js";
 import {
   createOfflineSubtitleFingerprint,
@@ -7350,6 +7354,7 @@ export const PlayerScreen = {
   },
 
   maybeAutoplayNextEpisode() {
+    if (isFollowingParty(this.params)) return false;
     const isVideoPaused = Boolean(PlayerController.video?.paused);
     if (
       this.nextEpisodeLaunching ||
@@ -7690,6 +7695,7 @@ export const PlayerScreen = {
   },
 
   async playNextEpisode({ userInitiated = false } = {}) {
+    if (isFollowingParty(this.params)) return false;
     const nextEpisode = this.resolveNextEpisodeInfo();
     const itemType = normalizeItemType(this.params?.itemType || "movie");
     if (
@@ -8339,6 +8345,8 @@ export const PlayerScreen = {
     if (!video) {
       return;
     }
+    this.unbindPartyPlayback?.();
+    this.unbindPartyPlayback = bindPartyPlayback(this, PlayerController);
 
     const onWaiting = () => {
       if (this.isStartupErrorVisible()) {
@@ -8669,6 +8677,8 @@ export const PlayerScreen = {
   },
 
   unbindVideoEvents() {
+    this.unbindPartyPlayback?.();
+    this.unbindPartyPlayback = null;
     this.videoListeners.forEach(({ target, eventName, handler }) => {
       target?.removeEventListener?.(eventName, handler);
     });
@@ -8808,6 +8818,9 @@ export const PlayerScreen = {
             }
           ]
         : []),
+      ...(this.canOpenWatchParty()
+        ? [{ action: "watchParty", icon: "assets/icons/ic_player_party.svg", useMask: true, title: "Watch party" }]
+        : []),
       {
         action: "aspect",
         icon: "assets/icons/ic_player_aspect_ratio.svg",
@@ -8869,6 +8882,11 @@ export const PlayerScreen = {
               </button>`
             : ""
         }
+        ${this.canOpenWatchParty() ? `
+          <button class="player-mobile-more-action player-control-btn" type="button" tabindex="-1" data-action="watchParty">
+            <span class="player-control-icon player-control-icon-mask" style="-webkit-mask-image:url('assets/icons/ic_player_party.svg');mask-image:url('assets/icons/ic_player_party.svg');" aria-hidden="true"></span>
+            <span>Watch party</span>
+          </button>` : ""}
         <button class="player-mobile-more-action player-control-btn" type="button" tabindex="-1" data-action="aspect" title="${escapeHtml(t("player_more_aspect_ratio", {}, "Aspect Ratio"))}">
           <span class="player-control-icon player-control-icon-mask" style="-webkit-mask-image:url('assets/icons/ic_player_aspect_ratio.svg');mask-image:url('assets/icons/ic_player_aspect_ratio.svg');" aria-hidden="true"></span>
           <span>${escapeHtml(t("player_more_aspect_ratio", {}, "Aspect Ratio"))}</span>
@@ -10196,6 +10214,12 @@ export const PlayerScreen = {
   togglePause({ focusControls = true } = {}) {
     const preserveProgressFocus = this.controlFocusZone === "progress";
     if (this.isExternalFrameMode()) {
+      return;
+    }
+    if (isFollowingParty(this.params)) {
+      if (PlayerController.video?.paused && PartyRepository.getPlayback()?.paused === false) {
+        PlayerController.resume();
+      }
       return;
     }
     if (this.paused) {
@@ -15898,7 +15922,23 @@ export const PlayerScreen = {
     this.performControlAction(current.action || "");
   },
 
+  canOpenWatchParty() {
+    return AuthManager.isAuthenticated && Boolean(playerPartyMedia(this.params));
+  },
+
   performControlAction(action) {
+    if (action === "watchParty" && this.canOpenWatchParty() && !this.watchPartyDialog) {
+      this.watchPartyDialog = openWatchPartyDialog({
+        media: playerPartyMedia(this.params),
+        onHosted: () => PartyRepository.publishPlayback(
+          Boolean(PlayerController.video?.paused),
+          PlayerController.getCurrentTimeSeconds() * 1000,
+          PlayerController.getPlaybackRate()
+        ),
+        onClose: () => { this.watchPartyDialog = null; }
+      });
+      return;
+    }
     if (action === "playPause") {
       this.togglePause();
       this.renderControlButtons();
@@ -17268,6 +17308,7 @@ export const PlayerScreen = {
   cleanup() {
     try {
       this.playerRouteActive = false;
+      this.watchPartyDialog?.destroy();
       this.externalPlayerChooserDialog?.destroy?.();
       this.externalPlayerChooserDialog = null;
       this.releaseOfflineObjectUrl();
