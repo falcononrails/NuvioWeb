@@ -32,14 +32,14 @@ import { ProfileSelectionScreen } from './js/core/profile/profileSelectionScreen
 import { ProfileSyncService } from './js/core/profile/profileSyncService.js';
 import { AuthManager } from './js/core/auth/authManager.js';
 import { PartyRepository } from './js/core/party/partyRepository.js';
-import { openWatchPartyDialog } from './js/ui/screens/player/watchPartyDialog.js';
+import { HomeScreen } from './js/ui/screens/home/homeScreen.js';
 await I18n.init(); ThemeManager.apply();
 addonRepository.getInstalledAddons = async () => [];
 ProfileManager.getProfiles=async()=>[];
 const app = document.querySelector('#test');
 let current = { container: app, onKeyDown(){ window.tvKeys++; } };
 Router.getCurrentScreen = () => current;
-Router.getCurrent = () => 'home';
+Router.getCurrent = () => current === settings ? 'settings' : 'home';
 Router.navigate = async route => { window.activatedRoute = route; };
 window.tvKeys = 0; window.clicks = [];
 FocusEngine.init();
@@ -94,31 +94,53 @@ window.showProfilePin = () => {
   current = screen;
   screen.openPinOverlay('unlock', profile);
 };
-window.showWatchParty = () => {
+window.prepareWatchParty = () => {
   const saved = { ...PartyRepository };
   const authState = AuthManager.getAuthState();
   AuthManager.setState('authenticated');
   let party = null;
   let refresh = () => {};
+  let refreshChat = () => {};
+  const sent = [];
+  let messages = [{ id: 1, name: 'Friend', body: '<img src=x> Hello' }];
   Object.assign(PartyRepository, {
     getState: () => ({ party }),
     async refreshAvailability() {},
     canUse: () => true,
     subscribeState(listener) { refresh = listener; return () => { refresh = () => {}; }; },
+    getChat: () => ({ messages }),
+    subscribeChat(listener) { refreshChat = listener; return () => { refreshChat = () => {}; }; },
+    async refreshChat() {},
+    async sendChat(body, id) {
+      sent.push(id);
+      window.sentPartyChat = sent;
+      if (sent.length === 1) return false;
+      messages = [...messages, { id: 2, name: 'Me', body }];
+      refreshChat();
+      return true;
+    },
     async join(code) {
       window.joinedPartyCode = code;
-      party = { code, memberId:'guest', hostMemberId:'host', members:[{},{}], connected:true,
+      party = { id: 'room-1', code, memberId:'guest', hostMemberId:'host', members:[{},{}], connected:true,
         media:{meta_type:'series',meta_id:'tt123',title:'Fixture show',season:1,episode:2} };
       refresh();
     }
   });
   const navigate = Router.navigate;
   Router.navigate = async (route, params) => { window.partyRoute = { route, params }; };
-  openWatchPartyDialog({ onClose() {
+  window.finishWatchParty = () => {
     Object.assign(PartyRepository, saved);
     AuthManager.setState(authState);
     Router.navigate = navigate;
-  } });
+    clearScreen('test');
+  };
+  window.showControls();
+};
+window.continueWatchingCardAction = upcoming => {
+  const home = Object.create(HomeScreen);
+  home.openContinueWatchingDetails = () => 'details';
+  home.openContinueWatchingFromItem = () => 'stream';
+  return home.activateContinueWatchingCard({ isNextUp: true, hasAired: !upcoming });
 };
 const episodes=[1,2,3].map(season=>({id:'fixture:'+season+':1',season,episode:1,title:'Episode one',overview:'Episode description',released:'2026-09-19'}));
 const meta={id:'fixture',type:'series',name:'Synthetic series',description:'Local metadata.',videos:episodes};
@@ -176,6 +198,7 @@ window.showPlayer = () => {
     getPlaybackSpeed:()=>1,getPlaybackSpeedOptions:()=>[0.5,1,1.5,2],
     episodes,episodePanelIndex:0,episodePanelSeason:1,
     discoverEmbeddedSubtitleTracks(){},discoverHiddenAudioTracks(){},syncTrackState(){},applyAudioAmplification(){},
+    applyAspectMode(){},
     flushPersistPlayerPresentationSettings(){},
     reloadSources(){window.clicks.push('reload');this.renderSourcesPanel();},
     renderParentalGuideOverlay(){},renderSkipIntroButton(){},renderSeekOverlay(){},renderPauseOverlay(){},
@@ -233,7 +256,8 @@ try {
   assert.deepEqual(await page.evaluate(() => window.pinAttempts), ['0123'], 'Typing submits the same PIN in order');
   assert.equal(await page.evaluate(() => window.pinUnlocked), true);
   await page.evaluate(() => { document.querySelector('#profileSelection').id = 'test'; window.showControls(); });
-  await page.evaluate(() => window.showWatchParty());
+  await page.evaluate(() => window.prepareWatchParty());
+  await page.getByRole('button', { name: 'Watch Party' }).press('Enter');
   const partyDialog = page.getByRole('dialog', { name: 'Watch party' });
   await partyDialog.getByRole('textbox', { name: 'Room code or Nuvio invite link' }).fill('abc-234');
   await partyDialog.getByRole('button', { name: 'Join party' }).click();
@@ -243,6 +267,41 @@ try {
   assert.deepEqual(await page.evaluate(() => [window.partyRoute?.route, window.partyRoute?.params?.videoId]), ['stream', 'tt123:1:2']);
   await partyDialog.waitFor({ state: 'detached' });
   await page.waitForFunction(() => !document.body.classList.contains('nuvio-modal-open'));
+  await page.evaluate(() => {
+    window.showPlayer();
+    window.player.getPlayerUiState = () => ({ episodesAll: [] });
+    window.player.resolveNextEpisodeInfo = () => null;
+    delete window.player.getControlDefinitions;
+    window.player.renderControlButtons();
+  });
+  await page.getByRole('button', { name: 'Watch Party' }).press('Enter');
+  await partyDialog.getByRole('log').getByText('<img src=x> Hello').waitFor();
+  assert.equal(await partyDialog.getByRole('log').locator('img').count(), 0);
+  const messageInput = partyDialog.getByRole('textbox', { name: 'Message' });
+  await messageInput.pressSequentially('Hello');
+  await messageInput.press('Enter');
+  await partyDialog.getByText('Message could not be sent. Press Send to retry.').waitFor();
+  assert.equal(await messageInput.inputValue(), 'Hello');
+  await messageInput.press('Enter');
+  await partyDialog.getByRole('log').getByText('Me Hello').waitFor();
+  assert.equal(await page.evaluate(() => window.sentPartyChat[0] === window.sentPartyChat[1]), true);
+  await messageInput.press('Escape');
+  await partyDialog.waitFor({ state: 'detached' });
+  await page.waitForFunction(() => !document.body.classList.contains('nuvio-modal-open'));
+  await focused('[data-action="watchParty"]');
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.getByRole('button', { name: 'Watch Party' }).click();
+  await partyDialog.getByRole('textbox', { name: 'Message' }).waitFor();
+  const composeFits = await partyDialog.locator('.watch-party-chat-compose').evaluate(el =>
+    el.scrollWidth <= el.clientWidth && el.querySelector('input').clientWidth > 80);
+  assert.equal(composeFits, true, 'Chat input and Send fit on a narrow phone');
+  await partyDialog.getByRole('button', { name: 'Close' }).click();
+  await page.waitForFunction(() => !document.body.classList.contains('nuvio-modal-open'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate(() => {
+    window.finishWatchParty();
+    window.showControls();
+  });
   await page.locator('[data-desktop-route="home"]').focus();
   await page.keyboard.press('ArrowRight');await focused('[data-desktop-route="search"]');
   assert.equal(await page.evaluate(()=>window.activatedRoute),undefined);
@@ -279,6 +338,22 @@ try {
   }
   for(const section of ['account','profiles','about','appearance','layout','contentDiscovery','integration','streams','playback','downloads','trakt','advanced']) {
     await page.evaluate(section=>showSettings(section),section);await audit(`Settings ${section}`);
+  }
+  await page.evaluate(() => showSettings('layout'));
+  const continueWatchingGroup = page.locator('[data-focus-key="layout:toggle:continueWatching"]');
+  const clickAction = page.locator('[data-focus-key="layout:continueWatchingClickAction"]');
+  for (const [label, upcoming, aired] of [
+    ['Open Details', 'details', 'details'],
+    ['Details for Upcoming Only', 'details', 'stream'],
+    ['Open Stream', 'stream', 'stream']
+  ]) {
+    if (await continueWatchingGroup.getAttribute('aria-expanded') === 'false') await continueWatchingGroup.click();
+    await clickAction.click({ timeout: 4000 });
+    await page.waitForFunction(() => document.querySelector('.settings-workspace').inert);
+    await page.locator('.settings-dialog-option').getByText(label, { exact: true }).click({ timeout: 4000 });
+    await page.waitForFunction(() => !document.querySelector('.settings-workspace').inert);
+    assert.deepEqual(await page.evaluate(() => [continueWatchingCardAction(true), continueWatchingCardAction(false)]),
+      [upcoming, aired]);
   }
   await page.evaluate(()=>showTextDialog());await audit('Settings text dialog');
   await page.locator('[data-text-dialog-role="field"]').fill('Updated');

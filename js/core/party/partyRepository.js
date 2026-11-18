@@ -38,6 +38,8 @@ const WAIT_LIMIT_MS = 15000;
 const CLOCK_SAMPLE_GAP_MS = 400;
 const CLOCK_SAMPLES = 4;
 const PRESENCE_DELAY_MS = 250;
+export const PARTY_CHAT_MAX_LENGTH = 500;
+const EMPTY_CHAT = { messages: [], loading: false, error: false };
 
 function createEmitter() {
   const listeners = new Set();
@@ -134,6 +136,7 @@ export function createPartyRepository({
   const noticesEmitter = createEmitter();
   const sharedStreamEmitter = createEmitter();
   const availableEmitter = createEmitter();
+  const chatEmitter = createEmitter();
 
   let state = { party: null, busy: false };
   let playback = null;
@@ -191,6 +194,39 @@ export function createPartyRepository({
 
   function sessionActive(current) {
     return Boolean(current) && session === current && !current.cancelled;
+  }
+
+  function setChat(current, patch) {
+    if (!sessionActive(current)) return;
+    current.chat = { ...current.chat, ...patch };
+    chatEmitter.emit(current.chat);
+  }
+
+  function mergeChat(current, incoming) {
+    if (!sessionActive(current)) return;
+    const messages = new Map(current.chat.messages.map((message) => [message.id, message]));
+    for (const message of incoming) {
+      if (!Number.isSafeInteger(message?.id) || message.id <= 0 || typeof message.body !== "string") continue;
+      const body = message.body.trim().slice(0, PARTY_CHAT_MAX_LENGTH);
+      if (!body || messages.has(message.id)) continue;
+      const name = typeof message.name === "string" ? message.name.trim().slice(0, 80) : "";
+      messages.set(message.id, { id: message.id, name: name || DEFAULT_NAME, body });
+    }
+    setChat(current, {
+      messages: [...messages.values()].sort((left, right) => left.id - right.id).slice(-200)
+    });
+  }
+
+  async function refreshChat() {
+    const current = session;
+    const party = state.party;
+    if (!party || current.chat.loading) return;
+    setChat(current, { loading: true, error: false });
+    const history = await runRemote(() => api.listMessages(party.id, deviceId()));
+    if (!sessionActive(current)) return;
+    const loaded = !history?.error && Array.isArray(history?.messages);
+    if (loaded) mergeChat(current, history.messages);
+    setChat(current, { loading: false, error: !loaded });
   }
 
   function later(current, ms, task) {
@@ -271,6 +307,7 @@ export function createPartyRepository({
   function startSession(party, initialPlayback) {
     const current = {
       cancelled: false,
+      chat: EMPTY_CHAT,
       timers: new Set(),
       persistTimer: null,
       presenceTimer: null
@@ -321,6 +358,7 @@ export function createPartyRepository({
       current.timers.clear();
     }
     session = null;
+    chatEmitter.emit(EMPTY_CHAT);
     channelCleanup.forEach((cleanup) => cleanup());
     channelCleanup = [];
     if (channel && socket) {
@@ -367,12 +405,16 @@ export function createPartyRepository({
     if (playback) send("state", encodePlayback(playback));
     if (isPartyHost(party) && party.sharing && sharedStream) sendStream(sharedStream);
     requestState(party);
+    void refreshChat();
   }
 
   async function onMessage(event, payload) {
     const party = state.party;
     if (!party) return;
     switch (event) {
+      case "chat":
+        mergeChat(session, [payload]);
+        break;
       case "state": {
         const decoded = decodePartyPlayback(payload);
         if (decoded) accept(decoded);
@@ -748,6 +790,9 @@ export function createPartyRepository({
     getState: () => state,
     getPlayback: () => playback,
     getSharedStream: () => sharedStream,
+    getChat: () => session?.chat || EMPTY_CHAT,
+    subscribeChat: (listener) => chatEmitter.subscribe(listener),
+    refreshChat,
     isAvailable: () => available,
     canUse: () => available && isAuthenticated(),
     nowMs: () => clock.nowMs(),
@@ -775,6 +820,17 @@ export function createPartyRepository({
 
     join(code) {
       return start((who) => api.join(normalizePartyCode(code), who));
+    },
+
+    async sendChat(body, clientId) {
+      const current = session;
+      const party = state.party;
+      const text = String(body || "").trim().slice(0, PARTY_CHAT_MAX_LENGTH);
+      if (!party || !text) return false;
+      const result = await runRemote(() => api.sendMessage(party.id, deviceId(), text, clientId));
+      if (!sessionActive(current) || result?.error || !result?.message) return false;
+      mergeChat(current, [result.message]);
+      return true;
     },
 
     async preview(code) {

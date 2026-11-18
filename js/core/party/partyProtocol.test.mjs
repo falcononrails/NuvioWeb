@@ -691,6 +691,7 @@ function fakeApi(overrides = {}) {
       snapshot({ hostOnly: args[2], members: ["m1", "m2"] })
     ),
     removeMember: async () => snapshot(),
+    listMessages: async () => ({ messages: [] }),
     clock: async () => 5000,
     enabled: async () => true,
     ...overrides
@@ -1007,6 +1008,31 @@ function setupRepository({ api = fakeApi(), auth = fakeAuth(), capable = true } 
   assert.equal(t.repo.getPlayback().paused, false);
 }
 
+{
+  let finishHistory;
+  const api = fakeApi({
+    listMessages: () => new Promise((resolve) => { finishHistory = resolve; }),
+    sendMessage: async (partyId, deviceId, body, clientId) => ({
+      message: { id: 3, name: "Me", body, member_id: "m2", client_id: clientId }
+    })
+  });
+  const t = setupRepository({ api });
+  await t.repo.join("ABC234");
+  t.socket.connect(true);
+  const live = { id: 2, member_id: "m1", name: "Host", body: "From Desktop" };
+  t.socket.message("chat", live);
+  finishHistory({ messages: [{ ...live, id: 1, body: "Earlier" }, live] });
+  await flush();
+  assert.equal(await t.repo.sendChat("  From the browser  ", "abcdefghijklmnopqrst"), true);
+  assert.deepEqual(t.repo.getChat().messages.map(({ body }) => body), ["Earlier", "From Desktop", "From the browser"]);
+  t.socket.connect(false);
+  t.socket.connect(true);
+  await t.repo.leave();
+  finishHistory({ messages: [live] });
+  await flush();
+  assert.deepEqual(t.repo.getChat().messages, [], "A stale chat response cannot restore messages after leaving");
+}
+
 // Real RPC payloads and Android's narrowly scoped legacy fallback.
 const { PartyApi } = await import("./partyApi.js");
 const { ProfileManager } = await import("../profile/profileManager.js");
@@ -1051,6 +1077,16 @@ requests.length = 0;
 await PartyApi.join("ABC234", { ...who, profileIndex: null });
 assert(!Object.hasOwn(requests[0].body, "p_profile_index"));
 assert.equal(requests.length, 1);
+requests.length = 0;
+await PartyApi.listMessages("room", "device");
+await PartyApi.sendMessage("room", "device", "Hello", "abcdefghijklmnopqrst");
+assert.deepEqual(requests, [
+  { functionName: "watch_party_list_messages", body: { p_party_id: "room", p_device_id: "device" } },
+  {
+    functionName: "watch_party_send_message",
+    body: { p_party_id: "room", p_device_id: "device", p_body: "Hello", p_client_id: "abcdefghijklmnopqrst" }
+  }
+]);
 // Use the production identity builder, including a change of active profile.
 const savedProfiles = ProfileManager.getProfiles;
 const savedActiveId = ProfileManager.getActiveProfileId;

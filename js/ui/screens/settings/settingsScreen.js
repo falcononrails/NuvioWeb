@@ -4100,6 +4100,23 @@ export const SettingsScreen = {
     this.actionMap.set("layout:showUnairedNextUp", () => {
       LayoutPreferences.set({ showUnairedNextUp: !LayoutPreferences.get().showUnairedNextUp });
     });
+    const continueWatchingClickOptions = [
+      { id: "stream", label: "Open Stream" },
+      { id: "details", label: "Open Details" },
+      { id: "details_for_upcoming", label: "Details for Upcoming Only" }
+    ];
+    const continueWatchingClickAction = continueWatchingClickOptions.find(
+      (option) => option.id === model.layout.continueWatchingClickAction
+    ) || continueWatchingClickOptions[0];
+    this.actionMap.set("layout:continueWatchingClickAction", () => {
+      this.openOptionDialog({
+        title: "Continue Watching Click Action",
+        options: continueWatchingClickOptions,
+        selectedId: continueWatchingClickAction.id,
+        returnFocusKey: "layout:continueWatchingClickAction",
+        onSelect: (option) => LayoutPreferences.set({ continueWatchingClickAction: option.id }, { silentSync: true })
+      });
+    });
     this.actionMap.set("layout:continueWatchingSortMode", () => {
       const options = [
         {
@@ -4410,6 +4427,12 @@ export const SettingsScreen = {
 
     const continueWatchingBody = `
       <div class="settings-stack">
+        ${this.renderActionRow({
+          focusKey: "layout:continueWatchingClickAction",
+          title: "Click Action",
+          subtitle: "Choose what opens when you select a Continue Watching card.",
+          value: continueWatchingClickAction.label
+        })}
         ${
           !isDesktopBrowser
             ? this.renderActionRow({
@@ -8637,10 +8660,6 @@ export const SettingsScreen = {
     }
 
     const dialogHtml = this.optionDialog ? this.renderOptionDialog() : this.renderTextDialog();
-    if (isDesktopBrowser) {
-      this.container.querySelector(".settings-workspace").inert = Boolean(dialogHtml);
-      if (rootSidebarSlot) rootSidebarSlot.inert = Boolean(dialogHtml);
-    }
     if (dialogSlot && dialogSlot.innerHTML !== dialogHtml) {
       dialogSlot.innerHTML = dialogHtml;
     }

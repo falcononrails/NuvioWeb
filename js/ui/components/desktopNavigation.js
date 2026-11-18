@@ -1,5 +1,7 @@
 import { Router } from "../navigation/router.js";
 import { I18n } from "../../i18n/index.js";
+import { AuthManager } from "../../core/auth/authManager.js";
+import { openWatchPartyDialog } from "../screens/player/watchPartyDialog.js";
 
 const NAVIGATION_ITEMS = [
   {
@@ -90,6 +92,11 @@ export function renderDesktopNavigation({ selectedRoute = "", profile = null } =
             </button>
           `;
         }).join("")}
+        ${AuthManager.isAuthenticated ? `
+          <button class="desktop-navigation-item" type="button" data-desktop-party aria-label="Watch Party" title="Join a watch party">
+            ${renderIcon({ icon: "assets/icons/ic_player_party.svg" })}
+            <span class="desktop-navigation-label">Watch Party</span>
+          </button>` : ""}
         ${renderProfile(profile, currentRoute)}
       </div>
     </nav>
@@ -111,11 +118,15 @@ export function bindDesktopNavigationEvents(container) {
     const content = container.querySelector('main, [role="main"], h1, h2');
     if (content) { content.tabIndex = -1; content.focus({ preventScroll: true }); }
   };
-  container?.querySelectorAll(".desktop-navigation [data-desktop-route]").forEach((button) => {
+  container?.querySelectorAll(".desktop-navigation [data-desktop-route], .desktop-navigation [data-desktop-party]").forEach((button) => {
     button.onclick = (event) => {
       event.preventDefault();
       event.stopPropagation();
-      navigateTo(String(button.dataset.desktopRoute || ""));
+      if (button.hasAttribute("data-desktop-party")) {
+        openWatchPartyDialog();
+      } else {
+        navigateTo(String(button.dataset.desktopRoute || ""));
+      }
     };
   });
 }

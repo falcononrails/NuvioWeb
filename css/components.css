@@ -1912,6 +1912,60 @@ button:focus-visible {
   min-width: 0;
 }
 
+.nuvio-dialog-panel.watch-party-dialog-panel {
+  width: min(480px, 94vw);
+  max-height: 90dvh;
+  padding: clamp(16px, 4vw, 28px);
+  gap: 16px;
+  overflow-y: auto;
+}
+
+@media (min-width: 760px) {
+  .nuvio-dialog-backdrop.nuvio-dialog-backdrop-enter:has(> .watch-party-player-panel) {
+    justify-content: flex-end;
+    padding-inline: 24px;
+    background: transparent;
+    backdrop-filter: none;
+  }
+}
+
+.watch-party-chat {
+  margin-top: 16px;
+}
+
+.watch-party-chat h3 {
+  margin: 0 0 8px;
+}
+
+.watch-party-chat-log {
+  min-height: 48px;
+  max-height: min(28dvh, 240px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.watch-party-chat-log p {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.watch-party-chat-compose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.watch-party-chat-compose input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.watch-party-chat-compose button,
+.watch-party-actions .nuvio-dialog-button {
+  width: auto;
+}
+
 .watch-party-code {
   display: block;
   box-sizing: border-box;
@@ -1926,7 +1980,9 @@ button:focus-visible {
 }
 
 .nuvio-dialog-actions.watch-party-actions {
+  flex-direction: row;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .watch-party-dialog-content [hidden] {

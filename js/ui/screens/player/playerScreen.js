@@ -8793,6 +8793,10 @@ export const PlayerScreen = {
       });
     }
 
+    if (this.canOpenWatchParty()) {
+      base.push({ action: "watchParty", icon: "assets/icons/ic_player_party.svg", useMask: true, title: "Watch Party" });
+    }
+
     base.push({
       action: "more",
       icon: "assets/icons/ic_player_more.svg",
@@ -8817,9 +8821,6 @@ export const PlayerScreen = {
               title: t("player_playback_speed", {}, "Playback speed")
             }
           ]
-        : []),
-      ...(this.canOpenWatchParty()
-        ? [{ action: "watchParty", icon: "assets/icons/ic_player_party.svg", useMask: true, title: "Watch party" }]
         : []),
       {
         action: "aspect",
@@ -8882,11 +8883,6 @@ export const PlayerScreen = {
               </button>`
             : ""
         }
-        ${this.canOpenWatchParty() ? `
-          <button class="player-mobile-more-action player-control-btn" type="button" tabindex="-1" data-action="watchParty">
-            <span class="player-control-icon player-control-icon-mask" style="-webkit-mask-image:url('assets/icons/ic_player_party.svg');mask-image:url('assets/icons/ic_player_party.svg');" aria-hidden="true"></span>
-            <span>Watch party</span>
-          </button>` : ""}
         <button class="player-mobile-more-action player-control-btn" type="button" tabindex="-1" data-action="aspect" title="${escapeHtml(t("player_more_aspect_ratio", {}, "Aspect Ratio"))}">
           <span class="player-control-icon player-control-icon-mask" style="-webkit-mask-image:url('assets/icons/ic_player_aspect_ratio.svg');mask-image:url('assets/icons/ic_player_aspect_ratio.svg');" aria-hidden="true"></span>
           <span>${escapeHtml(t("player_more_aspect_ratio", {}, "Aspect Ratio"))}</span>
@@ -9102,6 +9098,7 @@ export const PlayerScreen = {
 
   isDialogOpen() {
     return (
+      Boolean(this.watchPartyDialog) ||
       this.subtitleDialogVisible ||
       this.audioDialogVisible ||
       this.sourcesPanelVisible ||
@@ -15923,19 +15920,23 @@ export const PlayerScreen = {
   },
 
   canOpenWatchParty() {
-    return AuthManager.isAuthenticated && Boolean(playerPartyMedia(this.params));
+    return AuthManager.isAuthenticated;
   },
 
   performControlAction(action) {
     if (action === "watchParty" && this.canOpenWatchParty() && !this.watchPartyDialog) {
       this.watchPartyDialog = openWatchPartyDialog({
+        inPlayer: true,
         media: playerPartyMedia(this.params),
         onHosted: () => PartyRepository.publishPlayback(
           Boolean(PlayerController.video?.paused),
           PlayerController.getCurrentTimeSeconds() * 1000,
           PlayerController.getPlaybackRate()
         ),
-        onClose: () => { this.watchPartyDialog = null; }
+        onClose: () => {
+          this.watchPartyDialog = null;
+          this.resetControlsAutoHide();
+        }
       });
       return;
     }
@@ -16725,6 +16726,7 @@ export const PlayerScreen = {
   },
 
   async onKeyDown(event) {
+    if (this.watchPartyDialog) return false;
     if (Environment.isBrowser()) {
       return this.handleBrowserKeyDown(event);
     }

@@ -1,5 +1,5 @@
 import { AuthManager } from "../../../core/auth/authManager.js";
-import { PartyRepository } from "../../../core/party/partyRepository.js";
+import { PARTY_CHAT_MAX_LENGTH, PartyRepository } from "../../../core/party/partyRepository.js";
 import { formatPartyCode, isPartyHost, isValidPartyCode, normalizePartyCode, PartyError } from "../../../core/party/partyModels.js";
 import { Router } from "../../navigation/router.js";
 import { NuvioDialog } from "../../components/nuvioDialog.js";
@@ -56,7 +56,8 @@ export function openPartyMedia(media) {
   return Router.navigate("stream", params, replacingPlayer ? { replaceHistory: true, skipStackPush: true } : {});
 }
 
-export function openWatchPartyDialog({ media = null, onHosted = null, onClose = null } = {}) {
+export function openWatchPartyDialog({ media = null, inPlayer = false, onHosted = null, onClose = null } = {}) {
+  const opener = document.activeElement;
   const content = document.createElement("div");
   content.className = "watch-party-dialog-content";
   content.innerHTML = `
@@ -73,15 +74,82 @@ export function openWatchPartyDialog({ media = null, onHosted = null, onClose = 
       <button type="button" class="nuvio-dialog-button" data-party-source>Choose source</button>
       <button type="button" class="nuvio-dialog-button" data-party-copy>Copy code</button>
       <button type="button" class="nuvio-dialog-button" data-party-leave>Leave party</button>
-    </div>`;
+    </div>
+    ${inPlayer ? `<section class="watch-party-chat" aria-label="Party chat" hidden>
+      <h3>Party chat</h3>
+      <div class="watch-party-chat-log" role="log" aria-label="Messages" tabindex="0"></div>
+      <p class="nuvio-dialog-subtitle" data-chat-status role="status"></p>
+      <form class="watch-party-chat-compose">
+        <input class="watch-party-code" type="text" aria-label="Message" placeholder="Write a message"
+          maxlength="${PARTY_CHAT_MAX_LENGTH}" autocomplete="off" required>
+        <button type="submit" class="nuvio-dialog-button">Send</button>
+      </form>
+    </section>` : ""}`;
   const status = content.querySelector("[data-party-status]");
   const form = content.querySelector("[data-party-join]");
   const input = form.querySelector("input");
   const room = content.querySelector("[data-party-room]");
   const source = content.querySelector("[data-party-source]");
   const leave = content.querySelector("[data-party-leave]");
+  const chat = content.querySelector(".watch-party-chat");
+  const chatLog = chat?.querySelector('[role="log"]');
+  const chatStatus = chat?.querySelector("[data-chat-status]");
+  const chatForm = chat?.querySelector("form");
+  const chatInput = chatForm?.querySelector("input");
+  const send = chatForm?.querySelector("button");
+  let chatRoomId = null;
+  let renderedMessages = null;
+  let pendingMessage = null;
+  let sending = false;
+  let sendFailed = false;
   let busy = false;
   let closed = false;
+
+  function refreshChat() {
+    const { party } = PartyRepository.getState();
+    const roomId = party?.id ?? null;
+    if (roomId !== chatRoomId) {
+      chatRoomId = roomId;
+      chatInput.value = "";
+      pendingMessage = null;
+      sending = false;
+      sendFailed = false;
+    }
+    chat.hidden = !party;
+    const { messages, loading, error } = PartyRepository.getChat();
+    chatInput.readOnly = sending;
+    send.disabled = busy || sending;
+    if (messages !== renderedMessages) {
+      renderedMessages = messages;
+      const atBottom = chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight < 32;
+      const next = new Set(messages.map((message) => String(message.id)));
+      const existing = new Map(Array.from(chatLog.children, (row) => [row.dataset.messageId, row]));
+      for (const [id, row] of existing) {
+        if (!next.has(id)) row.remove();
+      }
+      let previous = null;
+      for (const message of messages) {
+        const id = String(message.id);
+        let row = existing.get(id);
+        if (!row) {
+          row = document.createElement("p");
+          row.dataset.messageId = id;
+          const author = document.createElement("strong");
+          author.textContent = message.name;
+          row.append(author, ` ${message.body}`);
+          chatLog.insertBefore(row, previous ? previous.nextSibling : chatLog.firstChild);
+        }
+        previous = row;
+      }
+      if (atBottom) chatLog.scrollTop = chatLog.scrollHeight;
+    }
+    const nextStatus = sendFailed
+      ? "Message could not be sent. Press Send to retry."
+      : error ? "Chat history could not load."
+      : loading && !messages.length ? "Loading chat…"
+      : !messages.length ? "No messages yet." : "";
+    if (chatStatus.textContent !== nextStatus) chatStatus.textContent = nextStatus;
+  }
 
   function refresh() {
     if (closed) return;
@@ -91,6 +159,7 @@ export function openWatchPartyDialog({ media = null, onHosted = null, onClose = 
     source.hidden = !partyStreamParams(party?.media);
     leave.textContent = isPartyHost(party) ? "End party" : "Leave party";
     for (const button of content.querySelectorAll("button")) button.disabled = busy;
+    if (chat) refreshChat();
     if (party) {
       const count = party.members.length;
       const title = party.media?.title ? ` · ${party.media.title}` : "";
@@ -127,20 +196,49 @@ export function openWatchPartyDialog({ media = null, onHosted = null, onClose = 
   const dialog = new NuvioDialog({
     title: "Watch party",
     content,
+    widthVw: 94,
+    panelClassName: inPlayer ? "watch-party-dialog-panel watch-party-player-panel" : "watch-party-dialog-panel",
     onDismiss: close,
     buttons: [{ label: "Close", key: "close", onAction: close }]
   }).mount(document.fullscreenElement || document.body);
   const unsubscribe = PartyRepository.subscribeState(refresh);
+  const unsubscribeChat = chat && PartyRepository.subscribeChat(refreshChat);
 
   function close() {
     if (closed) return;
     closed = true;
     unsubscribe();
+    unsubscribeChat?.();
     dialog.destroy();
     onClose?.();
+    if (opener?.isConnected) opener.focus({ preventScroll: true });
   }
 
   refresh();
+  if (!form.hidden) input.focus({ preventScroll: true });
+  if (chatRoomId) void PartyRepository.refreshChat();
+  chatForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text || busy || sending || !chatRoomId) return;
+    if (pendingMessage?.text !== text) {
+      pendingMessage = { text, id: crypto.randomUUID().replaceAll("-", "").slice(0, 20) };
+    }
+    const message = pendingMessage;
+    sending = true;
+    sendFailed = false;
+    refreshChat();
+    const sent = await PartyRepository.sendChat(text, message.id);
+    if (closed || pendingMessage !== message) return;
+    sending = false;
+    sendFailed = !sent;
+    if (sent) {
+      chatInput.value = "";
+      pendingMessage = null;
+    }
+    refreshChat();
+    chatInput.focus({ preventScroll: true });
+  });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const code = partyCodeFromInput(input.value);

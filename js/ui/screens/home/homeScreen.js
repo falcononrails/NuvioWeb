@@ -5093,7 +5093,7 @@ export const HomeScreen = {
     if (!item?.contentId) {
       return false;
     }
-    this.openContinueWatchingFromItem(item);
+    this.activateContinueWatchingCard(item);
     return true;
   },
 
@@ -5127,9 +5127,17 @@ export const HomeScreen = {
         return;
       }
       this.rememberReturnFocusForNode(current);
-      this.openContinueWatchingFromItem(focusedItem);
+      this.activateContinueWatchingCard(focusedItem);
     }, CW_ENTER_DELAY_MS);
     return true;
+  },
+
+  activateContinueWatchingCard(item) {
+    const action = LayoutPreferences.get().continueWatchingClickAction;
+    if (action === "details" || (action === "details_for_upcoming" && item?.isNextUp && item.hasAired === false)) {
+      return this.openContinueWatchingDetails(item);
+    }
+    return this.openContinueWatchingFromItem(item);
   },
 
   openContinueWatchingFromItem(item, options = {}) {
@@ -5534,7 +5542,7 @@ export const HomeScreen = {
   openContinueWatchingFromNode(node) {
     const item = this.getContinueWatchingItemFromNode(node);
     this.rememberReturnFocusForNode(node);
-    this.openContinueWatchingFromItem(item);
+    this.activateContinueWatchingCard(item);
   },
 
   scheduleModernHeroUpdate(node) {

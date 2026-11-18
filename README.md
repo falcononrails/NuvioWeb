@@ -15,7 +15,7 @@ The site runs the `nightly` branch. Passing builds deploy automatically, so fixe
 - UI, icons and player controls adapted toward NuvioDesktop, with responsive layouts and mobile navigation.
 - Posters/Text season picker and a release Calendar in Library. Artwork and release dates depend on the metadata your addons provide.
 - Fixes for animated collection backdrops, browser playback and audio controls.
-- Watch Party uses Nuvio rooms. Start a room from the browser player's More menu, or join from Settings → Account. Each participant picks their own source for the movie or episode.
+- Open **Watch Party** from the main navigation to join with a room code or Nuvio invite link. Use **Watch Party** in the player controls to start a room, join, or chat during playback. Each participant picks their own source.
 - Local AC3, EAC3 and DTS audio decoding with AVPlayer when native playback cannot handle the source. It loads on demand and keeps the existing player controls.
 - Embedded text subtitles through the playback service, with language selection, delay controls and seek-aware timing. Image subtitle formats still need an external player or a subtitle addon.
 - An open-source [playback service](services/playback-bridge) for files whose audio the browser cannot play. It copies supported video and converts the selected audio track to AAC, starting automatically when needed.

@@ -46,7 +46,8 @@ const DEFAULTS = {
   blurContinueWatchingNextUp: false,
   showUnairedNextUp: true,
   nextUpFromFurthestEpisode: true,
-  continueWatchingSortMode: "default"
+  continueWatchingSortMode: "default",
+  continueWatchingClickAction: "stream"
 };
 
 function normalizeContinueWatchingSortMode(value) {
@@ -131,6 +132,9 @@ function normalizeLayoutPreferences(value = {}) {
     showUnairedNextUp: merged.showUnairedNextUp !== false,
     nextUpFromFurthestEpisode: merged.nextUpFromFurthestEpisode !== false,
     continueWatchingSortMode: normalizeContinueWatchingSortMode(merged.continueWatchingSortMode),
+    continueWatchingClickAction: ["details", "details_for_upcoming"].includes(merged.continueWatchingClickAction)
+      ? merged.continueWatchingClickAction
+      : "stream",
     collapseSidebar: modernSidebar ? false : Boolean(merged.collapseSidebar),
     modernSidebar,
     modernSidebarBlur: modernSidebar

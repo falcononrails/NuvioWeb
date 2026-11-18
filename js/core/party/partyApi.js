@@ -94,6 +94,19 @@ export const PartyApi = {
     });
   },
 
+  listMessages(partyId, deviceId) {
+    return rpc("watch_party_list_messages", { p_party_id: partyId, p_device_id: deviceId });
+  },
+
+  sendMessage(partyId, deviceId, body, clientId) {
+    return rpc("watch_party_send_message", {
+      p_party_id: partyId,
+      p_device_id: deviceId,
+      p_body: body,
+      p_client_id: clientId
+    });
+  },
+
   async clock() {
     const value = Number(await rpc("watch_party_clock"));
     if (!Number.isFinite(value)) throw new Error("Invalid watch party clock");
