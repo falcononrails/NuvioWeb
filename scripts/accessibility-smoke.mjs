@@ -28,6 +28,8 @@ import { SearchScreen as search } from './js/ui/screens/search/searchScreen.js';
 import { StreamScreen } from './js/ui/screens/stream/streamScreen.js';
 import { libraryRepository } from './js/data/repository/libraryRepository.js';
 import { ProfileManager } from './js/core/profile/profileManager.js';
+import { ProfileSelectionScreen } from './js/core/profile/profileSelectionScreen.js';
+import { ProfileSyncService } from './js/core/profile/profileSyncService.js';
 await I18n.init(); ThemeManager.apply();
 addonRepository.getInstalledAddons = async () => [];
 ProfileManager.getProfiles=async()=>[];
@@ -71,6 +73,23 @@ window.showTextDialog = async () => {
 window.showAuth = () => {
   clearScreen('account'); AuthSignInScreen.container=app; current=AuthSignInScreen;
   AuthSignInScreen.render();
+};
+window.showProfilePin = () => {
+  clearScreen('profileSelection');
+  const profile = { id: '1', name: 'Test profile', avatarColorHex: '#333333' };
+  const screen = Object.create(ProfileSelectionScreen);
+  window.pinAttempts = [];
+  ProfileSyncService.verifyProfilePin = async (_id, pin) => {
+    window.pinAttempts.push(pin);
+    return { unlocked: pin === '0123', retryAfterSeconds: 0 };
+  };
+  Object.assign(screen, {
+    container: app, profiles: [profile], activeProfileId: profile.id, profilePinEnabled: { '1': true },
+    activateProfile: async () => { window.pinUnlocked = true; }
+  });
+  window.pinUnlocked = false;
+  current = screen;
+  screen.openPinOverlay('unlock', profile);
 };
 const episodes=[1,2,3].map(season=>({id:'fixture:'+season+':1',season,episode:1,title:'Episode one',overview:'Episode description',released:'2026-09-19'}));
 const meta={id:'fixture',type:'series',name:'Synthetic series',description:'Local metadata.',videos:episodes};
@@ -172,6 +191,19 @@ const audit=async (name,targetPage=page)=>{
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>window.ready);
   await page.evaluate(()=>document.fonts.ready);
+  const pinInput = page.locator('[data-role="native-pin-input"]');
+  await page.evaluate(() => window.showProfilePin());
+  await page.locator('.profile-pin-layer.is-open').waitFor();
+  await focused('[data-role="native-pin-input"]');
+  await page.keyboard.insertText('0123');
+  assert.deepEqual(await page.evaluate(() => window.pinAttempts), ['0123'], 'Paste submits one complete PIN');
+  assert.equal(await page.evaluate(() => window.pinUnlocked), true);
+  await page.evaluate(() => window.showProfilePin());
+  await page.locator('.profile-pin-layer.is-open').waitFor();
+  await pinInput.pressSequentially('0123');
+  assert.deepEqual(await page.evaluate(() => window.pinAttempts), ['0123'], 'Typing submits the same PIN in order');
+  assert.equal(await page.evaluate(() => window.pinUnlocked), true);
+  await page.evaluate(() => { document.querySelector('#profileSelection').id = 'test'; window.showControls(); });
   await page.locator('[data-desktop-route="home"]').focus();
   await page.keyboard.press('ArrowRight');await focused('[data-desktop-route="search"]');
   assert.equal(await page.evaluate(()=>window.activatedRoute),undefined);

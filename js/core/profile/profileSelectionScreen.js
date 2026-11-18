@@ -518,6 +518,13 @@ export const ProfileSelectionScreen = {
   },
 
   render() {
+    const activeInput = this.container.ownerDocument?.activeElement;
+    // Replacing a focused password field resets Chromium's caret to the start.
+    const pinSelection =
+      activeInput?.matches("[data-role='native-pin-input']") &&
+      this.container.contains(activeInput)
+        ? [activeInput.selectionStart, activeInput.selectionEnd, activeInput.selectionDirection]
+        : null;
     const visibleProfiles = this.getVisibleProfiles();
     const isDesktopBrowser = true;
     const canAddProfile = visibleProfiles.length < MAX_PROFILES;
@@ -601,14 +608,18 @@ export const ProfileSelectionScreen = {
       }
     }
     this.restoreFocus();
-    this.focusNativePinInput();
+    this.focusNativePinInput(pinSelection);
   },
 
-  focusNativePinInput() {
+  focusNativePinInput(selection) {
     if (this.isPinOperationInProgress) {
       return;
     }
-    this.container?.querySelector("[data-role='native-pin-input']")?.focus();
+    const input = this.container?.querySelector("[data-role='native-pin-input']");
+    input?.focus();
+    if (selection) {
+      input?.setSelectionRange(...selection);
+    }
   },
 
   renderProfileCard(profile) {
