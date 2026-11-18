@@ -1,5 +1,7 @@
 # NuvioWeb
 
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/falcononrails/donate)
+
 [Open nuvioweb.space](https://nuvioweb.space/) · [Report a bug](https://github.com/falcononrails/NuvioWeb/issues)
 
 My browser fork of [alphasquare404/NuvioWeb](https://github.com/alphasquare404/NuvioWeb), with selected mobile improvements from [NurvX/NuvioWeb](https://github.com/NurvX/NuvioWeb). Maintained by [falcononrails](https://github.com/falcononrails). This is a community project, independent of the official Nuvio apps.
